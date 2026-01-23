@@ -38,7 +38,6 @@ import { ValidationError, WalletError, CryptoError } from '../errors';
 import type { Readable } from 'stream';
 import path from 'path';
 import * as os from 'os';
-// import { generateKeys } from '../client/rgb-lib-client';
 
 /**
  * Restore wallet from backup
@@ -104,14 +103,15 @@ export type WalletInitParams = {
  * 
  * @example
  * ```typescript
- * const keys = await createWallet('testnet');
+ * const keys = generateKeys('testnet');
  * const wallet = new WalletManager({
- *   xpubVan: keys.account_xpub_vanilla,
- *   xpubCol: keys.account_xpub_colored,
- *   rgb_node_endpoint: 'http://127.0.0.1:8000',
+ *   xpubVan: keys.accountXpubVanilla,
+ *   xpubCol: keys.accountXpubColored,
+ *   masterFingerprint: keys.masterFingerprint,
  *   mnemonic: keys.mnemonic,
  *   network: 'testnet',
- *   masterFingerprint: keys.master_fingerprint
+ *   transportEndpoint: 'rpcs://proxy.iriswallet.com/0.2/json-rpc',
+ *   indexerUrl: 'ssl://electrum.iriswallet.com:50013'
  * });
  * 
  * const balance = await wallet.getBtcBalance();
@@ -434,10 +434,15 @@ export class WalletManager {
  * 
  * @example
  * ```typescript
- * const keys = await createWallet();
+ * const keys = generateKeys('testnet');
  * const wallet = createWalletManager({
- *   ...keys,
- *   rgb_node_endpoint: 'http://127.0.0.1:8000'
+ *   xpubVan: keys.accountXpubVanilla,
+ *   xpubCol: keys.accountXpubColored,
+ *   masterFingerprint: keys.masterFingerprint,
+ *   mnemonic: keys.mnemonic,
+ *   network: 'testnet',
+ *   transportEndpoint: 'rpcs://proxy.iriswallet.com/0.2/json-rpc',
+ *   indexerUrl: 'ssl://electrum.iriswallet.com:50013'
  * });
  * ```
  */
@@ -456,7 +461,7 @@ export const wallet = new Proxy({} as WalletManager, {
       throw new WalletError(
         'The legacy singleton wallet instance is deprecated. ' +
         'Please use `new WalletManager(params)` or `createWalletManager(params)` instead. ' +
-        'Example: const wallet = new WalletManager({ xpubVan, xpubCol, rgb_node_endpoint, masterFingerprint })'
+        'Example: const wallet = new WalletManager({ xpubVan, xpubCol, masterFingerprint, network, transportEndpoint, indexerUrl })'
       );
     }
     const value = (_wallet as any)[prop];

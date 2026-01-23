@@ -338,8 +338,8 @@ export class RGBLibClient {
     }
     return result;
     }catch(error) {
-      console.warn('rgb-lib estimation fee are not available, using default fee rate 4');
-     return 4 as GetFeeEstimationResponse; // return default fee rate 4 when lib estimation fee error
+      console.warn('rgb-lib estimation fee are not available, using default fee rate 2');
+     return 2 as GetFeeEstimationResponse; // return default fee rate 4 when lib estimation fee error
     }
     
    
@@ -410,14 +410,11 @@ export class RGBLibClient {
    decodeRGBInvoice(params: { invoice: string }): DecodeRgbInvoiceResponse{
     const invoiceString = params.invoice;
     
-    // Create Invoice instance from rgb-lib
     const invoice = new rgblib.Invoice(invoiceString);
     
     try {
-      // Get decoded invoice data (already in camelCase from rgb-lib)
       return invoice.invoiceData();
     } finally {
-      // Clean up invoice resource
       invoice.drop();
     }
   }
@@ -494,17 +491,6 @@ export class RGBLibClient {
       backupPath: fullBackupPath,
     };
   }
-
-  // downloadBackup(backupId?: string): ArrayBuffer | Buffer {
-  //   const backupPath = backupId || path.join(this.dataDir, `${this.masterFingerprint}.backup`);
-    
-  //   if (!fs.existsSync(backupPath)) {
-  //     throw new ValidationError('Backup file not found', 'backup');
-  //   }
-
-  //   return fs.readFileSync(backupPath);
-  // }
-
   /**
    * Cleanup resources
    */
