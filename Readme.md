@@ -1,9 +1,9 @@
 
 # RGB SDK v2  Overview
 
-This is the underlying SDK used by RGB client applications. It provides a complete set of TypeScript/Node.js bindings for managing RGB-based transfers using **rgb-lib** directly, without requiring an RGB Node server.
+This is the underlying SDK used by RGB client applications. It provides a complete set of TypeScript/Node.js bindings for managing RGB-based transfers using **rgb-protocol libraries**
 
-> **RGB Protocol**: This SDK uses the [`rgb-lib`](https://github.com/RGB-Tools/rgb-lib) binding library to interact with the RGB protocol directly. All operations are performed locally, providing full control over wallet data and operations.
+> **RGB Protocol**: This SDK uses the [`rgb-lib`](https://github.com/RGB-Tools/rgb-lib) binding library to interact with the RGB protocol. All operations are performed locally, providing full control over wallet data and operations.
 >
 > **Migrating from v1?** If you're upgrading from RGB SDK v1 (using RGB Node server), see the [Migration Guide](./MIGRATION.md) for step-by-step instructions on moving your wallet state to local storage.
 
@@ -82,7 +82,7 @@ This pattern enables advanced use cases, such as:
 
 ### Prerequisites
 
-This SDK uses `rgb-lib` directly and does not require an RGB Node server. All operations are performed locally.
+This SDK uses `rgb-protocol libraries`. All operations are performed locally.
 
 ### Default Endpoints
 
