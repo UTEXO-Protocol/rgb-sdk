@@ -1,21 +1,21 @@
-# Migration Guide: RGB SDK v1 to v2
+# Migration Guide: rgb-sdk to @utexo/rgb-sdk
 
-This guide explains how to migrate your RGB wallet state from RGB SDK v1 (using RGB Node server) to v2 (using local `rgb-lib`).
+This guide explains how to migrate from the `rgb-sdk` package to `@utexo/rgb-sdk`. The new package uses local `rgb-lib` instead of requiring an RGB Node server.
 
 ## Overview
 
-RGB SDK v2 uses `rgb-lib` directly, eliminating the need for an RGB Node server. All wallet data is now stored locally. To migrate, you need to:
+`@utexo/rgb-sdk` uses `rgb-lib` directly, eliminating the need for an RGB Node server. All wallet data is now stored locally. To migrate, you need to:
 
-1. Create a backup of your wallet state in v1
-2. Restore the backup in v2 to a local directory
-3. Initialize your wallet in v2 pointing to the restored directory
+1. Create a backup of your wallet state using `rgb-sdk`
+2. Restore the backup using `@utexo/rgb-sdk` to a local directory
+3. Initialize your wallet in `@utexo/rgb-sdk` pointing to the restored directory
 
-## Step 1: Backup Wallet State in v1
+## Step 1: Backup Wallet State
 
-First, create a backup of your wallet state using RGB SDK v1:
+First, create a backup of your wallet state using `rgb-sdk`:
 
 ```javascript
-const { WalletManager } = require('rgb-sdk@^1.0.0');
+const { WalletManager } = require('rgb-sdk');
 
 const wallet = new WalletManager({
     xpub_van: keys.account_xpub_vanilla,
@@ -61,12 +61,12 @@ https.get(backupResponse.download_url, (response) => {
 
 **Important**: Save the backup file securely.
 
-## Step 2: Restore Wallet in v2
+## Step 2: Restore Wallet
 
-Restore the backup using RGB SDK v2:
+Restore the backup using `@utexo/rgb-sdk`:
 
 ```javascript
-const { WalletManager, restoreFromBackup } = require('rgb-sdk@^2.0.0');
+const { WalletManager, restoreFromBackup } = require('@utexo/rgb-sdk');
 const path = require('path');
 
 const backupFilePath = './data/wallet.backup';
@@ -90,7 +90,7 @@ const responseMsg = restoreFromBackup({
 console.log(responseMsg.message);
 ```
 
-## Step 3: Initialize Wallet in v2
+## Step 3: Initialize Wallet
 
 After restoring, create your wallet instance pointing to the restored directory:
 
@@ -119,21 +119,21 @@ console.log('Wallet address:', address);
 Here's a complete example showing the full migration process:
 
 ```javascript
-const { WalletManager, restoreFromBackup } = require('rgb-sdk');
+const { WalletManager, restoreFromBackup } = require('@utexo/rgb-sdk');
 const fs = require('fs');
 const path = require('path');
 const https = require('https');
 
-async function migrateFromV1ToV2() {
+async function migrateFromRgbSdkToUtexo() {
     // ============================================
-    // STEP 1: Backup in v1 (run this first)
+    // STEP 1: Backup using rgb-sdk (run this first)
     // ============================================
-    console.log('Step 1: Creating backup in v1...');
+    console.log('Step 1: Creating backup using rgb-sdk...');
     
-    // Use v1 SDK for this step
-    const { WalletManager: WalletManagerV1 } = require('rgb-sdk@^1.0.0');
+    // Use rgb-sdk for this step
+    const { WalletManager: WalletManagerOld } = require('rgb-sdk');
     
-    const walletV1 = new WalletManagerV1({
+    const walletOld = new WalletManagerOld({
         xpub_van: keys.account_xpub_vanilla,
         xpub_col: keys.account_xpub_colored,
         master_fingerprint: keys.master_fingerprint,
@@ -143,7 +143,7 @@ async function migrateFromV1ToV2() {
     });
     
     const backupPassword = 'rgb-demo-password';
-    const backupResponse = await walletV1.createBackup(backupPassword);
+    const backupResponse = await walletOld.createBackup(backupPassword);
     
     // Save backup file
     const backupDir = './data';
@@ -168,9 +168,9 @@ async function migrateFromV1ToV2() {
     console.log('Backup saved to:', backupFilePath);
     
     // ============================================
-    // STEP 2: Restore in v2
+    // STEP 2: Restore using @utexo/rgb-sdk
     // ============================================
-    console.log('Step 2: Restoring backup in v2...');
+    console.log('Step 2: Restoring backup using @utexo/rgb-sdk...');
     
     const dataDir = path.resolve('./restored-wallet');
     if (!fs.existsSync(dataDir)) {
@@ -186,11 +186,11 @@ async function migrateFromV1ToV2() {
     console.log('Wallet restored to:', dataDir);
     
     // ============================================
-    // STEP 3: Initialize wallet in v2
+    // STEP 3: Initialize wallet using @utexo/rgb-sdk
     // ============================================
-    console.log('Step 3: Initializing wallet in v2...');
+    console.log('Step 3: Initializing wallet using @utexo/rgb-sdk...');
     
-    const walletV2 = new WalletManager({
+    const wallet = new WalletManager({
         xpubVan: keys.accountXpubVanilla,
         xpubCol: keys.accountXpubColored,
         masterFingerprint: keys.masterFingerprint,
@@ -201,44 +201,46 @@ async function migrateFromV1ToV2() {
         indexerUrl: 'ssl://electrum.iriswallet.com:50013'
     });
     
-    // Register wallet (synchronous in v2)
-    const { address, btcBalance } = walletV2.registerWallet();
+    // Register wallet (synchronous)
+    const { address, btcBalance } = wallet.registerWallet();
     console.log('Wallet address:', address);
     console.log('BTC Balance:', btcBalance);
     
-    // List assets (synchronous in v2)
-    const assets = walletV2.listAssets();
+    // List assets (synchronous)
+    const assets = wallet.listAssets();
     console.log('Assets:', assets);
     
     console.log('Migration complete! Your RGB state is now stored locally.');
 }
 
-migrateFromV1ToV2().catch(console.error);
+migrateFromRgbSdkToUtexo().catch(console.error);
 ```
 
 ## Key Changes Summary
 
 ### Breaking Changes
 
-1. **Property Names**: Changed from `snake_case` to `camelCase`:
+1. **Package Name**: Changed from `rgb-sdk` to `@utexo/rgb-sdk`
+
+2. **Property Names**: Changed from `snake_case` to `camelCase`:
    - `xpub_van` → `xpubVan`
    - `xpub_col` → `xpubCol`
    - `master_fingerprint` → `masterFingerprint`
    - `rgb_node_endpoint` → removed (no longer needed)
 
-2. **Method Signatures**: Many methods are now synchronous:
+3. **Method Signatures**: Many methods are now synchronous:
    - `registerWallet()` - no longer async
    - `getBtcBalance()` - no longer async
    - `listAssets()` - no longer async
    - `listTransactions()` - no longer async
    - `listTransfers()` - no longer async
 
-3. **Backup/Restore**:
+4. **Backup/Restore**:
    - `createBackup()` now requires `backupPath` parameter
    - `restoreFromBackup()` is now a top-level function (must be called before creating wallet)
    - Backup filename automatically includes master fingerprint
 
-4. **New Required Parameters**:
+5. **New Required Parameters**:
    - `transportEndpoint` - RGB transport endpoint
    - `indexerUrl` - Bitcoin indexer URL
    - `dataDir` - Local directory for wallet data (optional, defaults to temp directory)
@@ -252,7 +254,7 @@ migrateFromV1ToV2().catch(console.error);
 ## Troubleshooting
 
 ### Backup file not found
-- Ensure you've downloaded the backup file from the `download_url` in v1
+- Ensure you've downloaded the backup file from the `download_url` when using `rgb-sdk`
 - Verify the file path is correct
 
 ### Restore directory doesn't exist

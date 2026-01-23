@@ -20,7 +20,7 @@ With this SDK, developers can:
 
 ---
 
-## ⚙️ Capabilities of `rgb-sdk` (via `WalletManager`)
+## ⚙️ Capabilities of `@utexo/rgb-sdk` (via `WalletManager`)
 
 | Method | Description |
 |--------|-------------|
@@ -105,7 +105,7 @@ These defaults can be overridden by providing `transportEndpoint` and `indexerUr
 ### Installation
 
 ```bash
-npm install rgb-sdk
+npm install @utexo/rgb-sdk
 ```
 
 ### Browser Compatibility
@@ -187,7 +187,7 @@ Use dynamic import to ensure WASM modules load correctly in browser environments
 
 ```javascript
 // Dynamic import ensures the WASM/glue load together
-const sdk = await import('rgb-sdk');
+const sdk = await import('@utexo/rgb-sdk');
 
 const { WalletManager, generateKeys } = sdk;
 
@@ -217,7 +217,7 @@ node --experimental-wasm-modules your-script.js
 ### Basic Usage
 
 ```javascript
-const { WalletManager, generateKeys } = require('rgb-sdk');
+const { WalletManager, generateKeys } = require('@utexo/rgb-sdk');
 
 // 1. Generate wallet keys (synchronous)
 const keys = generateKeys('testnet');
@@ -252,7 +252,7 @@ console.log('BTC Balance:', balance);
 ### Wallet Initialization
 
 ```javascript
-const { WalletManager, generateKeys, restoreFromBackup } = require('rgb-sdk');
+const { WalletManager, generateKeys, restoreFromBackup } = require('@utexo/rgb-sdk');
 
 // Generate new wallet keys (synchronous)
 const keys = generateKeys('testnet');
@@ -389,7 +389,7 @@ const transfers = wallet.listTransfers(assetId);
 ## Setup wallet and issue asset
 
 ```javascript
-const { WalletManager, generateKeys } = require('rgb-sdk');
+const { WalletManager, generateKeys } = require('@utexo/rgb-sdk');
 
 async function demo() {
     // 1. Generate and initialize wallet
@@ -443,7 +443,7 @@ async function demo() {
 ### Key Management
 
 ```javascript
-const { generateKeys, deriveKeysFromMnemonic } = require('rgb-sdk');
+const { generateKeys, deriveKeysFromMnemonic } = require('@utexo/rgb-sdk');
 
 // Generate new wallet keys (synchronous)
 const keys = generateKeys('testnet');
@@ -474,7 +474,7 @@ const isValid = await verifyMessage({
 ### Backup and Restore
 
 ```javascript
-const { WalletManager, restoreFromBackup, generateKeys } = require('rgb-sdk');
+const { WalletManager, restoreFromBackup, generateKeys } = require('@utexo/rgb-sdk');
 
 // Create backup
 const keys = generateKeys('testnet');
