@@ -2,7 +2,7 @@ import axios from 'axios';
 import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { WalletManager, createWallet } from './dist/index.cjs';
+import { WalletManager, createWallet } from './dist/index.mjs';
 
 // Configuration
 const RGB_MANAGER_ENDPOINT = "http://127.0.0.1:8000";

@@ -50,7 +50,8 @@ import {
 import { ValidationError, WalletError, CryptoError } from '../errors';
 import { normalizeNetwork } from '../utils/validation';
 import type { Network } from '../crypto/types';
-import * as rgblib from 'rgb-lib';
+// Use default import for CommonJS compatibility in ESM
+import rgblib from 'rgb-lib';
 /**
  * Map network from client format to rgb-lib format
  */
