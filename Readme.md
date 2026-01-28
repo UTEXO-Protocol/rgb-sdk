@@ -5,7 +5,7 @@ This is the underlying SDK used by RGB client applications. It provides a comple
 ⚠️ **Security Notice**  
 If you're migrating from the legacy `rgb-sdk` (which relied on a remote RGB Node server), be aware that wallet metadata such as xpubs may have been exposed and this cannot be undone.
 
-If you're upgrading from `rgb-sdk` to `@utexo/rgb-sdk`, see the **[Migration Guide](./README.md#migration-guide-rgb-sdk--utexorgb-sdk)** for step-by-step instructions on moving your wallet state to local storage.
+If you're upgrading from `rgb-sdk` to `@utexo/rgb-sdk`, see the **[Migration Guide](./MIGRATION.md)** for step-by-step instructions on moving your wallet state to local storage.
 
 For full details on security implications and recommended actions, please read **[SECURITY.md](./SECURITY.md)**.
 
