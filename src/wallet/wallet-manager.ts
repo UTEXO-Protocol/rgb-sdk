@@ -1,4 +1,5 @@
 import { RGBLibClient, restoreWallet } from '../client/index';
+import axios from 'axios';
 import {
   CreateUtxosBeginRequestModel,
   CreateUtxosEndRequestModel,
@@ -28,7 +29,9 @@ import {
   InflateAssetIfaRequestModel,
   InflateEndRequestModel,
   OperationResult,
-  DecodeRgbInvoiceResponse
+  DecodeRgbInvoiceResponse,
+  OnchainReceiveRequest,
+  SingleUseDepositAddressResponse
 } from '../types/rgb-model';
 import { signPsbt, signPsbtFromSeed, signMessage as signSchnorrMessage, verifyMessage as verifySchnorrMessage, estimatePsbt } from '../crypto';
 import type { EstimateFeeResult, Network } from '../crypto';
@@ -91,6 +94,7 @@ export type WalletInitParams = {
   transportEndpoint?: string;
   indexerUrl?: string;
   dataDir?: string;
+  utexoApiBaseUrl?: string;
 }
 
 /**
@@ -128,6 +132,7 @@ export class WalletManager {
   private readonly masterFingerprint: string;
   private disposed: boolean = false;
   private readonly dataDir: string;
+  private readonly utexoApiBaseUrl: string | null;
   constructor(params: WalletInitParams) {
     if (!params.xpubVan) {
       throw new ValidationError('xpubVan is required', 'xpubVan');
@@ -149,6 +154,7 @@ export class WalletManager {
     this.xpub = params.xpub ?? null;
     this.masterFingerprint = params.masterFingerprint;
     this.dataDir = params.dataDir ?? path.join(os.tmpdir(), 'rgb-wallet', this.masterFingerprint);
+    this.utexoApiBaseUrl = params.utexoApiBaseUrl ?? null;
 
     this.client = new RGBLibClient({
       xpubVan: params.xpubVan,
@@ -294,6 +300,30 @@ export class WalletManager {
 
   public witnessReceive(params: InvoiceRequest): InvoiceReceiveData {
     return this.client.witnessReceive(params);
+  }
+
+  public async onchainReceive(params: OnchainReceiveRequest = {}): Promise<SingleUseDepositAddressResponse> {
+    this.ensureNotDisposed();
+    if (!this.utexoApiBaseUrl) {
+      throw new ValidationError('utexoApiBaseUrl is required for onchainReceive', 'utexoApiBaseUrl');
+    }
+    if (params.amount === undefined || !Number.isFinite(params.amount) || params.amount <= 0) {
+      throw new ValidationError('amount must be a positive number for onchainReceive', 'amount');
+    }
+    const destinationInvoice = this.client.blindReceive({
+      assetId: params.assetId ?? '',
+      amount: params.amount,
+      minConfirmations: params.minConfirmations,
+      durationSeconds: params.durationSeconds,
+    });
+
+    const endpoint = `${this.utexoApiBaseUrl.replace(/\/+$/, '')}/lightning/onchain-receive`;
+    const response = await axios.post<SingleUseDepositAddressResponse>(endpoint, {
+      destination_invoice: destinationInvoice.invoice,
+      asset_id: params.assetId,
+      amount: params.amount,
+    });
+    return response.data;
   }
 
   public issueAssetNia(params: IssueAssetNiaRequestModel): AssetNIA {
