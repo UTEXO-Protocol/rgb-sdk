@@ -1,5 +1,7 @@
 # @utexo/rgb-sdk Overview
 
+> **Beta notice:** This package is currently in beta. Please test thoroughly in development environments before using in production.
+
 This is the underlying SDK used by RGB client applications. It provides a complete set of TypeScript/Node.js bindings for managing RGB-based transfers using **rgb-protocol libraries**
 
 ⚠️ **Security Notice**  
