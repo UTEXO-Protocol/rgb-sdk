@@ -38,6 +38,24 @@ export interface InvoiceRequest {
   minConfirmations?: number;
   durationSeconds?: number;
 }
+export interface OnchainReceiveRequest {
+  assetId?: string;
+  amount?: number;
+  minConfirmations?: number;
+  durationSeconds?: number;
+  senderNetworkId?: number;
+  destinationNetworkId?: number;
+  senderAddress?: string;
+  tokenId?: number;
+  receiverInvoiceNetworkId?: number;
+}
+export interface SingleUseDepositAddressResponse {
+  invoice?: string;
+  address?: string;
+  asset_id?: string;
+  amount?: number | string;
+  [key: string]: unknown;
+}
 export interface Recipient {
   recipientId: string;
   witnessData?: WitnessData;

@@ -1,4 +1,5 @@
 import { RGBLibClient, restoreWallet } from '../client/index';
+import axios from 'axios';
 import {
   CreateUtxosBeginRequestModel,
   CreateUtxosEndRequestModel,
@@ -28,7 +29,9 @@ import {
   InflateAssetIfaRequestModel,
   InflateEndRequestModel,
   OperationResult,
-  DecodeRgbInvoiceResponse
+  DecodeRgbInvoiceResponse,
+  OnchainReceiveRequest,
+  SingleUseDepositAddressResponse
 } from '../types/rgb-model';
 import { signPsbt, signPsbtFromSeed, signMessage as signSchnorrMessage, verifyMessage as verifySchnorrMessage, estimatePsbt } from '../crypto';
 import type { EstimateFeeResult, Network } from '../crypto';
@@ -91,6 +94,7 @@ export type WalletInitParams = {
   transportEndpoint?: string;
   indexerUrl?: string;
   dataDir?: string;
+  utexoApiBaseUrl?: string;
 }
 
 /**
@@ -128,6 +132,7 @@ export class WalletManager {
   private readonly masterFingerprint: string;
   private disposed: boolean = false;
   private readonly dataDir: string;
+  private readonly utexoApiBaseUrl: string | null;
   constructor(params: WalletInitParams) {
     if (!params.xpubVan) {
       throw new ValidationError('xpubVan is required', 'xpubVan');
@@ -149,6 +154,7 @@ export class WalletManager {
     this.xpub = params.xpub ?? null;
     this.masterFingerprint = params.masterFingerprint;
     this.dataDir = params.dataDir ?? path.join(os.tmpdir(), 'rgb-wallet', this.masterFingerprint);
+    this.utexoApiBaseUrl = params.utexoApiBaseUrl ?? null;
 
     this.client = new RGBLibClient({
       xpubVan: params.xpubVan,
@@ -294,6 +300,64 @@ export class WalletManager {
 
   public witnessReceive(params: InvoiceRequest): InvoiceReceiveData {
     return this.client.witnessReceive(params);
+  }
+
+  public async onchainReceive(params: OnchainReceiveRequest = {}): Promise<SingleUseDepositAddressResponse> {
+    this.ensureNotDisposed();
+    if (!this.utexoApiBaseUrl) {
+      throw new ValidationError('utexoApiBaseUrl is required for onchainReceive', 'utexoApiBaseUrl');
+    }
+    if (params.amount === undefined || !Number.isFinite(params.amount) || params.amount <= 0) {
+      throw new ValidationError('amount must be a positive number for onchainReceive', 'amount');
+    }
+    if (params.senderNetworkId === undefined || !Number.isFinite(params.senderNetworkId)) {
+      throw new ValidationError('senderNetworkId is required for onchainReceive', 'senderNetworkId');
+    }
+    if (params.destinationNetworkId === undefined || !Number.isFinite(params.destinationNetworkId)) {
+      throw new ValidationError('destinationNetworkId is required for onchainReceive', 'destinationNetworkId');
+    }
+    if (!params.senderAddress) {
+      throw new ValidationError('senderAddress is required for onchainReceive', 'senderAddress');
+    }
+    if (params.tokenId === undefined || !Number.isFinite(params.tokenId)) {
+      throw new ValidationError('tokenId is required for onchainReceive', 'tokenId');
+    }
+
+    const destinationInvoice = this.client.blindReceive({
+      assetId: params.assetId ?? '',
+      amount: params.amount,
+      minConfirmations: params.minConfirmations,
+      durationSeconds: params.durationSeconds,
+    });
+
+    const baseUrl = this.utexoApiBaseUrl.replace(/\/+$/, '');
+    const bridgeInResponse = await axios.post<{ transferId: number }>(
+      `${baseUrl}/v1/utexo/bridge/bridge-in-signature`,
+      {
+        sender: {
+          networkId: params.senderNetworkId,
+          address: params.senderAddress,
+        },
+        tokenId: params.tokenId,
+        amount: String(params.amount),
+        destination: {
+          networkId: params.destinationNetworkId,
+          address: destinationInvoice.invoice,
+        },
+        additionalAddresses: [],
+      }
+    );
+
+    const receiverNetworkId = params.receiverInvoiceNetworkId ?? params.senderNetworkId;
+    const receiverInvoiceResponse = await axios.get<{ invoice: string }>(
+      `${baseUrl}/v1/utexo/bridge/receiver-invoice/${bridgeInResponse.data.transferId}/${receiverNetworkId}`
+    );
+
+    return {
+      invoice: receiverInvoiceResponse.data.invoice,
+      transferId: bridgeInResponse.data.transferId,
+      destinationInvoice: destinationInvoice.invoice,
+    };
   }
 
   public issueAssetNia(params: IssueAssetNiaRequestModel): AssetNIA {
