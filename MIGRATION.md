@@ -4,14 +4,14 @@ This guide explains how to migrate from the `rgb-sdk` package to `@utexo/rgb-sdk
 
 ## 🔐 Privacy Recommendation (Important)
 
-If you are migrating from @utexo/wdk-wallet-rgb v1, it is important to understand the privacy implications of the legacy architecture.
+If you are migrating from `rgb-sdk` to `@utexo/rgb-sdk` or from `@utexo/wdk-wallet-rgb v1` to `@utexo/wdk-wallet-rgb v2`, it is important to understand the privacy implications of the legacy architecture.
 
 Version 1 relied on an RGB Node server, which means that wallet metadata (such as extended public keys and transaction graph information) may have been exposed to the node operator. This exposure is permanent and cannot be reversed by upgrading software alone.
 
 ## Recommended approach (if privacy matters)
 
 If wallet privacy is important to you, we strongly recommend:
-Creating a brand new wallet with a new seed phrase in v2
+Creating a brand new wallet with a new seed phrase in `@utexo/wdk-wallet-rgb v2` or `@utexo/rgb-sdk`
 Migrating assets from the old wallet to the new wallet using standard RGB transfers
 Discontinuing use of the old seed phrase and xpubs
 
