@@ -43,6 +43,11 @@ export interface OnchainReceiveRequest {
   amount?: number;
   minConfirmations?: number;
   durationSeconds?: number;
+  senderNetworkId?: number;
+  destinationNetworkId?: number;
+  senderAddress?: string;
+  tokenId?: number;
+  receiverInvoiceNetworkId?: number;
 }
 export interface SingleUseDepositAddressResponse {
   invoice?: string;

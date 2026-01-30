@@ -310,6 +310,19 @@ export class WalletManager {
     if (params.amount === undefined || !Number.isFinite(params.amount) || params.amount <= 0) {
       throw new ValidationError('amount must be a positive number for onchainReceive', 'amount');
     }
+    if (params.senderNetworkId === undefined || !Number.isFinite(params.senderNetworkId)) {
+      throw new ValidationError('senderNetworkId is required for onchainReceive', 'senderNetworkId');
+    }
+    if (params.destinationNetworkId === undefined || !Number.isFinite(params.destinationNetworkId)) {
+      throw new ValidationError('destinationNetworkId is required for onchainReceive', 'destinationNetworkId');
+    }
+    if (!params.senderAddress) {
+      throw new ValidationError('senderAddress is required for onchainReceive', 'senderAddress');
+    }
+    if (params.tokenId === undefined || !Number.isFinite(params.tokenId)) {
+      throw new ValidationError('tokenId is required for onchainReceive', 'tokenId');
+    }
+
     const destinationInvoice = this.client.blindReceive({
       assetId: params.assetId ?? '',
       amount: params.amount,
@@ -317,13 +330,34 @@ export class WalletManager {
       durationSeconds: params.durationSeconds,
     });
 
-    const endpoint = `${this.utexoApiBaseUrl.replace(/\/+$/, '')}/lightning/onchain-receive`;
-    const response = await axios.post<SingleUseDepositAddressResponse>(endpoint, {
-      destination_invoice: destinationInvoice.invoice,
-      asset_id: params.assetId,
-      amount: params.amount,
-    });
-    return response.data;
+    const baseUrl = this.utexoApiBaseUrl.replace(/\/+$/, '');
+    const bridgeInResponse = await axios.post<{ transferId: number }>(
+      `${baseUrl}/v1/utexo/bridge/bridge-in-signature`,
+      {
+        sender: {
+          networkId: params.senderNetworkId,
+          address: params.senderAddress,
+        },
+        tokenId: params.tokenId,
+        amount: String(params.amount),
+        destination: {
+          networkId: params.destinationNetworkId,
+          address: destinationInvoice.invoice,
+        },
+        additionalAddresses: [],
+      }
+    );
+
+    const receiverNetworkId = params.receiverInvoiceNetworkId ?? params.senderNetworkId;
+    const receiverInvoiceResponse = await axios.get<{ invoice: string }>(
+      `${baseUrl}/v1/utexo/bridge/receiver-invoice/${bridgeInResponse.data.transferId}/${receiverNetworkId}`
+    );
+
+    return {
+      invoice: receiverInvoiceResponse.data.invoice,
+      transferId: bridgeInResponse.data.transferId,
+      destinationInvoice: destinationInvoice.invoice,
+    };
   }
 
   public issueAssetNia(params: IssueAssetNiaRequestModel): AssetNIA {
