@@ -189,7 +189,7 @@ export class RGBLibClient {
   /**
    * Get online object, creating it if needed
    */
-  private getOnline(): any {
+  getOnline(): any {
     this.ensureOnline();
     return this.online;
   }

@@ -34,7 +34,7 @@ export interface WitnessData {
 }
 export interface InvoiceRequest {
   amount: number;
-  assetId: string;
+  assetId?: string;
   minConfirmations?: number;
   durationSeconds?: number;
 }
@@ -53,7 +53,7 @@ export interface IssueAssetIfaRequestModel {
   amounts: number[];
   inflationAmounts: number[];
   replaceRightsNum: number;
-  rejectListUrl?: string;
+  rejectListUrl: string | null;
 }
 export interface SendAssetBeginRequestModel {
   invoice: string;
@@ -216,7 +216,7 @@ export interface AssetNIA {
    * @memberof AssetNIA
    * @example rgb:2dkSTbr-jFhznbPmo-TQafzswCN-av4gTsJjX-ttx6CNou5-M98k8Zd
    */
-  assetId?: string;
+  assetId: string;
 
   /**
    * @type {AssetIface}
@@ -229,14 +229,14 @@ export interface AssetNIA {
    * @memberof AssetNIA
    * @example USDT
    */
-  ticker?: string;
+  ticker: string;
 
   /**
    * @type {string}
    * @memberof AssetNIA
    * @example Tether
    */
-  name?: string;
+  name: string;
 
   /**
    * @type {string}
@@ -250,34 +250,34 @@ export interface AssetNIA {
    * @memberof AssetNIA
    * @example 0
    */
-  precision?: number;
+  precision: number;
 
   /**
    * @type {number}
    * @memberof AssetNIA
    * @example 777
    */
-  issuedSupply?: number;
+  issuedSupply: number;
 
   /**
    * @type {number}
    * @memberof AssetNIA
    * @example 1691160565
    */
-  timestamp?: number;
+  timestamp: number;
 
   /**
    * @type {number}
    * @memberof AssetNIA
    * @example 1691161979
    */
-  addedAt?: number;
+  addedAt: number;
 
   /**
-   * @type {BtcBalance}
+   * @type {Balance}
    * @memberof AssetNIA
    */
-  balance?: BtcBalance;
+  balance: Balance;
 
   /**
    * @type {Media}
