@@ -164,8 +164,10 @@ export class RGBLibClient {
     };
 
     try {
+      console.log('walletData', walletData);
       this.wallet = new rgblib.Wallet(new rgblib.WalletData(walletData));
     } catch (error) {
+      console.log('error', error);
       throw new WalletError('Failed to initialize rgb-lib wallet', undefined, error as Error);
     }
   }

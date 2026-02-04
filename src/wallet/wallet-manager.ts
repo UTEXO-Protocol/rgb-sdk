@@ -119,7 +119,7 @@ export class WalletManager implements IWalletManager {
     this.mnemonic = params.mnemonic ?? null;
     this.xpub = params.xpub ?? null;
     this.masterFingerprint = params.masterFingerprint;
-    this.dataDir = params.dataDir ?? path.join(os.tmpdir(), 'rgb-wallet', this.masterFingerprint);
+    this.dataDir = params.dataDir ?? path.join(os.tmpdir(), 'rgb-wallet', this.network, this.masterFingerprint);
 
     this.client = new RGBLibClient({
       xpubVan: params.xpubVan,

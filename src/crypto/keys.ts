@@ -369,6 +369,52 @@ export async function deriveKeysFromSeed(
 }
 
 /**
+ * Derive wallet keys from either a mnemonic phrase or seed
+ * Automatically detects the input type and uses the appropriate derivation method
+ * 
+ * @param bitcoinNetwork - Network string or number (default: 'regtest')
+ * @param mnemonicOrSeed - Either a BIP39 mnemonic phrase (string) or seed (Uint8Array | string)
+ * @returns Promise resolving to derived keys including mnemonic, xpubs, and master fingerprint
+ * @throws {ValidationError} If mnemonic is invalid
+ * @throws {CryptoError} If key derivation fails
+ * 
+ * @example
+ * ```typescript
+ * // With mnemonic
+ * const keys1 = await deriveKeysFromMnemonicOrSeed('testnet', 'abandon abandon abandon...');
+ * 
+ * // With seed (Uint8Array)
+ * const seed = new Uint8Array([...]);
+ * const keys2 = await deriveKeysFromMnemonicOrSeed('testnet', seed);
+ * ```
+ */
+export async function deriveKeysFromMnemonicOrSeed(
+  bitcoinNetwork: string | number = 'regtest',
+  mnemonicOrSeed: string | Uint8Array
+): Promise<GeneratedKeys> {
+  if (typeof mnemonicOrSeed === 'string') {
+    const trimmed = mnemonicOrSeed.trim();
+    const words = trimmed.split(/\s+/);
+    const isLikelyMnemonic = trimmed.includes(' ') && words.length >= 12 && words.length <= 24;
+    
+    if (isLikelyMnemonic) {
+      try {
+        return await deriveKeysFromMnemonic(bitcoinNetwork, trimmed);
+      } catch (error) {
+        if (error instanceof ValidationError) {
+          return await deriveKeysFromSeed(bitcoinNetwork, trimmed);
+        }
+        throw error;
+      }
+    } else {
+      return await deriveKeysFromSeed(bitcoinNetwork, trimmed);
+    }
+  } else {
+    return await deriveKeysFromSeed(bitcoinNetwork, mnemonicOrSeed);
+  }
+}
+
+/**
  * Restore wallet keys from existing mnemonic (backward compatibility alias)
  * @deprecated Use `deriveKeysFromMnemonic()` instead. This alias will be removed in a future version.
  * @see deriveKeysFromMnemonic

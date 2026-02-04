@@ -4,6 +4,10 @@
 
 import type { Network } from '../crypto/types';
 
+export const utexoNetworkMap = {
+mainnet:'mainnet',
+utexo:'signet'
+} as const satisfies Record<string, Network>;
 /**
  * Coin type constants
  */
