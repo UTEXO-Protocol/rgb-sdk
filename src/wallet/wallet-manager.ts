@@ -297,6 +297,7 @@ export class WalletManager implements IWalletManager {
     const invoice = await this.client.blindReceive({
       ...params,
       assetId: params.assetId ?? '',
+      amount: params.amount ?? 0,
     });
     return {
       invoice: invoice.invoice,
@@ -310,6 +311,7 @@ export class WalletManager implements IWalletManager {
     const invoice = await this.client.witnessReceive({
       ...params,
       assetId: params.assetId ?? '',
+      amount: params.amount ?? 0,
     });
     return {
       invoice: invoice.invoice,
@@ -375,60 +377,13 @@ export class WalletManager implements IWalletManager {
 
   public async listTransactions(): Promise<IWalletModel.Transaction[]> {
     const transactions = this.client.listTransactions();
-    const transactionTypeMap: Record<number, IWalletModel.TransactionType> = {
-      0: 'RgbSend',
-      1: 'Drain',
-      2: 'CreateUtxos',
-      3: 'User',
-    };
-    
-    return transactions.map(tx => ({
-      transactionType: transactionTypeMap[tx.transactionType as number] ?? 'User',
-      txid: tx.txid,
-      received: tx.received,
-      sent: tx.sent,
-      fee: tx.fee,
-      confirmationTime: tx.confirmationTime,
-    }));
+
+    return transactions;
   }
 
   public async listTransfers(asset_id?: string): Promise<IWalletModel.Transfer[]> {
     const transfers = this.client.listTransfers(asset_id);
-    
-    // Map TransferKind enum to string union
-    const kindMap: Record<number, IWalletModel.TransferKind> = {
-      0: 'Issuance',
-      1: 'ReceiveBlind',
-      2: 'ReceiveWitness',
-      3: 'Send',
-      4: 'Inflation',
-    };
-    
-    // Map TransferStatus enum to string union
-    const statusMap: Record<number, IWalletModel.TransferStatus> = {
-      0: 'WaitingCounterparty',
-      1: 'WaitingConfirmations',
-      2: 'Settled',
-      3: 'Failed',
-    };
-    
-    return transfers.map(transfer => ({
-      ...transfer,
-      status: statusMap[transfer.status as number] ?? 'Failed',
-      assignments: [{
-        type: 'Fungible' as const,
-        amount: transfer.amount,
-      }],
-      kind: kindMap[transfer.kind as number] ?? 'Send',
-      txid: transfer.txid ?? undefined,
-  
-      changeUtxo: transfer.changeUtxo ?? undefined,
-      transportEndpoints: transfer.transportEndpoints.map(ep => ({
-        endpoint: ep.endpoint,
-        transportType: String(ep.transportType),
-        used: ep.used,
-      })),
-    }));
+    return transfers;
   }
 
   public async failTransfers(params: IWalletModel.FailTransfersRequest): Promise<boolean> {

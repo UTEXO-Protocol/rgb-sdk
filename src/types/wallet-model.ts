@@ -38,7 +38,7 @@ export type RGBHTTPClientParams = {
     blinding?: number;
   }
   export interface InvoiceRequest {
-    amount: number;
+    amount?: number;
     assetId?: string;
     minConfirmations?: number;
     durationSeconds?: number;
@@ -71,7 +71,7 @@ export type RGBHTTPClientParams = {
     assetId?: string;
     amount?: number;
     // recipientMap: Record<string, Recipient[]>;
-    // donation?: boolean;            // default: false
+    donation?: boolean;            // default: false
     feeRate?: number; // default: 1
     minConfirmations?: number; // default: 1
   }

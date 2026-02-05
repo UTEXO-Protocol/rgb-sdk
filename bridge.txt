@@ -1,0 +1,40 @@
+there no estimate api 
+https://dev.bridge.gateway.tricorn.network/api/v0/transfers/estimate/RGB/UTEXO/4/2?sender-address=rgb-address&recipient-address=rgb%3A%7E%2F%7E%2F%7E%2Fbcrt%3Autxob%3AXj26wT35-_t3yqlb-pBhSFee-iZeQX7A-6eyxScP-%7EDK5HrO-opqY%7E%3Fexpiry%3D1770367530%26endpoints%3Drpc%3A%2F%2Fregtest.thunderstack.org%3A3000%2Fjson-rpc
+
+RGB->Utexo
+
+
+https://dev.bridge.gateway.tricorn.network/api/v0/transfers/bridge-in-signature
+{"sender":{"address":"rgb-address","networkName":"RGB","networkId":36},"tokenId":4,"amount":"12","destination":{"address":"rgb:~/~/~/bcrt:utxob:Xj26wT35-_t3yqlb-pBhSFee-iZeQX7A-6eyxScP-~DK5HrO-opqY~?expiry=1770367530&endpoints=rpc://regtest.thunderstack.org:3000/json-rpc","networkName":"UTEXO","networkId":96},"additionalAddresses":[]}
+
+{"sender":{"address":"rgb-address","networkName":"RGB","networkId":36},"tokenId":4,"amount":"12","destination":{"address":"rgb:~/~/~/bcrt:utxob:Xj26wT35-_t3yqlb-pBhSFee-iZeQX7A-6eyxScP-~DK5HrO-opqY~?expiry=1770367530&endpoints=rpc://regtest.thunderstack.org:3000/json-rpc","networkName":"UTEXO","networkId":96},"additionalAddresses":[]}
+responce
+{
+    "token": "rgb:WPRv95Nj-icdrgPp-zpQhIp_-2TyJ~Ge-k~FvuMZ-~vVnkA0",
+    "amount": "2000000",
+    "gasCommission": "394831",
+    "destination": {
+        "networkId": 96,
+        "networkName": "UTEXO",
+        "address": "rgb:~/~/~/bcrt:utxob:Xj26wT35-_t3yqlb-pBhSFee-iZeQX7A-6eyxScP-~DK5HrO-opqY~?expiry=1770367530\u0026endpoints=rpc://regtest.thunderstack.org:3000/json-rpc"
+    },
+    "deadline": "0",
+    "nonce": 0,
+    "transferId": 9544,
+    "signature": "0x7267623a5750527639354e6a2d696364726750702d7a70516849705f2d3254794a7e47652d6b7e4676754d5a2d7e76566e6b41302f525768775566544d707550325a6678317e6a346e737743414e47654a72594f7144634b656c614d56347a552f46636362572f7462333a7574786f623a614e63394e7a66472d666f46675143542d5f776e6f4a73532d38786b535350322d54494667445f362d6f623065384d5a2d357a73345f3f61737369676e6d656e745f6e616d653d61737365744f776e6572266578706972793d3137373032383237303926656e64706f696e74733d727063733a2f2f70726f78792e6972697377616c6c65742e636f6d2f302e322f6a736f6e2d727063",
+    "transferType": "WU",
+    "estimation": {
+        "fee": "0.394831",
+        "feePercentage": "0.10",
+        "estimatedConfirmationTime": "6",
+        "stableFee": "0.002",
+        "resultAmount": "1.603169",
+        "swapResultAmount": "1.603169"
+    },
+    "totalCommission": "396831"
+}
+
+// does RLN node have signet FIX - if yes need to upgrade RLN to latest
+// move Tricorn to signet, Run signet ifra for tricorn 
+- 1. signet RGB node
+- 2. signet RLN node for lightning

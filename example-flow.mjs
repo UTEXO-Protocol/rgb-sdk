@@ -151,8 +151,8 @@ async function initWallet(keys) {
 async function main() {
     console.log("Starting RGB SDK Wallet Example");
     console.log("=".repeat(50));
-// const test = await createWallet(bitcoinNetwork);
-// console.log("createWallet", test);
+    // const test = await createWallet(bitcoinNetwork);
+    // console.log("createWallet", test);
     // return
 
     try {
@@ -160,7 +160,24 @@ async function main() {
         // const { wallet: senderWallet, keys: senderKeys } = await initWallet(reciver_keys);
         //  const keys = await createWallet(bitcoinNetwork);
         const { wallet: senderWallet, keys: senderKeys } = await initWallet(sender_keys);
-        
+
+        const txss = await senderWallet.listTransfers();
+        console.log("Transfers:", JSON.stringify(txss, null, 2));
+        const senderWalletres = await senderWallet.blindReceive({
+            // assetId: asset1.asset?.assetId || '',
+            amount: 12
+        });
+
+        const invoiceData = await senderWallet.decodeRGBInvoice({ invoice: senderWalletres.invoice });
+        console.log("Invoice data:", JSON.stringify(invoiceData, null, 2));
+        console.log("Blind receive data:", senderWalletres);
+        const txafter = await senderWallet.listTransfers();
+        console.log("Transfers after blind receive:", JSON.stringify(txafter, null, 2));
+
+        const ltransactions = await senderWallet.listTransactions();
+        console.log("Transactions:", JSON.stringify(ltransactions, null, 2));
+
+        return
         //  const { wallet: receiverWallet, keys: receiverKeys } = await initWallet(reciver_keys);
         // return
         // Issue NIA asset
@@ -229,7 +246,7 @@ async function main() {
         console.log("Signed PSBT:", signedSendPsbt);
         const btcEstimate = await senderWallet.estimateFee(signedSendPsbt);
         console.log("BTC send estimate:", btcEstimate);
-       
+
         const sendBtcEndresult = senderWallet.sendBtcEnd({ signedPsbt: signedSendPsbt });
         console.log("Send BTC result:", sendBtcEndresult);
         mine(3);
@@ -238,11 +255,11 @@ async function main() {
         receiverWallet.syncWallet();
         senderWallet.syncWallet();
 
-           const resultCombined = await senderWallet.sendBtc({
-                address: btcAddress,
-                amount: 7000,
-                feeRate: 1
-            });
+        const resultCombined = await senderWallet.sendBtc({
+            address: btcAddress,
+            amount: 7000,
+            feeRate: 1
+        });
 
         console.log("Send BTC result:", resultCombined);
 
@@ -263,8 +280,8 @@ async function main() {
         });
         console.log("Blind receive data:", JSON.stringify(receiveData1, null, 2));
 
-        
-            // Send assets
+
+        // Send assets
         console.log("\nSending assets...", asset1);
         const psbt = senderWallet.sendBegin({
             assetId: asset1.assetId,

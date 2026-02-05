@@ -16,8 +16,10 @@ import type {
     OnchainSendResponse,
     GetOnchainSendResponse,
     ListLightningPaymentsResponse,
+    OnchainReceiveRequestModel,
+    OnchainReceiveResponse,
 } from '../types/utexo';
-import type { SendAssetEndRequestModel, Transfer } from '../types/wallet-model';
+import type { SendAssetEndRequestModel, Transfer, TransferStatus } from '../types/wallet-model';
 
 /**
  * Lightning Protocol Base Class
@@ -66,6 +68,9 @@ export class LightningProtocol implements ILightningProtocol {
  * Concrete implementations should override these methods.
  */
 export class OnchainProtocol implements IOnchainProtocol {
+    async onchainReceive(params: OnchainReceiveRequestModel): Promise<OnchainReceiveResponse> {
+        throw new Error('onchainReceive not implemented');
+    }
     async onchainSendBegin(params: OnchainSendRequestModel): Promise<string> {
         throw new Error('onchainSendBegin not implemented');
     }
@@ -78,11 +83,11 @@ export class OnchainProtocol implements IOnchainProtocol {
         throw new Error('onchainSend not implemented');
     }
 
-    async getOnchainSendStatus(send_id: string): Promise<GetOnchainSendResponse> {
+    async getOnchainSendStatus(send_id: string): Promise<TransferStatus|null> {
         throw new Error('getOnchainSendStatus not implemented');
     }
 
-    async listOnchainTransfers(asset_id: string): Promise<Transfer[]> {
+    async listOnchainTransfers(asset_id?: string): Promise<Transfer[]> {
         throw new Error('listOnchainTransfers not implemented');
     }
 }
@@ -97,6 +102,9 @@ export class OnchainProtocol implements IOnchainProtocol {
 export class UTEXOProtocol extends LightningProtocol implements IUTEXOProtocol {
     private onchainProtocol = new OnchainProtocol();
 
+    async onchainReceive(params: OnchainReceiveRequestModel): Promise<OnchainReceiveResponse> {
+        return this.onchainProtocol.onchainReceive(params);
+    }
     async onchainSendBegin(params: OnchainSendRequestModel): Promise<string> {
         return this.onchainProtocol.onchainSendBegin(params);
     }
@@ -109,11 +117,11 @@ export class UTEXOProtocol extends LightningProtocol implements IUTEXOProtocol {
         return this.onchainProtocol.onchainSend(params, mnemonic);
     }
 
-    async getOnchainSendStatus(send_id: string): Promise<GetOnchainSendResponse> {
+    async getOnchainSendStatus(send_id: string): Promise<TransferStatus|null> {
         return this.onchainProtocol.getOnchainSendStatus(send_id);
     }
 
-    async listOnchainTransfers(asset_id: string): Promise<Transfer[]> {
+    async listOnchainTransfers(asset_id?: string): Promise<Transfer[]> {
         return this.onchainProtocol.listOnchainTransfers(asset_id);
     }
 }

@@ -60,6 +60,7 @@ export interface SendAssetBeginRequestModel {
   witnessData?: WitnessData;
   assetId?: string;
   amount?: number;
+  donation?: boolean;
   // recipientMap: Record<string, Recipient[]>;
   // donation?: boolean;            // default: false
   feeRate?: number;             // default: 1
@@ -121,12 +122,8 @@ export interface GetFeeEstimationRequestModel {
 
 export type GetFeeEstimationResponse = Record<string, number> | number;
 
-export enum TransactionType {
-  RGB_SEND = 0,
-  DRAIN = 1,
-  CREATE_UTXOS = 2,
-  USER = 3,
-}
+export type TransactionType =  'RgbSend' | 'Drain' | 'CreateUtxos' | 'User';
+
 
 export interface BlockTime {
   height: number;
@@ -141,13 +138,8 @@ export interface Transaction {
   fee: number;
   confirmationTime?: BlockTime;
 }
-enum TransferKind {
-    ISSUANCE = 0,
-    RECEIVE_BLIND = 1,
-    RECEIVE_WITNESS = 2,
-    SEND = 3,
-    INFLATION = 4
-  }
+type TransferKind = 'Issuance' | 'ReceiveBlind' | 'ReceiveWitness' | 'Send' | 'Inflation';
+
 export interface RgbTransfer {
   idx: number;
   batchTransferIdx: number;
@@ -168,12 +160,7 @@ export interface RgbTransfer {
   }[];
 }
 
-export enum TransferStatus {
-  WAITING_COUNTERPARTY = 0,
-  WAITING_CONFIRMATIONS,
-  SETTLED,
-  FAILED,
-}
+export type TransferStatus = 'WaitingCounterparty' | 'WaitingConfirmations' | 'Settled' | 'Failed';
 export interface Unspent {
   utxo: Utxo;
   rgbAllocations: RgbAllocation[];

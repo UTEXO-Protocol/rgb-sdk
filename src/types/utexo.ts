@@ -1,4 +1,4 @@
-import { SendAssetEndRequestModel, Transfer } from './wallet-model';
+import { InvoiceRequest, SendAssetEndRequestModel, SendResult, Transfer } from './wallet-model';
 
 /**
  * UTEXO Protocol Types
@@ -14,33 +14,53 @@ export type PublicKeys = {
 /**
  * Lightning API Types
  */
-
-export interface CreateLightningInvoiceRequestModel {
+export interface LightningAsset {
+    /**
+     * @type {string}
+     * @memberof LightningAsset
+     */
+    assetId: string;
+  
+    /**
+     * @type {number}
+     * @memberof LightningAsset
+     */
     amount: number;
-    assetId?: string;
-    description?: string;
-    expiry?: number;
-}
+  }
+/**
+ * Request model for creating Lightning invoice.
+ *
+ * @export
+ * @interface CreateLightningInvoiceRequestModel
+ */
+export interface CreateLightningInvoiceRequestModel {
+    /**
+     * @type {number}
+     * @memberof CreateLightningInvoiceRequestModel
+     */
+    amountSats?: number;
+  
+    /**
+     * @type {LightningAsset}
+     * @memberof CreateLightningInvoiceRequestModel
+     */
+    asset: LightningAsset;
+  
+    /**
+     * @type {number}
+     * @memberof CreateLightningInvoiceRequestModel
+     */
+    expirySeconds?: number;
+  }
 
 export interface LightningReceiveRequest {
-    id: string;
-    invoice: string;
-    status: string;
-    amount?: number;
-    assetId?: string;
-    createdAt: number;
+    lnInvoice: string;
     expiresAt?: number;
+    tempRequestId: number;
 }
 
-export interface LightningSendRequest {
-    id: string;
-    invoice: string;
-    status: string;
-    amount?: number;
-    assetId?: string;
-    fee?: number;
-    createdAt: number;
-    completedAt?: number;
+export interface LightningSendRequest extends SendResult {
+
 }
 
 export interface GetLightningSendFeeEstimateRequestModel {
@@ -49,30 +69,54 @@ export interface GetLightningSendFeeEstimateRequestModel {
 }
 
 export interface PayLightningInvoiceRequestModel {
-    invoice: string;
+    lnInvoice: string;
     maxFee?: number;
-    assetId?: string;
+
+    tempRequestId: number;
+}
+
+export interface PayLightningInvoiceEndRequestModel {
+    signedPsbt: string;
+    tempRequestId: number;
+    lnInvoice: string;
 }
 
 /**
  * Onchain API Types
  */
 
-export interface OnchainSendRequestModel {
-    address: string;
+export interface OnchainReceiveRequestModel extends InvoiceRequest {
     amount: number;
-    assetId?: string;
-    feeRate?: number;
+    assetId: string;
 }
 
-export interface OnchainSendResponse {
-    sendId: string;
-    txid?: string;
-    status: string;
-    amount: number;
-    assetId?: string;
-    fee?: number;
-    createdAt: number;
+export interface OnchainReceiveResponse {
+    /** Mainnet invoice */
+    invoice: string;
+
+    /** Temporary request ID for the bridge transfer */
+    tempRequestId: number;
+}
+
+export interface OnchainSendRequestModel {
+    /** Temporary request ID for the bridge transfer */
+    tempRequestId: number;
+
+    /** Mainnet invoice */
+    invoice: string;
+}
+
+export interface OnchainSendEndRequestModel {
+    /** Temporary request ID for the bridge transfer */
+    tempRequestId: number;
+
+    /** Mainnet invoice */
+    invoice: string;
+    signedPsbt: string;
+}
+
+export interface OnchainSendResponse extends SendResult {
+ 
 }
 
 export interface GetOnchainSendResponse {

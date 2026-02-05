@@ -52,6 +52,7 @@ import { normalizeNetwork } from '../utils/validation';
 import type { Network } from '../crypto/types';
 // Use default import for CommonJS compatibility in ESM
 import rgblib from '@utexo/rgb-lib';
+import { Transfer } from '../types/wallet-model';
 /**
  * Map network from client format to rgb-lib format
  */
@@ -245,7 +246,7 @@ export class RGBLibClient {
     
     const feeRate = String(params.feeRate ?? 1);
     const minConfirmations = String(params.minConfirmations ?? 1);
-    const donation = false;
+    const donation = params.donation ?? false;
 
     let assetId: string | undefined = params.assetId;
     let amount: number | undefined = params.amount;
@@ -448,7 +449,7 @@ export class RGBLibClient {
     return this.wallet.listTransactions(online, skipSync);
   }
 
-  listTransfers(asset_id?: string): RgbTransfer[] {
+  listTransfers(asset_id?: string): Transfer[] {
     return this.wallet.listTransfers(asset_id?asset_id:null);
   }
 
