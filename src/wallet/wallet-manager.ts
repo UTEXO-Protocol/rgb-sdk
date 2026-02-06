@@ -9,7 +9,6 @@ import type { Readable } from 'stream';
 import path from 'path';
 import * as os from 'os';
 import type { IWalletManager } from './IWalletManager';
-import { FailTransfersRequest } from '../types/rgb-model';
 /**
  * Restore wallet from backup
  * This should be called before creating a WalletManager instance
@@ -216,23 +215,26 @@ export class WalletManager implements IWalletManager {
         ...unspent.utxo,
         exists: (unspent.utxo as any).exists ?? true,
       },
-      rgbAllocations: unspent.rgbAllocations.map(allocation => ({
-        assetId: allocation.assetId,
-        assignment: { type: 'Fungible' as const, amount: allocation.amount },
-        settled: allocation.settled,
-      })),
+      rgbAllocations: unspent.rgbAllocations.map(allocation => {
+        const assignmentKeys = Object.keys(allocation.assignment);
+        const assignmentType = assignmentKeys[0] as IWalletModel.AssignmentType | undefined;
+        const assignment: IWalletModel.Assignment = {
+          type: assignmentType ?? 'Any',
+          amount: assignmentType && allocation.assignment[assignmentType] ? Number(allocation.assignment[assignmentType]) : undefined,
+        };
+        return {
+          assetId: allocation.assetId,
+          assignment,
+          settled: allocation.settled,
+        };
+      }),
       pendingBlinded: (unspent as any).pendingBlinded ?? 0,
     }));
   }
 
   public async listAssets():Promise<IWalletModel.ListAssets>{
     const assets = this.client.listAssets();
-    return {
-      nia: (assets.nia ?? []) as unknown as IWalletModel.AssetNIA[],
-      uda: (assets.uda ?? []) as unknown as IWalletModel.AssetUDA[],
-      cfa: (assets.cfa ?? []) as unknown as IWalletModel.AssetCFA[],
-      ifa: [],
-    };
+    return assets;
   }
 
   public async getAssetBalance(asset_id: string): Promise<IWalletModel.AssetBalance> {

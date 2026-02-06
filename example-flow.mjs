@@ -161,34 +161,39 @@ async function main() {
         //  const keys = await createWallet(bitcoinNetwork);
         const { wallet: senderWallet, keys: senderKeys } = await initWallet(sender_keys);
 
-        const txss = await senderWallet.listTransfers();
-        console.log("Transfers:", JSON.stringify(txss, null, 2));
-        const senderWalletres = await senderWallet.blindReceive({
-            // assetId: asset1.asset?.assetId || '',
-            amount: 12
-        });
+        // const txss = await senderWallet.listTransfers();
+        // console.log("Transfers:", JSON.stringify(txss, null, 2));
+        // const senderWalletres = await senderWallet.blindReceive({
+        //     // assetId: asset1.asset?.assetId || '',
+        //     amount: 12
+        // });
 
-        const invoiceData = await senderWallet.decodeRGBInvoice({ invoice: senderWalletres.invoice });
-        console.log("Invoice data:", JSON.stringify(invoiceData, null, 2));
-        console.log("Blind receive data:", senderWalletres);
-        const txafter = await senderWallet.listTransfers();
-        console.log("Transfers after blind receive:", JSON.stringify(txafter, null, 2));
+        // const invoiceData = await senderWallet.decodeRGBInvoice({ invoice: senderWalletres.invoice });
+        // console.log("Invoice data:", JSON.stringify(invoiceData, null, 2));
+        // console.log("Blind receive data:", senderWalletres);
+        // const txafter = await senderWallet.listTransfers();
+        // console.log("Transfers after blind receive:", JSON.stringify(txafter, null, 2));
 
-        const ltransactions = await senderWallet.listTransactions();
-        console.log("Transactions:", JSON.stringify(ltransactions, null, 2));
+        // const ltransactions = await senderWallet.listTransactions();
+        // console.log("Transactions:", JSON.stringify(ltransactions, null, 2));
 
-        return
+        // return
         //  const { wallet: receiverWallet, keys: receiverKeys } = await initWallet(reciver_keys);
         // return
         // Issue NIA asset
         // console.log("\nIssuing NIA asset...");
-        // const asset1 = senderWallet.issueAssetNia({
-        //     ticker: "USDT",
-        //     name: "Tether",
-        //     amounts: [777, 66],
-        //     precision: 0
-        // });
-        // console.log("Issued NIA asset:", JSON.stringify(asset1));
+        const unspents2 = await senderWallet.listUnspents();
+        console.log("Unspents2:", JSON.stringify(unspents2, null, 2));
+
+return 
+
+        const asset12 = senderWallet.issueAssetNia({
+            ticker: "USDT",
+            name: "Tether",
+            amounts: [777, 66],
+            precision: 0
+        });
+        console.log("Issued NIA asset:", JSON.stringify(asset12));
 
         // Issue CFA asset (if supported)
         // Note: CFA issuance might not be available in the current API
@@ -218,9 +223,9 @@ async function main() {
         }
         // List assets
         console.log("\nListing assets...");
-        // const assets1 = senderWallet.listAssets();
-        // console.log("Assets:", JSON.stringify(assets1, null, 2));
-
+        const assets1 = senderWallet.listAssets();
+        console.log("Assets:", JSON.stringify(assets1, null, 2));
+return
         const asset_balance = senderWallet.getAssetBalance(asset1.assetId);
         console.log("Asset balance:", JSON.stringify(asset_balance, null, 2));
 

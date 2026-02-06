@@ -22,7 +22,7 @@ export const utexoNetworkIdMap = {
     assetId: 'rgb:WPRv95Nj-icdrgPp-zpQhIp_-2TyJ~Ge-k~FvuMZ-~vVnkA0',
   },
   mainnetLightning:{
-    networkName: 'RGB',
+    networkName: 'RGB Lightning',
     networkId: 36,
     tokenId: 4,
     tokenName: 'tUSD',
