@@ -10,7 +10,7 @@ import { PublicKeys } from "../types/utexo";
 import { deriveKeysFromMnemonicOrSeed } from '../crypto';
 import type { Network, EstimateFeeResult } from '../crypto';
 import { BitcoinNetwork } from "../types/wallet-model";
-import { assetIdTokenIdMap, utexoNetworkIdMap, utexoNetworkMap } from "../constants";
+import { getDestinationAsset, utexoNetworkIdMap, utexoNetworkMap } from "../constants";
 import { WalletManager } from "../wallet/wallet-manager";
 import { ValidationError, WalletError } from "../errors";
 import type { IWalletManager } from "../wallet/IWalletManager";
@@ -94,6 +94,7 @@ export class UTEXOWallet extends UTEXOProtocol implements IWalletManager, IUTEXO
      */
     constructor(mnemonicOrSeed: string | Uint8Array, options: ConfigOptions = {}) {
         super();
+        console.log('mnemonicOrSeed', mnemonicOrSeed);
         this.mnemonicOrSeed = mnemonicOrSeed;
         this.options = options;
     }
@@ -102,16 +103,18 @@ export class UTEXOWallet extends UTEXOProtocol implements IWalletManager, IUTEXO
         this.layer1Keys = await this.derivePublicKeys(utexoNetworkMap.mainnet);
         this.utexoKeys = await this.derivePublicKeys(utexoNetworkMap.utexo);
         this.utexoRGBWallet = new WalletManager({
-            xpubVan: this.utexoKeys.xpub,
+            xpubVan: this.utexoKeys.accountXpubVanilla,
             xpubCol: this.utexoKeys.accountXpubColored,
             masterFingerprint: this.utexoKeys.masterFingerprint,
             network: utexoNetworkMap.utexo,
+            mnemonic: this.mnemonicOrSeed as string,
         });
         this.layer1RGBWallet = new WalletManager({
-            xpubVan: this.layer1Keys.xpub,
+            xpubVan: this.layer1Keys.accountXpubVanilla,
             xpubCol: this.layer1Keys.accountXpubVanilla,
             masterFingerprint: this.layer1Keys.masterFingerprint,
             network: utexoNetworkMap.mainnet,
+            mnemonic: this.mnemonicOrSeed as string,
         });
     }
 
@@ -354,140 +357,164 @@ export class UTEXOWallet extends UTEXOProtocol implements IWalletManager, IUTEXO
     // Override methods here as they are implemented.
 
 
-  async onchainReceive(params: OnchainReceiveRequestModel): Promise<OnchainReceiveResponse> {
-    this.ensureInitialized();
-   
+    async onchainReceive(params: OnchainReceiveRequestModel): Promise<OnchainReceiveResponse> {
+        this.ensureInitialized();
 
-      if(!params.assetId) {
-        throw new ValidationError('Asset ID is required', 'assetId');
-      }
-      if(!params.amount) {
-        throw new ValidationError('Amount is required', 'amount');
-      }
+        const destinationAsset = getDestinationAsset('mainnet', 'utexo', params.assetId ?? null);
+        if (!destinationAsset) {
+            throw new ValidationError('Destination asset is not supported', 'assetId');
+        }
 
-      if(!(params.assetId in assetIdTokenIdMap)) {
-        throw new ValidationError('Asset ID is not supported', 'assetId');
-      }
+        if (!params.amount) {
+            throw new ValidationError('Amount is required', 'amount');
+        }
 
-      const destinationInvoice = await this.utexoRGBWallet!.witnessReceive({
-        assetId: params.assetId ?? '',
-        amount: params.amount,
-        minConfirmations: params.minConfirmations,
-        durationSeconds: params.durationSeconds,
-      });
+        const destinationInvoice = await this.utexoRGBWallet!.witnessReceive({
+            assetId:'', //invoice can receive any asset
+            amount: params.amount,
+            minConfirmations: params.minConfirmations,
+            durationSeconds: params.durationSeconds,
+        });
 
-      const bridgeTransfer = await bridgeAPI.getBridgeInSignature({
-        sender: {
-            address: 'rgb-address',
-            networkName: utexoNetworkIdMap.mainnet.networkName,
-            networkId: utexoNetworkIdMap.mainnet.networkId,
-        },
-        tokenId: assetIdTokenIdMap[params.assetId as keyof typeof assetIdTokenIdMap],
-        amount: params.amount.toString(),
-        destination: {
-            address: destinationInvoice.invoice,
-            networkName: utexoNetworkIdMap.utexo.networkName,
-            networkId: utexoNetworkIdMap.utexo.networkId,
-        },
-        additionalAddresses: [],
-      });
+        const bridgeTransfer = await bridgeAPI.getBridgeInSignature({
+            sender: {
+                address: 'rgb-address',
+                networkName: utexoNetworkIdMap.mainnet.networkName,
+                networkId: utexoNetworkIdMap.mainnet.networkId,
+            },
+            tokenId: destinationAsset.tokenId,
+            amount: params.amount.toString(),
+            destination: {
+                address: destinationInvoice.invoice,
+                networkName: utexoNetworkIdMap.utexo.networkName,
+                networkId: utexoNetworkIdMap.utexo.networkId,
+            },
+            additionalAddresses: [],
+        });
 
-      const bridgeRGBMainnetInvoice = await bridgeAPI.getReceiverInvoice(bridgeTransfer.transferId, utexoNetworkIdMap.mainnet.networkId);
+        const hexInvoice = bridgeTransfer.signature;
+        const UTXO_PATH_INDEX = 2;
+        const hex = hexInvoice.startsWith('0x')
+            ? hexInvoice.slice(UTXO_PATH_INDEX)
+            : hexInvoice;
+        const decodedInvoice = Buffer.from(hex, 'hex').toString('utf-8');
 
-    return {
-        invoice: bridgeRGBMainnetInvoice,
-        tempRequestId: bridgeTransfer.transferId,
-    };
-  }
+        return {
+            invoice: decodedInvoice,
+        };
+    }
 
-  async onchainSendBegin(params: OnchainSendRequestModel): Promise<string> {
-    this.ensureInitialized();
-    // TODO: Need func that returns destinationInvoice by mainnet invoice
-     /** Get the bridge RGB utexo invoice by tempRequestId should be by invoice */
-    const bridgeRGBUtexoInvoice = await bridgeAPI.getReceiverInvoice(params.tempRequestId, utexoNetworkIdMap.mainnet.networkId);
-    const invoiceData = await this.decodeRGBInvoice({ invoice: bridgeRGBUtexoInvoice });
-    
-    const amount = invoiceData.assignment.amount;
-    const isWitness = invoiceData.recipientId.includes("wvout:");
+    async onchainSendBegin(params: OnchainSendRequestModel): Promise<string> {
+        this.ensureInitialized();
+        // TODO: Need func that returns destinationInvoice by mainnet invoice
+        /** Get the bridge RGB utexo invoice by tempRequestId should be by invoice */
+        const bridgeTransfer = await bridgeAPI.getTransferByMainnetInvoice(params.invoice, utexoNetworkIdMap.mainnet.networkId);
+        if(!bridgeTransfer) {
+            // TODO: there should be bridge out flow UTEXO to Mainnet
+            throw new ValidationError('Bridge transfer is not found', 'invoice');
+        }
+        const utexoInvoice = bridgeTransfer.recipient.address;
+        const invoiceData = await this.decodeRGBInvoice({ invoice: utexoInvoice })
+        // const amount = invoiceData.assignment.amount;
+        const bridgeAmount = bridgeTransfer.recipientAmount;
+        const destinationAsset =utexoNetworkIdMap.utexo.getAssetById(bridgeTransfer.recipientToken.id);
+        if(!destinationAsset) {
+            throw new ValidationError('Destination asset is not supported', 'assetId');
+        }
+        const amount = Number(bridgeAmount) / Math.pow(10,destinationAsset.precision );
+        const isWitness = invoiceData.recipientId.includes("wvout:");
 
-    const psbt = await this.utexoRGBWallet!.sendBegin({
-        invoice: bridgeRGBUtexoInvoice,
-        amount: amount,
-        assetId: utexoNetworkIdMap.utexo.assetId,
-        donation: true,
-        ...(isWitness && {
-            witnessData: {
-                amountSat: 1000,
-                blinding: 0,
-            }
-        }),
-    });
+        const assetBalance = await this.getAssetBalance(destinationAsset.assetId);
 
-    return psbt;
-  }
+        if (!assetBalance || !assetBalance.spendable) {
+            throw new ValidationError('Asset balance is not found', 'assetBalance');
+        }
+        if (assetBalance.spendable < amount) {
+            throw new ValidationError(`Insufficient balance ${assetBalance.spendable} < ${amount}`, 'amount');
+        }
 
-  async onchainSendEnd(params: OnchainSendEndRequestModel): Promise<OnchainSendResponse> {
-    this.ensureInitialized();
-    const sendResult = await this.utexoRGBWallet!.sendEnd({ signedPsbt: params.signedPsbt });
+        const psbt = await this.utexoRGBWallet!.sendBegin({
+            invoice: utexoInvoice,
+            amount: amount,
+            assetId: destinationAsset.assetId,
+            donation: true,
+            ...(isWitness && {
+                witnessData: {
+                    amountSat: 1000,
+                    blinding: 0,
+                }
+            }),
+        });
 
-    // TODO: there should be func that allow to cancel or mark as paid Tricorn Bridge Transfer
-    // Best-effort finalize bridge transfer (complete/cancel/status) via BridgeClient (depending on Tricorn semantics)
+        return psbt;
+    }
 
-    return sendResult;
-  }
+    async onchainSendEnd(params: OnchainSendEndRequestModel): Promise<OnchainSendResponse> {
+        this.ensureInitialized();
+        const sendResult = await this.utexoRGBWallet!.sendEnd({ signedPsbt: params.signedPsbt });
 
-  async onchainSend(params: OnchainSendRequestModel, mnemonic?: string): Promise<OnchainSendResponse> {
-    this.ensureInitialized();
-    const psbt = await this.onchainSendBegin(params);
-    const signed_psbt = await this.utexoRGBWallet!.signPsbt(psbt, mnemonic);
-    return await this.onchainSendEnd({ signedPsbt: signed_psbt, tempRequestId: params.tempRequestId, invoice: params.invoice });
-  }
+        // TODO: there should be func that allow to cancel or mark as paid Tricorn Bridge Transfer
+        // Best-effort finalize bridge transfer (complete/cancel/status) via BridgeClient (depending on Tricorn semantics)
 
-  async getOnchainSendStatus(invoice:string): Promise<TransferStatus|null> {
-    // TODO: Need func that returns destinationInvoice by mainnet invoice
-     /** Get the bridge RGB utexo invoice by tempRequestId should be by invoice */
-     const bridgeRGBUtexoInvoice = await bridgeAPI.getReceiverInvoice(1, utexoNetworkIdMap.mainnet.networkId);
-     const invoiceData = await this.utexoRGBWallet!.decodeRGBInvoice({ invoice: bridgeRGBUtexoInvoice });
-    
-     const transfers = await this.utexoRGBWallet!.listTransfers(utexoNetworkIdMap.utexo.assetId);
-     return transfers.length > 0 ? transfers.find(transfer => transfer.recipientId === invoiceData.recipientId)?.status ?? null : null;
-  }
+        return sendResult;
+    }
 
-  async listOnchainTransfers(asset_id?: string): Promise<Transfer[]> {
-    this.ensureInitialized();
-    return this.utexoRGBWallet!.listTransfers(asset_id);
-  }
+    async onchainSend(params: OnchainSendRequestModel, mnemonic?: string): Promise<OnchainSendResponse> {
+        this.ensureInitialized();
+        const psbt = await this.onchainSendBegin(params);
+        const signed_psbt = await this.utexoRGBWallet!.signPsbt(psbt, mnemonic);
+        return await this.onchainSendEnd({ signedPsbt: signed_psbt, invoice: params.invoice });
+    }
+
+    // async getOnchainSendStatus(invoice: string): Promise<TransferStatus | null> {
+    //     // TODO: Need func that returns destinationInvoice by mainnet invoice
+    //     /** Get the bridge RGB utexo invoice by tempRequestId should be by invoice */
+    //     const bridgeRGBUtexoInvoice = await bridgeAPI.getReceiverInvoice(1, utexoNetworkIdMap.mainnet.networkId);
+    //     const invoiceData = await this.utexoRGBWallet!.decodeRGBInvoice({ invoice: bridgeRGBUtexoInvoice });
+
+    //     const transfers = await this.utexoRGBWallet!.listTransfers(utexoNetworkIdMap.utexo.assetId);
+    //     return transfers.length > 0 ? transfers.find(transfer => transfer.recipientId === invoiceData.recipientId)?.status ?? null : null;
+    // }
+
+    async listOnchainTransfers(asset_id?: string): Promise<Transfer[]> {
+        this.ensureInitialized();
+        return this.utexoRGBWallet!.listTransfers(asset_id);
+    }
 
 
 
     async createLightningInvoice(params: CreateLightningInvoiceRequestModel): Promise<LightningReceiveRequest> {
         this.ensureInitialized();
 
-       const asset = params.asset;
+        const asset = params.asset;
+        if (!asset) {
+            throw new ValidationError('Asset is required', 'asset');
+        }
 
-        if(!asset.assetId) {
+        if (!asset.assetId) {
             throw new ValidationError('Asset ID is required', 'assetId');
-          }
-          if(!asset.amount) {
+        }
+        if (!asset.amount) {
             throw new ValidationError('Amount is required', 'amount');
-          }
-    
-          if(!(asset.assetId in assetIdTokenIdMap)) {
-            throw new ValidationError('Asset ID is not supported', 'assetId');
-          }
-    
-          const destinationInvoice = await this.utexoRGBWallet!.witnessReceive({
-            assetId: asset.assetId ?? '',
+        }
+
+       const destinationAsset = getDestinationAsset('mainnet','utexo', asset.assetId);
+       if(!destinationAsset) {
+        throw new ValidationError('Destination asset is not supported', 'assetId');
+       }
+
+        const destinationInvoice = await this.utexoRGBWallet!.witnessReceive({
+            assetId: '', //invoice can receive any asset
             amount: asset.amount,
-          });
-    
-          const bridgeTransfer = await bridgeAPI.getBridgeInSignature({
+        });
+
+        const bridgeTransfer = await bridgeAPI.getBridgeInSignature({
             sender: {
                 address: 'rgb-address',
                 networkName: utexoNetworkIdMap.mainnetLightning.networkName,
                 networkId: utexoNetworkIdMap.mainnetLightning.networkId,
             },
-            tokenId: assetIdTokenIdMap[asset.assetId as keyof typeof assetIdTokenIdMap],
+            tokenId: destinationAsset.tokenId,
             amount: asset.amount.toString(),
             destination: {
                 address: destinationInvoice.invoice,
@@ -495,45 +522,62 @@ export class UTEXOWallet extends UTEXOProtocol implements IWalletManager, IUTEXO
                 networkId: utexoNetworkIdMap.utexo.networkId,
             },
             additionalAddresses: [],
-          });
-    
-          const bridgeRGBMainnetInvoice = await bridgeAPI.getReceiverInvoice(bridgeTransfer.transferId, utexoNetworkIdMap.mainnet.networkId);
-    
+        });
+
+        const hexInvoice = bridgeTransfer.signature;
+        const UTXO_PATH_INDEX = 2;
+        const hex = hexInvoice.startsWith('0x')
+            ? hexInvoice.slice(UTXO_PATH_INDEX)
+            : hexInvoice;
+        const decodedLnInvoice = Buffer.from(hex, 'hex').toString('utf-8');
+
         return {
-            lnInvoice: bridgeRGBMainnetInvoice,
-            tempRequestId: bridgeTransfer.transferId,
+            lnInvoice: decodedLnInvoice,
         };
     }
- async payLightningInvoiceBegin(params: PayLightningInvoiceRequestModel): Promise<string> {
-    this.ensureInitialized();
-    const bridgeRGBUtexoInvoice = await bridgeAPI.getReceiverInvoice(params.tempRequestId, utexoNetworkIdMap.mainnet.networkId);
-    const invoiceData = await this.decodeRGBInvoice({ invoice: bridgeRGBUtexoInvoice });
-    
-    const amount = invoiceData.assignment.amount;
-    const isWitness = invoiceData.recipientId.includes("wvout:");
+    async payLightningInvoiceBegin(params: PayLightningInvoiceRequestModel): Promise<string> {
+        this.ensureInitialized();
 
-    const psbt = await this.utexoRGBWallet!.sendBegin({
-        invoice: bridgeRGBUtexoInvoice,
-        amount: amount,
-        assetId: utexoNetworkIdMap.utexo.assetId,
-        donation: true,
-        ...(isWitness && {
-            witnessData: {
-                amountSat: 1000,
-                blinding: 0,
-            }
-        }),
-    });
+        const bridgeTransfer = await bridgeAPI.getTransferByMainnetInvoice(params.lnInvoice, utexoNetworkIdMap.mainnet.networkId);
+       if(!bridgeTransfer) {
+        // TODO: there should be bridge out flow UTEXO to Mainnet
+        throw new ValidationError('Bridge transfer is not found', 'lnInvoice');
+       }
+       
+        const bridgeAmount = bridgeTransfer.recipientAmount;
+        const utexoInvoice = bridgeTransfer.recipient.address;
+  
+        const invoiceData = await this.decodeRGBInvoice({ invoice: utexoInvoice })
+        const destinationAsset = utexoNetworkIdMap.utexo.getAssetById(bridgeTransfer.recipientToken.id);
+        if(!destinationAsset) {
+            throw new ValidationError('Destination asset is not supported', 'assetId');
+        }
+        const amount = Number(bridgeAmount) / Math.pow(10,destinationAsset.precision );
 
-    return psbt;
- }
+        const isWitness = invoiceData.recipientId.includes("wvout:");
+
+        const psbt = await this.utexoRGBWallet!.sendBegin({
+            invoice: utexoInvoice,
+            amount: amount,
+            assetId: destinationAsset.assetId,
+            donation: true,
+            ...(isWitness && {
+                witnessData: {
+                    amountSat: 1000,
+                    blinding: 0,
+                }
+            }),
+        });
+
+        return psbt;
+    }
 
     async payLightningInvoiceEnd(params: PayLightningInvoiceEndRequestModel): Promise<SendResult> {
         this.ensureInitialized();
         const sendResult = await this.utexoRGBWallet!.sendEnd({ signedPsbt: params.signedPsbt });
         // TODO: there should be func that allow to cancel or mark as paid Tricorn Bridge Transfer
         // Best-effort finalize bridge transfer (complete/cancel/status) via BridgeClient (depending on Tricorn semantics)
-    
+
         return sendResult;
     }
 

@@ -56,7 +56,6 @@ export interface CreateLightningInvoiceRequestModel {
 export interface LightningReceiveRequest {
     lnInvoice: string;
     expiresAt?: number;
-    tempRequestId: number;
 }
 
 export interface LightningSendRequest extends SendResult {
@@ -93,23 +92,14 @@ export interface OnchainReceiveRequestModel extends InvoiceRequest {
 export interface OnchainReceiveResponse {
     /** Mainnet invoice */
     invoice: string;
-
-    /** Temporary request ID for the bridge transfer */
-    tempRequestId: number;
 }
 
 export interface OnchainSendRequestModel {
-    /** Temporary request ID for the bridge transfer */
-    tempRequestId: number;
-
     /** Mainnet invoice */
     invoice: string;
 }
 
 export interface OnchainSendEndRequestModel {
-    /** Temporary request ID for the bridge transfer */
-    tempRequestId: number;
-
     /** Mainnet invoice */
     invoice: string;
     signedPsbt: string;

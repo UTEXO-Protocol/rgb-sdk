@@ -1,0 +1,92 @@
+/**
+ * UTEXO network and asset mapping
+ */
+
+import type { Network } from '../../crypto/types';
+
+export const utexoNetworkMap = {
+  mainnet: 'testnet',
+  utexo: 'signet',
+} as const satisfies Record<string, Network>;
+
+type NetworkConfig = {
+  networkName: string;
+  networkId: number;
+  assets: { assetId: string; tokenName: string; longName: string; precision: number; tokenId: number }[];
+};
+
+function withGetAssetById<T extends NetworkConfig>(
+  config: T
+): T & { getAssetById(tokenId: number): T['assets'][number] | undefined } {
+  return {
+    ...config,
+    getAssetById(tokenId: number) {
+      return config.assets.find((a) => a.tokenId === tokenId);
+    },
+  };
+}
+
+export const utexoNetworkIdMap = {
+  mainnet: withGetAssetById({
+    networkName: 'RGB',
+    networkId: 36,
+    assets: [
+      {
+        assetId: 'rgb:WPRv95Nj-icdrgPp-zpQhIp_-2TyJ~Ge-k~FvuMZ-~vVnkA0',
+        tokenName: 'tUSD',
+        longName: 'USDT',
+        precision: 6,
+        tokenId: 4,
+      },
+    ],
+  }),
+  mainnetLightning: withGetAssetById({
+    networkName: 'RGB Lightning',
+    networkId: 94,
+    assets: [
+      {
+        assetId: 'rgb:WPRv95Nj-icdrgPp-zpQhIp_-2TyJ~Ge-k~FvuMZ-~vVnkA0',
+        tokenName: 'tUSD',
+        longName: 'USDT',
+        precision: 6,
+        tokenId: 4,
+      },
+    ],
+  }),
+  utexo: withGetAssetById({
+    networkName: 'UTEXO',
+    networkId: 96,
+    assets: [
+      {
+        assetId: 'rgb:rf1oK7Cb-qg~_QU2-SPKZem8-JJ_pxa7-5NygC2N-6sX_hgw',
+        tokenName: 'tUSD',
+        longName: 'USDT',
+        precision: 6,
+        tokenId: 4,
+      },
+    ],
+  }),
+};
+
+const networkConfigs = utexoNetworkIdMap;
+
+export type NetworkAsset = (typeof networkConfigs)[keyof typeof networkConfigs]['assets'][number];
+
+export type UtxoNetworkId = keyof typeof networkConfigs;
+
+/**
+ * Resolves the destination network's asset object from sender network, destination network, and sender asset ID.
+ * Uses tokenId as the cross-network identifier (same tokenId = same logical asset).
+ */
+export function getDestinationAsset(
+  senderNetwork: UtxoNetworkId,
+  destinationNetwork: UtxoNetworkId,
+  assetIdSender: string | null
+): NetworkAsset | undefined {
+  const destinationConfig = utexoNetworkIdMap[destinationNetwork];
+  if (assetIdSender == null) return destinationConfig.assets[0];
+  const senderConfig = utexoNetworkIdMap[senderNetwork];
+  const senderAsset = senderConfig.assets.find((a) => a.assetId === assetIdSender);
+  if (!senderAsset) return undefined;
+  return destinationConfig.assets.find((a) => a.tokenId === senderAsset.tokenId);
+}

@@ -4,38 +4,15 @@
 
 import type { Network } from '../crypto/types';
 
-export const utexoNetworkMap = {
-mainnet:'mainnet',
-utexo:'signet'
-} as const satisfies Record<string, Network>;
+// Re-export UTEXO network mapping from utexo/utils (canonical location)
+export {
+  utexoNetworkMap,
+  utexoNetworkIdMap,
+  getDestinationAsset,
+  type NetworkAsset,
+  type UtxoNetworkId,
+} from '../utexo/utils/network';
 
-export const assetIdTokenIdMap = {
-  'rgb:WPRv95Nj-icdrgPp-zpQhIp_-2TyJ~Ge-k~FvuMZ-~vVnkA0': 4,
-} as const satisfies Record<string, number>;
-
-export const utexoNetworkIdMap = {
-  mainnet:{
-    networkName: 'RGB',
-    networkId: 36,
-    tokenId: 4,
-    tokenName: 'tUSD',
-    assetId: 'rgb:WPRv95Nj-icdrgPp-zpQhIp_-2TyJ~Ge-k~FvuMZ-~vVnkA0',
-  },
-  mainnetLightning:{
-    networkName: 'RGB Lightning',
-    networkId: 36,
-    tokenId: 4,
-    tokenName: 'tUSD',
-    assetId: 'rgb:WPRv95Nj-icdrgPp-zpQhIp_-2TyJ~Ge-k~FvuMZ-~vVnkA0',
-  },
-  utexo:{
-    networkName: 'UTEXO',
-    networkId: 96,
-    tokenId: 4,
-    tokenName: 'tUSD',
-    assetId: 'rgb:WPRv95Nj-icdrgPp-zpQhIp_-2TyJ~Ge-k~FvuMZ-~vVnkA0',
-  }
-} as const satisfies Record<string, { networkName: string; networkId: number; tokenId: number; tokenName: string; assetId: string }>;
 /**
  * Coin type constants
  */

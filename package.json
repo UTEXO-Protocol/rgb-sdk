@@ -19,7 +19,18 @@
     "version:patch": "npm version patch && git push && git push --tags && npm publish --access public",
     "version:minor": "npm version minor && git push && git push --tags && npm publish --access public",
     "version:major": "npm version major && git push && git push --tags && npm publish --access public",
-    "example:complete": "node --experimental-wasm-modules example-flow.mjs"
+    "example:complete": "node --experimental-wasm-modules example-flow.mjs",
+    "generate_keys": "node utexo_test/generate_keys.mjs",
+    "address": "node utexo_test/address.mjs",
+    "btcbalance": "node utexo_test/btcbalance.mjs",
+    "createutxos": "node utexo_test/createutxos.mjs",
+    "listassets": "node utexo_test/listassets.mjs",
+    "blindreceive": "node utexo_test/blindreceive.mjs",
+    "witnessreceive": "node utexo_test/witnessreceive.mjs",
+    "onchainreceive": "node utexo_test/onchainreceive.mjs",
+    "decodergbinvoice": "node utexo_test/decodergbinvoice.mjs",
+    "refresh": "node utexo_test/refresh.mjs",
+    "listtransfers": "node utexo_test/listtransfers.mjs"
   },
   "files": [
     "dist",

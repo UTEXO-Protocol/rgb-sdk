@@ -108,7 +108,7 @@ export class RGBLibClient {
         'mainnet': 'ssl://electrum.iriswallet.com:50003',
         'testnet': 'ssl://electrum.iriswallet.com:50013',
         'testnet4': 'ssl://electrum.iriswallet.com:50053',
-        'signet': 'tcp://46.224.75.237:50001',
+        'signet': 'https://esplora-api.utexo.com',
         'regtest': 'tcp://regtest.thunderstack.org:50001',
       };
       this.indexerUrl = defaultIndexerUrls[this.network] || defaultIndexerUrls['regtest'];
@@ -131,11 +131,11 @@ export class RGBLibClient {
         rgblib.AssetSchema.Cfa,
         rgblib.AssetSchema.Nia,
         rgblib.AssetSchema.Uda,
+        "Ifa",
       ],
     };
 
     try {
-      console.log('walletData', walletData);
       this.wallet = new rgblib.Wallet(new rgblib.WalletData(walletData));
     } catch (error) {
       console.log('error', error);

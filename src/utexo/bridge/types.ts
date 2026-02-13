@@ -135,6 +135,60 @@ export type ReceiverInvoiceResponse = {
 };
 
 /**
+ * Token information
+ */
+export type TokenInfo = {
+    /** Token ID */
+    id: number;
+    /** Short name of the token */
+    shortName: string;
+    /** Long name of the token */
+    longName: string;
+    /** Icon link for the token */
+    iconLink: string;
+};
+
+/**
+ * Transaction hash information
+ */
+export type TransactionHash = {
+    /** Network name */
+    networkName: string;
+    /** Transaction hash */
+    hash: string;
+};
+
+/**
+ * Response from transfer-by-mainnet-invoice endpoint
+ */
+export type TransferByMainnetInvoiceResponse = {
+    /** Transfer ID */
+    id: number;
+    /** Sender amount */
+    senderAmount: string;
+    /** Recipient amount */
+    recipientAmount: string;
+    /** Commission amount */
+    commission: string;
+    /** Sender token information */
+    senderToken: TokenInfo;
+    /** Recipient token information */
+    recipientToken: TokenInfo;
+    /** Sender network address */
+    sender: NetworkAddress;
+    /** Recipient network address */
+    recipient: NetworkAddress;
+    /** Transfer status */
+    status: string;
+    /** Triggering transaction */
+    triggeringTx: TransactionHash;
+    /** Outbound transaction */
+    outboundTx: TransactionHash;
+    /** Creation timestamp */
+    createdAt: string;
+};
+
+/**
  * API Error response
  */
 export type ApiError = {

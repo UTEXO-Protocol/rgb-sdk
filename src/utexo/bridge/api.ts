@@ -1,5 +1,5 @@
 import axios, { AxiosInstance } from 'axios';
-import { BridgeInSignatureRequest, BridgeInSignatureResponse, ReceiverInvoiceResponse, SubmitTransactionRequest, SubmitTransactionResponse, VerifyBridgeInRequest } from './types';
+import { BridgeInSignatureRequest, BridgeInSignatureResponse, ReceiverInvoiceResponse, SubmitTransactionRequest, SubmitTransactionResponse, TransferByMainnetInvoiceResponse, VerifyBridgeInRequest } from './types';
 
 /**
  * Utexo Bridge API Client
@@ -90,6 +90,27 @@ class UtexoBridgeApiClient {
             `${this.basePath}/receiver-invoice/${transferId}/${networkId}`,
         );
         return data.invoice;
+    }
+
+    /**
+     * Gets transfer information by mainnet invoice
+     * 
+     * @param mainnetInvoice - Mainnet invoice string
+     * @param networkId - Network ID
+     * @returns Promise resolving to transfer information
+     * @throws {ApiError} If the request fails
+     */
+    async getTransferByMainnetInvoice(mainnetInvoice: string, networkId: number): Promise<TransferByMainnetInvoiceResponse> {
+        const { data } = await this.axios.get<TransferByMainnetInvoiceResponse>(
+            `${this.basePath}/transfer-by-mainnet-invoice`,
+            {
+                params: {
+                    mainnet_invoice: mainnetInvoice,
+                    network_id: networkId,
+                },
+            },
+        );
+        return data;
     }
 }
 
