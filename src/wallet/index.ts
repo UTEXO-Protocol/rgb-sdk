@@ -8,3 +8,4 @@
 export { WalletManager, createWalletManager, wallet, createWallet, restoreFromBackup } from './wallet-manager';
 export type { WalletInitParams } from './wallet-manager';
 
+

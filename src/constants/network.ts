@@ -4,6 +4,15 @@
 
 import type { Network } from '../crypto/types';
 
+// Re-export UTEXO network mapping from utexo/utils (canonical location)
+export {
+  utexoNetworkMap,
+  utexoNetworkIdMap,
+  getDestinationAsset,
+  type NetworkAsset,
+  type UtxoNetworkId,
+} from '../utexo/utils/network';
+
 /**
  * Coin type constants
  */

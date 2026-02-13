@@ -72,7 +72,24 @@ const reciver_keys = {
     masterFingerprint: '2f4de38a',
     xpriv: 'tprv8ZgxMBicQKsPeuTyYdb8KgwKcwy8D18gEVoJUfCMcfS9rBwueNofZsq6pfVULHAjDDapA857Pj6zp1zv9BqhrGgq3gQheSipDBWP4k3VnnM'
 }
-const bitcoinNetwork = 'regtest'; // Regtest network
+const Keysgenerated= {
+    mnemonic: 'panther real human slogan almost unfold task gown hold army fall save',
+    xpub: 'tpubD6NzVbkrYhZ4XzhbVsPwjczpu3tZi4ERagjPpivQxzm13Tb5Murmvbb1KeVA43PLPmFgCXS98XBF9w3QZVEAp3uimkjwjG3BiyvEeELPBf7',
+    accountXpubVanilla: 'tpubDCjUD8f5QGVjbgvKZRvPx7GCNncXoxGAAu9F26cApEpdEsjZiHPqJdjhHdSagVJBMRU4GCcq7N8nngPWENqWXfxBKiPrUvTLtkAuBNZbRbL',
+    accountXpubColored: 'tpubDC4VePJFVqLB473vPiiBVFHE46qsmKBsU5h7JqSz9BHTJVBbkDRFxKpBvfNzvkws3aNL1hJpQGMtUdneYazAjrKiuuhKH4nJzCZyMqZHy9k',
+    masterFingerprint: 'dfc09a55',
+    xpriv: 'tprv8ZgxMBicQKsPeXfocDjMLDLiL2NdYj3X1P8cYCt7YixcCyLJjX3Bk6y99U6Nm6QwrGi2wdNSn4wQDsDiLhPnCnCpjKFtdL7E6xp3MWrYeCn'
+  }
+
+  const signet_keys = {
+    mnemonic: 'zebra canyon believe puppy attend whip enough hover style blood boss aim',
+    xpub: 'tpubD6NzVbkrYhZ4XE3cTdpMfiLErtKy5YZexxehGeJwU7HCAdL3CUiGb5V1QtRqfDxqqJQ9X6W4MGoD6Dh93PMs3SKbCrTaEgV7o9EsZMdVxeL',
+    accountXpubVanilla: 'tpubDChRCioutECCiy9V7o5Uiw6hsZNPa9KydCQPZsZLjDDHEpGenAqG59hZuDrETEq4ESCur78P61w1stKM5CzNWLHSh2j1LV2m4wJQm45zDeZ',
+    accountXpubColored: 'tpubDCFrxT5TCk6LwC6FDcnNwqNMpDyG61BPZsJ9Nvxq15hGbAifmD9rdqs4TSU8QPd9xo7eTNUwHCcY1DRdhFD79fLpF9byF3nZN2qxm94K3MT',
+    masterFingerprint: '3780bc30',
+    xpriv: 'tprv8ZgxMBicQKsPdm1pZz9mGJg8Hrp2vDNkPf3uz8Ge3qUoL95Ga5tgQas9EmwVDcx67S2LACiGykAMrZCZoTAoqzdHjrj9rMTHYcyPPhAqYey'
+  }
+const bitcoinNetwork = 'signet'; // Regtest network
 async function initWallet(keys) {
     console.log("\nInitializing wallet with RGB SDK...");
 
@@ -100,9 +117,9 @@ async function initWallet(keys) {
         masterFingerprint: keys.masterFingerprint,
         mnemonic: keys.mnemonic,
         network: bitcoinNetwork,
-        rgb_node_endpoint: RGB_MANAGER_ENDPOINT,
+        // rgb_node_endpoint: RGB_MANAGER_ENDPOINT,
         transportEndpoint: TRANSPORT_ENDPOINT,
-        indexerUrl: INDEXER_URL
+        // indexerUrl: INDEXER_URL
     });
 
     console.log("Wallet created");
@@ -115,16 +132,19 @@ async function initWallet(keys) {
     const btcBalance = wallet.getBtcBalance();
     console.log("BTC balance:", btcBalance);
 
+    await wallet.syncWallet();
+
+
     // Get address
     const address = wallet.getAddress();
-    return { wallet, keys };
+    
     console.log("Address:", address);
 
     // Send some BTC to the address
-    await sendToAddress(address, 1);
-    await mine(3);
+    // await sendToAddress(address, 1);
+    // await mine(3);
     // Wait a bit for the transaction to be processed
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    // await new Promise(resolve => setTimeout(resolve, 2000));
 
     // Get updated BTC balance
     const updatedBtcBalance = wallet.getBtcBalance();
@@ -132,15 +152,16 @@ async function initWallet(keys) {
 
     // Create UTXOs
     console.log("Creating UTXOs...");
-    const psbt = wallet.createUtxosBegin({
-        upTo: true,
-        num: 20,
-        size: 1500,
-        feeRate: 1
-    });
-    console.log('psbt', psbt);
-    const signedPsbt = await wallet.signPsbt(psbt);
-    const utxosCreated = wallet.createUtxosEnd({ signedPsbt: signedPsbt });
+    const utxosCreated = await wallet.createUtxos({ upTo: true, num: 2, size: 1500, feeRate: 1 });
+    // const psbt = await wallet.createUtxosBegin({
+    //     upTo: true,
+    //     num: 2,
+    //     size: 1500,
+    //     feeRate: 1
+    // });
+    // console.log('psbt', psbt);
+    // const signedPsbt = await wallet.signPsbt(psbt);
+    // const utxosCreated = wallet.createUtxosEnd({ signedPsbt: signedPsbt });
     console.log(`Created UTXOs successfully`, utxosCreated);
     return { wallet, keys };
 }
@@ -151,27 +172,49 @@ async function initWallet(keys) {
 async function main() {
     console.log("Starting RGB SDK Wallet Example");
     console.log("=".repeat(50));
-// const test = await createWallet(bitcoinNetwork);
-// console.log("createWallet", test);
+    // const test = await createWallet(bitcoinNetwork);
+    // console.log("createWallet", test);
     // return
 
     try {
         // Initialize sender wallet
         // const { wallet: senderWallet, keys: senderKeys } = await initWallet(reciver_keys);
         //  const keys = await createWallet(bitcoinNetwork);
-        const { wallet: senderWallet, keys: senderKeys } = await initWallet(sender_keys);
-        
+        const { wallet: senderWallet, keys: senderKeys } = await initWallet(signet_keys);
+return;
+        // const txss = await senderWallet.listTransfers();
+        // console.log("Transfers:", JSON.stringify(txss, null, 2));
+        // const senderWalletres = await senderWallet.blindReceive({
+        //     // assetId: asset1.asset?.assetId || '',
+        //     amount: 12
+        // });
+
+        // const invoiceData = await senderWallet.decodeRGBInvoice({ invoice: senderWalletres.invoice });
+        // console.log("Invoice data:", JSON.stringify(invoiceData, null, 2));
+        // console.log("Blind receive data:", senderWalletres);
+        // const txafter = await senderWallet.listTransfers();
+        // console.log("Transfers after blind receive:", JSON.stringify(txafter, null, 2));
+
+        // const ltransactions = await senderWallet.listTransactions();
+        // console.log("Transactions:", JSON.stringify(ltransactions, null, 2));
+
+        // return
         //  const { wallet: receiverWallet, keys: receiverKeys } = await initWallet(reciver_keys);
         // return
         // Issue NIA asset
         // console.log("\nIssuing NIA asset...");
-        // const asset1 = senderWallet.issueAssetNia({
-        //     ticker: "USDT",
-        //     name: "Tether",
-        //     amounts: [777, 66],
-        //     precision: 0
-        // });
-        // console.log("Issued NIA asset:", JSON.stringify(asset1));
+        const unspents2 = await senderWallet.listUnspents();
+        console.log("Unspents2:", JSON.stringify(unspents2, null, 2));
+
+return 
+
+        const asset12 = senderWallet.issueAssetNia({
+            ticker: "USDT",
+            name: "Tether",
+            amounts: [777, 66],
+            precision: 0
+        });
+        console.log("Issued NIA asset:", JSON.stringify(asset12));
 
         // Issue CFA asset (if supported)
         // Note: CFA issuance might not be available in the current API
@@ -201,9 +244,9 @@ async function main() {
         }
         // List assets
         console.log("\nListing assets...");
-        // const assets1 = senderWallet.listAssets();
-        // console.log("Assets:", JSON.stringify(assets1, null, 2));
-
+        const assets1 = senderWallet.listAssets();
+        console.log("Assets:", JSON.stringify(assets1, null, 2));
+return
         const asset_balance = senderWallet.getAssetBalance(asset1.assetId);
         console.log("Asset balance:", JSON.stringify(asset_balance, null, 2));
 
@@ -229,7 +272,7 @@ async function main() {
         console.log("Signed PSBT:", signedSendPsbt);
         const btcEstimate = await senderWallet.estimateFee(signedSendPsbt);
         console.log("BTC send estimate:", btcEstimate);
-       
+
         const sendBtcEndresult = senderWallet.sendBtcEnd({ signedPsbt: signedSendPsbt });
         console.log("Send BTC result:", sendBtcEndresult);
         mine(3);
@@ -238,11 +281,11 @@ async function main() {
         receiverWallet.syncWallet();
         senderWallet.syncWallet();
 
-           const resultCombined = await senderWallet.sendBtc({
-                address: btcAddress,
-                amount: 7000,
-                feeRate: 1
-            });
+        const resultCombined = await senderWallet.sendBtc({
+            address: btcAddress,
+            amount: 7000,
+            feeRate: 1
+        });
 
         console.log("Send BTC result:", resultCombined);
 
@@ -263,8 +306,8 @@ async function main() {
         });
         console.log("Blind receive data:", JSON.stringify(receiveData1, null, 2));
 
-        
-            // Send assets
+
+        // Send assets
         console.log("\nSending assets...", asset1);
         const psbt = senderWallet.sendBegin({
             assetId: asset1.assetId,
