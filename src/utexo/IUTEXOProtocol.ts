@@ -40,7 +40,7 @@ export interface ILightningProtocol {
      * @param id - The request ID of the Lightning invoice
      * @returns Promise resolving to Lightning invoice response or null if not found
      */
-    getLightningReceiveRequest(id: string): Promise<LightningReceiveRequest | null>;
+    getLightningReceiveRequest(id: string): Promise<TransferStatus | null>;
 
     /**
      * Returns the current status of a Lightning payment initiated with payLightningInvoice.
@@ -49,7 +49,7 @@ export interface ILightningProtocol {
      * @param id - The request ID of the Lightning send request
      * @returns Promise resolving to Lightning send request response or null if not found
      */
-    getLightningSendRequest(id: string): Promise<LightningSendRequest | null>;
+    getLightningSendRequest(id: string): Promise<TransferStatus|null>;
 
     /**
      * Estimates the routing fee required to pay a Lightning invoice.

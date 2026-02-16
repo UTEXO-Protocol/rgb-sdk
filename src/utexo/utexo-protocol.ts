@@ -32,11 +32,11 @@ export class LightningProtocol implements ILightningProtocol {
         throw new Error('createLightningInvoice not implemented');
     }
 
-    async getLightningReceiveRequest(id: string): Promise<LightningReceiveRequest | null> {
+    async getLightningReceiveRequest(id: string): Promise<TransferStatus | null> {
         throw new Error('getLightningReceiveRequest not implemented');
     }
 
-    async getLightningSendRequest(id: string): Promise<LightningSendRequest | null> {
+    async getLightningSendRequest(id: string): Promise<TransferStatus|null> {
         throw new Error('getLightningSendRequest not implemented');
     }
 

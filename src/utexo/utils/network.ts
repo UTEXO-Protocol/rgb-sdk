@@ -58,7 +58,7 @@ export const utexoNetworkIdMap = {
     networkId: 96,
     assets: [
       {
-        assetId: 'rgb:rf1oK7Cb-qg~_QU2-SPKZem8-JJ_pxa7-5NygC2N-6sX_hgw',
+        assetId: 'rgb:yJW4k8si-~8JdNfl-nM91qFu-r5rH_HS-1hM7jpi-L~lBf90',
         tokenName: 'tUSD',
         longName: 'USDT',
         precision: 6,

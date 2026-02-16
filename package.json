@@ -30,7 +30,18 @@
     "onchainreceive": "node utexo_test/onchainreceive.mjs",
     "decodergbinvoice": "node utexo_test/decodergbinvoice.mjs",
     "refresh": "node utexo_test/refresh.mjs",
-    "listtransfers": "node utexo_test/listtransfers.mjs"
+    "listtransfers": "node utexo_test/listtransfers.mjs",
+    "onchainsendbegin": "node utexo_test/onchainsendbegin.mjs",
+    "signpsbt": "node utexo_test/signpsbt.mjs",
+    "onchainsendend": "node utexo_test/onchainsendend.mjs",
+    "onchainsend": "node utexo_test/onchainsend.mjs",
+    "listunspents": "node utexo_test/listunspents.mjs",
+    "getonchainsendstatus": "node utexo_test/getonchainsendstatus.mjs",
+    "createlightninginvoice": "node utexo_test/createlightninginvoice.mjs",
+    "paylightninginvoicebegin": "node utexo_test/paylightninginvoicebegin.mjs",
+    "paylightninginvoiceend": "node utexo_test/paylightninginvoiceend.mjs",
+    "getlightningsendrequest": "node utexo_test/getlightningsendrequest.mjs",
+    "getlightningreceiverequest": "node utexo_test/getlightningreceiverequest.mjs"
   },
   "files": [
     "dist",

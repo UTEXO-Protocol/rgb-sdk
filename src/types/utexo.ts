@@ -69,14 +69,13 @@ export interface GetLightningSendFeeEstimateRequestModel {
 
 export interface PayLightningInvoiceRequestModel {
     lnInvoice: string;
+    amount?: number;
+    assetId?: string;
     maxFee?: number;
-
-    tempRequestId: number;
 }
 
 export interface PayLightningInvoiceEndRequestModel {
     signedPsbt: string;
-    tempRequestId: number;
     lnInvoice: string;
 }
 
@@ -97,6 +96,8 @@ export interface OnchainReceiveResponse {
 export interface OnchainSendRequestModel {
     /** Mainnet invoice */
     invoice: string;
+    assetId?: string;
+    amount?: number;
 }
 
 export interface OnchainSendEndRequestModel {

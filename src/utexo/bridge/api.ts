@@ -118,7 +118,7 @@ class UtexoBridgeApiClient {
  * Singleton axios instance for UTEXO Bridge API
  */
 const utexoBridgeAxios: AxiosInstance = axios.create({
-    baseURL: 'https://dev.gateway.utexo.tricorn.network/',
+    baseURL: 'http://localhost:8081/',
 });
 
 /**
