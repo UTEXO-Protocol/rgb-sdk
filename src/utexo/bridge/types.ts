@@ -195,3 +195,13 @@ export type ApiError = {
     error: string;
     code?: number;
 };
+export enum TransferStatuses {
+    'UNSPECIFIED',
+    'CONFIRMING',
+    'CANCELED',
+    'FINISHED',
+    'WAITING',
+    'CANCELING',
+    'FAILED',
+    'ETCHING',
+}

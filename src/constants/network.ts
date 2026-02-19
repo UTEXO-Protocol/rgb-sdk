@@ -9,8 +9,13 @@ export {
   utexoNetworkMap,
   utexoNetworkIdMap,
   getDestinationAsset,
+  getUtxoNetworkConfig,
   type NetworkAsset,
   type UtxoNetworkId,
+  type UtxoNetworkPreset,
+  type UtxoNetworkMap,
+  type UtxoNetworkIdMap,
+  type UtxoNetworkPresetConfig,
 } from '../utexo/utils/network';
 
 /**

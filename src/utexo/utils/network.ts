@@ -3,70 +3,76 @@
  */
 
 import type { Network } from '../../crypto/types';
+// Import preset configurations from config file
+import { testnetPreset, mainnetPreset } from '../config/utexo-presets';
 
-export const utexoNetworkMap = {
-  mainnet: 'testnet',
-  utexo: 'signet',
-} as const satisfies Record<string, Network>;
+/**
+ * Network preset type - determines which configuration bundle to use
+ */
+export type UtxoNetworkPreset = 'mainnet' | 'testnet';
 
+/**
+ * Network map configuration - maps logical network names to Bitcoin network types
+ */
+export type UtxoNetworkMap = {
+  mainnet: Network;
+  utexo: Network;
+};
+
+/**
+ * Network configuration for a single network (RGB, RGB Lightning, or UTEXO)
+ */
 type NetworkConfig = {
   networkName: string;
   networkId: number;
   assets: { assetId: string; tokenName: string; longName: string; precision: number; tokenId: number }[];
 };
 
-function withGetAssetById<T extends NetworkConfig>(
-  config: T
-): T & { getAssetById(tokenId: number): T['assets'][number] | undefined } {
-  return {
-    ...config,
-    getAssetById(tokenId: number) {
-      return config.assets.find((a) => a.tokenId === tokenId);
-    },
-  };
+/**
+ * Network ID map configuration - contains all network configs with asset lookup
+ */
+export type UtxoNetworkIdMap = {
+  mainnet: NetworkConfig & { getAssetById(tokenId: number): NetworkConfig['assets'][number] | undefined };
+  mainnetLightning: NetworkConfig & { getAssetById(tokenId: number): NetworkConfig['assets'][number] | undefined };
+  utexo: NetworkConfig & { getAssetById(tokenId: number): NetworkConfig['assets'][number] | undefined };
+};
+
+/**
+ * Complete network preset configuration bundle
+ */
+export type UtxoNetworkPresetConfig = {
+  networkMap: UtxoNetworkMap;
+  networkIdMap: UtxoNetworkIdMap;
+};
+
+/**
+ * Network preset configurations map
+ */
+const NETWORK_PRESETS: Record<UtxoNetworkPreset, UtxoNetworkPresetConfig> = {
+  mainnet: mainnetPreset,
+  testnet: testnetPreset,
+};
+
+/**
+ * Gets the network configuration for a given preset
+ * @param preset - Network preset ('mainnet' or 'testnet')
+ * @returns Network preset configuration bundle
+ */
+export function getUtxoNetworkConfig(preset: UtxoNetworkPreset): UtxoNetworkPresetConfig {
+  return NETWORK_PRESETS[preset];
 }
 
-export const utexoNetworkIdMap = {
-  mainnet: withGetAssetById({
-    networkName: 'RGB',
-    networkId: 36,
-    assets: [
-      {
-        assetId: 'rgb:WPRv95Nj-icdrgPp-zpQhIp_-2TyJ~Ge-k~FvuMZ-~vVnkA0',
-        tokenName: 'tUSD',
-        longName: 'USDT',
-        precision: 6,
-        tokenId: 4,
-      },
-    ],
-  }),
-  mainnetLightning: withGetAssetById({
-    networkName: 'RGB Lightning',
-    networkId: 94,
-    assets: [
-      {
-        assetId: 'rgb:WPRv95Nj-icdrgPp-zpQhIp_-2TyJ~Ge-k~FvuMZ-~vVnkA0',
-        tokenName: 'tUSD',
-        longName: 'USDT',
-        precision: 6,
-        tokenId: 4,
-      },
-    ],
-  }),
-  utexo: withGetAssetById({
-    networkName: 'UTEXO',
-    networkId: 96,
-    assets: [
-      {
-        assetId: 'rgb:yJW4k8si-~8JdNfl-nM91qFu-r5rH_HS-1hM7jpi-L~lBf90',
-        tokenName: 'tUSD',
-        longName: 'USDT',
-        precision: 6,
-        tokenId: 4,
-      },
-    ],
-  }),
-};
+/**
+ * Backward compatibility: Export testnet preset as default (current behavior)
+ * @deprecated Use getUtxoNetworkConfig('testnet') or getUtxoNetworkConfig('mainnet') instead
+ */
+export const utexoNetworkMap: UtxoNetworkMap = testnetPreset.networkMap;
+
+/**
+ * Backward compatibility: Export testnet preset as default (current behavior)
+ * @deprecated Use getUtxoNetworkConfig('testnet') or getUtxoNetworkConfig('mainnet') instead
+ */
+export const utexoNetworkIdMap: UtxoNetworkIdMap = testnetPreset.networkIdMap;
 
 const networkConfigs = utexoNetworkIdMap;
 

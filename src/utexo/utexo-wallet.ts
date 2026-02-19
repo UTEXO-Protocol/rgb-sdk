@@ -10,12 +10,13 @@ import { PublicKeys } from "../types/utexo";
 import { deriveKeysFromMnemonicOrSeed } from '../crypto';
 import type { Network, EstimateFeeResult } from '../crypto';
 import { BitcoinNetwork } from "../types/wallet-model";
-import { getDestinationAsset, utexoNetworkIdMap, utexoNetworkMap } from "../constants";
+import { getDestinationAsset } from "../constants";
 import { WalletManager } from "../wallet/wallet-manager";
 import { ValidationError, WalletError } from "../errors";
 import type { IWalletManager } from "../wallet/IWalletManager";
 import type { IUTEXOProtocol } from "./IUTEXOProtocol";
 import { UTEXOProtocol } from "./utexo-protocol";
+import { getUtxoNetworkConfig, type UtxoNetworkPreset, type UtxoNetworkMap, type UtxoNetworkIdMap } from "./utils/network";
 
 // Re-export for convenience
 export { UTEXOProtocol } from "./utexo-protocol";
@@ -69,9 +70,11 @@ import { NetworkAsset } from "./utils/network";
 import { decodeBridgeInvoice, fromUnitsNumber, toUnitsNumber } from "./utils/helpers";
 
 export interface ConfigOptions {
-    // Optional configuration options
-    // To be extended in the future
-    network?: Network
+    /**
+     * Network preset: 'mainnet' (production) or 'testnet' (development).
+     * Default: 'mainnet'.
+     */
+    network?: UtxoNetworkPreset;
 }
 
 /**
@@ -85,6 +88,8 @@ export interface ConfigOptions {
 export class UTEXOWallet extends UTEXOProtocol implements IWalletManager, IUTEXOProtocol {
     private readonly mnemonicOrSeed: string | Uint8Array;
     private readonly options: ConfigOptions;
+    private readonly networkMap: UtxoNetworkMap;
+    private readonly networkIdMap: UtxoNetworkIdMap;
     private layer1Keys: PublicKeys | null = null;
     private utexoKeys: PublicKeys | null = null;
     private layer1RGBWallet: WalletManager | null = null;
@@ -93,31 +98,37 @@ export class UTEXOWallet extends UTEXOProtocol implements IWalletManager, IUTEXO
     /**
      * Creates a new UTEXOWallet instance
      * @param mnemonicOrSeed - Either a mnemonic phrase (string) or seed (Uint8Array)
-     * @param options - Optional configuration options (defaults to empty object)
+     * @param options - Optional configuration options (defaults to { network: 'mainnet' })
      */
     constructor(mnemonicOrSeed: string | Uint8Array, options: ConfigOptions = {}) {
         super();
-        console.log('mnemonicOrSeed', mnemonicOrSeed);
         this.mnemonicOrSeed = mnemonicOrSeed;
         this.options = options;
+
+        // Initialize network configuration based on preset (default: 'mainnet')
+        const preset: UtxoNetworkPreset = options.network ?? 'mainnet';
+
+        const networkConfig = getUtxoNetworkConfig(preset);
+        this.networkMap = networkConfig.networkMap;
+        this.networkIdMap = networkConfig.networkIdMap;
     }
 
     async initialize(): Promise<void> {
-        this.layer1Keys = await this.derivePublicKeys(utexoNetworkMap.mainnet);
-        this.utexoKeys = await this.derivePublicKeys(utexoNetworkMap.utexo);
+        this.layer1Keys = await this.derivePublicKeys(this.networkMap.mainnet);
+        this.utexoKeys = await this.derivePublicKeys(this.networkMap.utexo);
         this.utexoRGBWallet = new WalletManager({
             xpubVan: this.utexoKeys.accountXpubVanilla,
             xpubCol: this.utexoKeys.accountXpubColored,
             masterFingerprint: this.utexoKeys.masterFingerprint,
-            network: utexoNetworkMap.utexo,
-            
+            network: this.networkMap.utexo,
+
             mnemonic: this.mnemonicOrSeed as string,
         });
         this.layer1RGBWallet = new WalletManager({
             xpubVan: this.layer1Keys.accountXpubVanilla,
             xpubCol: this.layer1Keys.accountXpubVanilla,
             masterFingerprint: this.layer1Keys.masterFingerprint,
-            network: utexoNetworkMap.mainnet,
+            network: this.networkMap.mainnet,
             mnemonic: this.mnemonicOrSeed as string,
         });
     }
@@ -380,7 +391,7 @@ export class UTEXOWallet extends UTEXOProtocol implements IWalletManager, IUTEXO
     ): Promise<{ utexoInvoice: string; invoiceData: InvoiceData; destinationAsset: NetworkAsset }> {
         const utexoInvoice = bridgeTransfer.recipient.address;
         const invoiceData = await this.decodeRGBInvoice({ invoice: utexoInvoice });
-        const destinationAsset = utexoNetworkIdMap.utexo.getAssetById(bridgeTransfer.recipientToken.id);
+        const destinationAsset = this.networkIdMap.utexo.getAssetById(bridgeTransfer.recipientToken.id);
 
         if (!destinationAsset) {
             throw new ValidationError('Destination asset is not supported', 'assetId');
@@ -392,10 +403,6 @@ export class UTEXOWallet extends UTEXOProtocol implements IWalletManager, IUTEXO
     /**
      * IUTEXOProtocol Implementation
      */
-    // All UTEXO protocol method implementations go here in UTEXOWallet
-    // because they need access to layer1RGBWallet and utexoRGBWallet instances.
-    // The base class (UTEXOProtocol) provides stub implementations for interface compliance.
-    // Override methods here as they are implemented.
 
 
     async onchainReceive(params: OnchainReceiveRequestModel): Promise<OnchainReceiveResponse> {
@@ -420,15 +427,15 @@ export class UTEXOWallet extends UTEXOProtocol implements IWalletManager, IUTEXO
         const bridgeTransfer = await bridgeAPI.getBridgeInSignature({
             sender: {
                 address: 'rgb-address',
-                networkName: utexoNetworkIdMap.mainnet.networkName,
-                networkId: utexoNetworkIdMap.mainnet.networkId,
+                networkName: this.networkIdMap.mainnet.networkName,
+                networkId: this.networkIdMap.mainnet.networkId,
             },
             tokenId: destinationAsset.tokenId,
             amount: params.amount.toString(),
             destination: {
                 address: destinationInvoice.invoice,
-                networkName: utexoNetworkIdMap.utexo.networkName,
-                networkId: utexoNetworkIdMap.utexo.networkId,
+                networkName: this.networkIdMap.utexo.networkName,
+                networkId: this.networkIdMap.utexo.networkId,
             },
             additionalAddresses: [],
         });
@@ -443,7 +450,7 @@ export class UTEXOWallet extends UTEXOProtocol implements IWalletManager, IUTEXO
     async onchainSendBegin(params: OnchainSendRequestModel): Promise<string> {
         this.ensureInitialized();
         /** Get the bridge RGB utexo invoice by tempRequestId should be by invoice */
-        const bridgeTransfer = await bridgeAPI.getTransferByMainnetInvoice(params.invoice, utexoNetworkIdMap.mainnet.networkId);
+        const bridgeTransfer = await bridgeAPI.getTransferByMainnetInvoice(params.invoice, this.networkIdMap.mainnet.networkId);
         if (!bridgeTransfer) {
             console.warn('External invoice UTEXO -> Mainnet initiated');
             return this.UTEXOToMainnetRGB(params);
@@ -452,7 +459,7 @@ export class UTEXOWallet extends UTEXOProtocol implements IWalletManager, IUTEXO
         const invoiceData = await this.decodeRGBInvoice({ invoice: utexoInvoice })
         console.log('invoiceData', invoiceData);
         const bridgeAmount = bridgeTransfer.recipientAmount;
-        const destinationAsset =utexoNetworkIdMap.utexo.getAssetById(bridgeTransfer.recipientToken.id);
+        const destinationAsset = this.networkIdMap.utexo.getAssetById(bridgeTransfer.recipientToken.id);
         if (!destinationAsset) {
             throw new ValidationError('Destination asset is not supported', 'assetId');
         }
@@ -497,12 +504,13 @@ export class UTEXOWallet extends UTEXOProtocol implements IWalletManager, IUTEXO
     }
 
     async getOnchainSendStatus(invoice: string): Promise<TransferStatus | null> {
-        // TODO: Need func that returns destinationInvoice by mainnet invoice
-        /** Get the bridge RGB utexo invoice by tempRequestId should be by invoice */
-        const bridgeTransfer = await bridgeAPI.getTransferByMainnetInvoice(invoice, utexoNetworkIdMap.mainnet.networkId);
+        const bridgeTransfer = await bridgeAPI.getTransferByMainnetInvoice(invoice, this.networkIdMap.mainnet.networkId);
         if (!bridgeTransfer) {
-            // TODO: there should be bridge out flow UTEXO to Mainnet
-            throw new ValidationError('Bridge transfer is not found', 'invoice');
+            const withdrawTransfer = await bridgeAPI.getWithdrawTransfer(invoice, this.networkIdMap.utexo.networkId);
+            if (!withdrawTransfer) {
+                return null;
+            }
+            return withdrawTransfer.status as TransferStatus;
         }
         const { invoiceData, destinationAsset } = await this.extractInvoiceAndAsset(bridgeTransfer);
         const transfers = await this.utexoRGBWallet!.listTransfers(destinationAsset.assetId);
@@ -544,15 +552,15 @@ export class UTEXOWallet extends UTEXOProtocol implements IWalletManager, IUTEXO
         const bridgeTransfer = await bridgeAPI.getBridgeInSignature({
             sender: {
                 address: 'rgb-address',
-                networkName: utexoNetworkIdMap.mainnetLightning.networkName,
-                networkId: utexoNetworkIdMap.mainnetLightning.networkId,
+                networkName: this.networkIdMap.mainnetLightning.networkName,
+                networkId: this.networkIdMap.mainnetLightning.networkId,
             },
             tokenId: destinationAsset.tokenId,
             amount: asset.amount.toString(),
             destination: {
                 address: destinationInvoice.invoice,
-                networkName: utexoNetworkIdMap.utexo.networkName,
-                networkId: utexoNetworkIdMap.utexo.networkId,
+                networkName: this.networkIdMap.utexo.networkName,
+                networkId: this.networkIdMap.utexo.networkId,
             },
             additionalAddresses: [],
         });
@@ -564,15 +572,14 @@ export class UTEXOWallet extends UTEXOProtocol implements IWalletManager, IUTEXO
         };
     }
 
-   
+
 
     async payLightningInvoiceBegin(params: PayLightningInvoiceRequestModel): Promise<string> {
         this.ensureInitialized();
 
-        const bridgeTransfer = await bridgeAPI.getTransferByMainnetInvoice(params.lnInvoice, utexoNetworkIdMap.mainnetLightning.networkId);
+        const bridgeTransfer = await bridgeAPI.getTransferByMainnetInvoice(params.lnInvoice, this.networkIdMap.mainnetLightning.networkId);
         if (!bridgeTransfer) {
-            console.warn('External invoice UTEXO -> Mainnet Lightning initiated');
-            throw new ValidationError('UTEXO -> RGB Lightning not implemented', 'lnInvoice');
+            console.log('External invoice UTEXO -> Mainnet Lightning initiated');
             return this.UtexoToMainnetLightning(params);
         }
 
@@ -616,9 +623,13 @@ export class UTEXOWallet extends UTEXOProtocol implements IWalletManager, IUTEXO
 
     async getLightningSendRequest(lnInvoice: string): Promise<TransferStatus | null> {
         this.ensureInitialized();
-        const bridgeTransfer = await bridgeAPI.getTransferByMainnetInvoice(lnInvoice, utexoNetworkIdMap.mainnetLightning.networkId);
+        const bridgeTransfer = await bridgeAPI.getTransferByMainnetInvoice(lnInvoice, this.networkIdMap.mainnetLightning.networkId);
         if (!bridgeTransfer) {
-            throw new ValidationError('Bridge transfer is not found', 'lnInvoice');
+            const withdrawTransfer = await bridgeAPI.getWithdrawTransfer(lnInvoice, this.networkIdMap.utexo.networkId);
+            if (!withdrawTransfer) {
+                return null;
+            }
+            return withdrawTransfer.status as TransferStatus;
         }
         const { invoiceData, destinationAsset } = await this.extractInvoiceAndAsset(bridgeTransfer);
         const transfers = await this.utexoRGBWallet!.listTransfers(destinationAsset.assetId);
@@ -626,9 +637,13 @@ export class UTEXOWallet extends UTEXOProtocol implements IWalletManager, IUTEXO
     }
     async getLightningReceiveRequest(lnInvoice: string): Promise<TransferStatus | null> {
         this.ensureInitialized();
-        const bridgeTransfer = await bridgeAPI.getTransferByMainnetInvoice(lnInvoice, utexoNetworkIdMap.mainnetLightning.networkId);
+        const bridgeTransfer = await bridgeAPI.getTransferByMainnetInvoice(lnInvoice, this.networkIdMap.mainnetLightning.networkId);
         if (!bridgeTransfer) {
-            throw new ValidationError('Bridge transfer is not found', 'lnInvoice');
+            const withdrawTransfer = await bridgeAPI.getWithdrawTransfer(lnInvoice, this.networkIdMap.utexo.networkId);
+            if (!withdrawTransfer) {
+                return null;
+            }
+            return withdrawTransfer.status as TransferStatus;
         }
         const { invoiceData, destinationAsset } = await this.extractInvoiceAndAsset(bridgeTransfer);
         const transfers = await this.utexoRGBWallet!.listTransfers(destinationAsset.assetId);
@@ -638,18 +653,16 @@ export class UTEXOWallet extends UTEXOProtocol implements IWalletManager, IUTEXO
     private async UTEXOToMainnetRGB(params: OnchainSendRequestModel): Promise<string> {
         this.ensureInitialized();
         const invoiceData = await this.decodeRGBInvoice({ invoice: params.invoice })
-        console.log('UTEXOToMainnetRGB params', params);
         if (!params.assetId && !invoiceData.assetId) {
             throw new ValidationError('Asset ID is required for external invoice', 'assetId');
         }
         const assetId = params.assetId ?? invoiceData.assetId;
         const utexoAsset = getDestinationAsset('mainnet', 'utexo', assetId ?? null);
-        if(!utexoAsset){
+        if (!utexoAsset) {
             throw new ValidationError('UTEXO asset is not supported', 'assetId');
         }
-        console.log('utexoAsset', utexoAsset);
-        const destinationAsset = utexoNetworkIdMap.mainnet.getAssetById(utexoAsset?.tokenId??0);
-        console.log('destinationAsset', destinationAsset);
+
+        const destinationAsset = this.networkIdMap.mainnet.getAssetById(utexoAsset?.tokenId ?? 0);
         // return;
         if (!destinationAsset) {
             throw new ValidationError('Destination asset is not supported', 'assetId');
@@ -668,22 +681,23 @@ export class UTEXOWallet extends UTEXOProtocol implements IWalletManager, IUTEXO
             throw new ValidationError('Amount is required', 'amount');
         }
 
-        const payload={
+        await this.validateBalance(utexoAsset.assetId, toUnitsNumber(amount.toString(), utexoAsset.precision));
+
+        const payload = {
             sender: {
                 address: 'rgb-address',
-                networkName: utexoNetworkIdMap.utexo.networkName,
-                networkId: utexoNetworkIdMap.utexo.networkId,
+                networkName: this.networkIdMap.utexo.networkName,
+                networkId: this.networkIdMap.utexo.networkId,
             },
             tokenId: destinationAsset.tokenId,
             amount: amount.toString(),
             destination: {
                 address: params.invoice,
-                networkName: utexoNetworkIdMap.mainnet.networkName,
-                networkId: utexoNetworkIdMap.mainnet.networkId,
+                networkName: this.networkIdMap.mainnet.networkName,
+                networkId: this.networkIdMap.mainnet.networkId,
             },
             additionalAddresses: [],
         }
-        console.log('payload', payload);
 
         const bridgeOutTransfer = await bridgeAPI.getBridgeInSignature(payload);
         const decodedInvoice = decodeBridgeInvoice(bridgeOutTransfer.signature);
@@ -711,8 +725,13 @@ export class UTEXOWallet extends UTEXOProtocol implements IWalletManager, IUTEXO
             throw new ValidationError('Asset ID is required for external invoice', 'assetId');
         }
         const assetId = params.assetId;
-        const destinationAsset = getDestinationAsset('utexo', 'mainnetLightning', assetId ?? null);
+        const utexoAsset = getDestinationAsset('mainnet', 'utexo', assetId ?? null);
+        const destinationAsset = this.networkIdMap.mainnet.getAssetById(utexoAsset?.tokenId ?? 0);
+
         if (!destinationAsset) {
+            throw new ValidationError('Destination asset is not supported', 'assetId');
+        }
+        if (!utexoAsset) {
             throw new ValidationError('Destination asset is not supported', 'assetId');
         }
 
@@ -722,20 +741,21 @@ export class UTEXOWallet extends UTEXOProtocol implements IWalletManager, IUTEXO
 
         const amount = params.amount;
 
-        await this.validateBalance(destinationAsset.assetId, toUnitsNumber(amount.toString(), destinationAsset.precision));
+
+        await this.validateBalance(utexoAsset.assetId, toUnitsNumber(amount.toString(), utexoAsset.precision));
 
         const bridgeOutTransfer = await bridgeAPI.getBridgeInSignature({
             sender: {
                 address: 'rgb-address',
-                networkName: utexoNetworkIdMap.utexo.networkName,
-                networkId: utexoNetworkIdMap.utexo.networkId,
+                networkName: this.networkIdMap.utexo.networkName,
+                networkId: this.networkIdMap.utexo.networkId,
             },
             tokenId: destinationAsset.tokenId,
             amount: amount.toString(),
             destination: {
                 address: params.lnInvoice,
-                networkName: utexoNetworkIdMap.mainnetLightning.networkName,
-                networkId: utexoNetworkIdMap.mainnetLightning.networkId,
+                networkName: this.networkIdMap.mainnetLightning.networkName,
+                networkId: this.networkIdMap.mainnetLightning.networkId,
             },
             additionalAddresses: [],
         });
@@ -745,7 +765,7 @@ export class UTEXOWallet extends UTEXOProtocol implements IWalletManager, IUTEXO
         const psbt = await this.utexoRGBWallet!.sendBegin({
             invoice: decodedInvoice,
             amount: Number(bridgeOutTransfer.amount),
-            assetId: destinationAsset.assetId,
+            assetId: utexoAsset.assetId,
             donation: true,
             ...(isWitness && {
                 witnessData: {

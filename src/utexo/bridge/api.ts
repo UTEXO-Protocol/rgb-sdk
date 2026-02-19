@@ -1,6 +1,11 @@
 import axios, { AxiosInstance } from 'axios';
-import { BridgeInSignatureRequest, BridgeInSignatureResponse, ReceiverInvoiceResponse, SubmitTransactionRequest, SubmitTransactionResponse, TransferByMainnetInvoiceResponse, VerifyBridgeInRequest } from './types';
+import { BridgeInSignatureRequest, BridgeInSignatureResponse, ReceiverInvoiceResponse, SubmitTransactionRequest, SubmitTransactionResponse, TransferByMainnetInvoiceResponse, TransferStatuses, VerifyBridgeInRequest } from './types';
 
+export const encodeTransferStatus = (transferStatus: string): number => {
+    const textEncoder = new TextEncoder();
+
+    return textEncoder.encode(transferStatus.toString())[0];
+};
 /**
  * Utexo Bridge API Client
  * 
@@ -91,6 +96,32 @@ class UtexoBridgeApiClient {
         );
         return data.invoice;
     }
+    
+
+    async getWithdrawTransfer(invoice: string,networkId: number): Promise<TransferByMainnetInvoiceResponse|null> {
+        const { data } = await this.axios.get<{transfers: TransferByMainnetInvoiceResponse[]}>(
+            `${this.basePath}/transfers/withdraw`,
+            {
+                params: {
+                    'network-id': String(networkId),
+                    'offset': String(0),
+                    'limit': String(10),
+                    'address': 'rgb-address',
+                },
+            },
+        );
+
+        if(data.transfers.length === 0) {
+            return null;
+        }
+
+        const withdrawTransfer = data.transfers.map(transfer => ({...transfer, status: TransferStatuses[encodeTransferStatus(transfer.status)]})).find(transfer => transfer.recipient.address === invoice);
+        if(!withdrawTransfer) {
+            return null;
+        }
+
+        return withdrawTransfer;
+    }
 
     /**
      * Gets transfer information by mainnet invoice
@@ -101,6 +132,7 @@ class UtexoBridgeApiClient {
      * @throws {ApiError} If the request fails
      */
     async getTransferByMainnetInvoice(mainnetInvoice: string, networkId: number): Promise<TransferByMainnetInvoiceResponse|null> {
+       try{
         const { data } = await this.axios.get<TransferByMainnetInvoiceResponse>(
             `${this.basePath}/transfer-by-mainnet-invoice`,
             {
@@ -111,6 +143,10 @@ class UtexoBridgeApiClient {
             },
         );
         return data;
+    } catch (error) {
+        console.log('Mainnet invoice not found');
+        return null;
+    }
     }
 }
 
