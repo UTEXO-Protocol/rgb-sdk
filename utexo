@@ -1,0 +1,17 @@
+#!/usr/bin/env node
+
+/**
+ * Wrapper so you can run:  utexo address sender   (or  ./utexo address sender  from repo root)
+ * For global command:  npm link   then  utexo address sender
+ */
+
+const path = require('path');
+const { spawnSync } = require('child_process');
+
+const root = path.resolve(__dirname);
+const runMjs = path.join(root, 'cli/run.mjs');
+const result = spawnSync(process.execPath, [runMjs, ...process.argv.slice(2)], {
+  stdio: 'inherit',
+  cwd: root,
+});
+process.exit(result.status ?? (result.signal ? 128 + result.signal : 1));

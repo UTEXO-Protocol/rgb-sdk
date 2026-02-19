@@ -1,6 +1,9 @@
 {
   "name": "@utexo/rgb-sdk",
   "version": "1.0.0",
+  "bin": {
+    "utexo": "cli/run.mjs"
+  },
   "devDependencies": {
     "@types/jest": "^30.0.0",
     "@types/node": "^22.17.2",
@@ -20,33 +23,13 @@
     "version:minor": "npm version minor && git push && git push --tags && npm publish --access public",
     "version:major": "npm version major && git push && git push --tags && npm publish --access public",
     "example:complete": "node --experimental-wasm-modules example-flow.mjs",
-    "generate_keys": "node utexo_test/generate_keys.mjs",
-    "address": "node utexo_test/address.mjs",
-    "btcbalance": "node utexo_test/btcbalance.mjs",
-    "createutxos": "node utexo_test/createutxos.mjs",
-    "listassets": "node utexo_test/listassets.mjs",
-    "blindreceive": "node utexo_test/blindreceive.mjs",
-    "witnessreceive": "node utexo_test/witnessreceive.mjs",
-    "onchainreceive": "node utexo_test/onchainreceive.mjs",
-    "decodergbinvoice": "node utexo_test/decodergbinvoice.mjs",
-    "refresh": "node utexo_test/refresh.mjs",
-    "listtransfers": "node utexo_test/listtransfers.mjs",
-    "onchainsendbegin": "node utexo_test/onchainsendbegin.mjs",
-    "signpsbt": "node utexo_test/signpsbt.mjs",
-    "onchainsendend": "node utexo_test/onchainsendend.mjs",
-    "onchainsend": "node utexo_test/onchainsend.mjs",
-    "listunspents": "node utexo_test/listunspents.mjs",
-    "getonchainsendstatus": "node utexo_test/getonchainsendstatus.mjs",
-    "createlightninginvoice": "node utexo_test/createlightninginvoice.mjs",
-    "paylightninginvoicebegin": "node utexo_test/paylightninginvoicebegin.mjs",
-    "paylightninginvoice": "node utexo_test/paylightninginvoice.mjs",
-    "paylightninginvoiceend": "node utexo_test/paylightninginvoiceend.mjs",
-    "getlightningsendrequest": "node utexo_test/getlightningsendrequest.mjs",
-    "getlightningreceiverequest": "node utexo_test/getlightningreceiverequest.mjs"
+    "utexo": "node cli/run.mjs",
+    "generate_keys": "node cli/generate_keys.mjs"
   },
   "files": [
     "dist",
-    "README.md"
+    "README.md",
+    "cli"
   ],
   "exports": {
     ".": {

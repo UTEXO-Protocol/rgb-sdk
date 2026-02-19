@@ -7,5 +7,5 @@ package-lock.docs.json
 dist/
 scripts/
 package.docs.json
-utexo_test/
+cli/data/*
 .rgb-wallet/
