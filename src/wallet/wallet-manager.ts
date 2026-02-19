@@ -7,7 +7,6 @@ import { normalizeNetwork } from '../utils/validation';
 import { ValidationError, WalletError, CryptoError } from '../errors';
 import type { Readable } from 'stream';
 import path from 'path';
-import * as os from 'os';
 import type { IWalletManager } from './IWalletManager';
 /**
  * Restore wallet from backup
@@ -118,7 +117,7 @@ export class WalletManager implements IWalletManager {
     this.mnemonic = params.mnemonic ?? null;
     this.xpub = params.xpub ?? null;
     this.masterFingerprint = params.masterFingerprint;
-    this.dataDir = params.dataDir ?? path.join(os.tmpdir(), 'rgb-wallet', this.network, this.masterFingerprint);
+    this.dataDir = params.dataDir ?? path.join(process.cwd(), '.rgb-wallet', this.network, this.masterFingerprint);
 
     this.client = new RGBLibClient({
       xpubVan: params.xpubVan,

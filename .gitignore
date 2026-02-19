@@ -8,3 +8,4 @@ dist/
 scripts/
 package.docs.json
 utexo_test/
+.rgb-wallet/

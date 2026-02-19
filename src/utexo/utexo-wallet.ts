@@ -64,7 +64,9 @@ import type {
     TransferStatus,
 } from '../types/wallet-model';
 import { bridgeAPI } from "./bridge";
-import { fromUnitsNumber, toUnitsNumber } from "./utils/helpers";
+import { TransferByMainnetInvoiceResponse } from "./bridge/types";
+import { NetworkAsset } from "./utils/network";
+import { decodeBridgeInvoice, fromUnitsNumber, toUnitsNumber } from "./utils/helpers";
 
 export interface ConfigOptions {
     // Optional configuration options
@@ -108,6 +110,7 @@ export class UTEXOWallet extends UTEXOProtocol implements IWalletManager, IUTEXO
             xpubCol: this.utexoKeys.accountXpubColored,
             masterFingerprint: this.utexoKeys.masterFingerprint,
             network: utexoNetworkMap.utexo,
+            
             mnemonic: this.mnemonicOrSeed as string,
         });
         this.layer1RGBWallet = new WalletManager({
@@ -222,6 +225,22 @@ export class UTEXOWallet extends UTEXOProtocol implements IWalletManager, IUTEXO
     async getAssetBalance(asset_id: string): Promise<AssetBalance> {
         this.ensureInitialized();
         return this.utexoRGBWallet!.getAssetBalance(asset_id);
+    }
+
+    /**
+     * Validates that the wallet has sufficient spendable balance for the given asset and amount.
+     * @param assetId - Asset ID to check balance for
+     * @param amount - Required amount (in asset units)
+     * @throws {ValidationError} If balance is not found or insufficient
+     */
+    async validateBalance(assetId: string, amount: number): Promise<void> {
+        const assetBalance = await this.getAssetBalance(assetId);
+        if (!assetBalance || !assetBalance.spendable) {
+            throw new ValidationError('Asset balance is not found', 'assetBalance');
+        }
+        if (assetBalance.spendable < amount) {
+            throw new ValidationError(`Insufficient balance ${assetBalance.spendable} < ${amount}`, 'amount');
+        }
     }
 
     async issueAssetNia(params: IssueAssetNiaRequestModel): Promise<AssetNIA> {
@@ -350,6 +369,27 @@ export class UTEXOWallet extends UTEXOProtocol implements IWalletManager, IUTEXO
     }
 
     /**
+     * Extracts invoice data and destination asset from a bridge transfer.
+     * 
+     * @param bridgeTransfer - Bridge transfer response containing recipient invoice and token info
+     * @returns Object containing invoice string, decoded invoice data, and destination asset
+     * @throws {ValidationError} If destination asset is not supported
+     */
+    private async extractInvoiceAndAsset(
+        bridgeTransfer: TransferByMainnetInvoiceResponse
+    ): Promise<{ utexoInvoice: string; invoiceData: InvoiceData; destinationAsset: NetworkAsset }> {
+        const utexoInvoice = bridgeTransfer.recipient.address;
+        const invoiceData = await this.decodeRGBInvoice({ invoice: utexoInvoice });
+        const destinationAsset = utexoNetworkIdMap.utexo.getAssetById(bridgeTransfer.recipientToken.id);
+
+        if (!destinationAsset) {
+            throw new ValidationError('Destination asset is not supported', 'assetId');
+        }
+
+        return { utexoInvoice, invoiceData, destinationAsset };
+    }
+
+    /**
      * IUTEXOProtocol Implementation
      */
     // All UTEXO protocol method implementations go here in UTEXOWallet
@@ -371,7 +411,7 @@ export class UTEXOWallet extends UTEXOProtocol implements IWalletManager, IUTEXO
         }
 
         const destinationInvoice = await this.utexoRGBWallet!.witnessReceive({
-            assetId:'', //invoice can receive any asset
+            assetId: '', //invoice can receive any asset
             amount: params.amount,
             minConfirmations: params.minConfirmations,
             durationSeconds: params.durationSeconds,
@@ -393,12 +433,7 @@ export class UTEXOWallet extends UTEXOProtocol implements IWalletManager, IUTEXO
             additionalAddresses: [],
         });
 
-        const hexInvoice = bridgeTransfer.signature;
-        const UTXO_PATH_INDEX = 2;
-        const hex = hexInvoice.startsWith('0x')
-            ? hexInvoice.slice(UTXO_PATH_INDEX)
-            : hexInvoice;
-        const decodedInvoice = Buffer.from(hex, 'hex').toString('utf-8');
+        const decodedInvoice = decodeBridgeInvoice(bridgeTransfer.signature);
 
         return {
             invoice: decodedInvoice,
@@ -409,91 +444,24 @@ export class UTEXOWallet extends UTEXOProtocol implements IWalletManager, IUTEXO
         this.ensureInitialized();
         /** Get the bridge RGB utexo invoice by tempRequestId should be by invoice */
         const bridgeTransfer = await bridgeAPI.getTransferByMainnetInvoice(params.invoice, utexoNetworkIdMap.mainnet.networkId);
-        if(!bridgeTransfer) {
-            
-            // TODO: there should be bridge out flow UTEXO to Mainnet
-            const invoiceData = await this.decodeRGBInvoice({ invoice: params.invoice })
-            if(!params.assetId&&!invoiceData.assetId) {
-                throw new ValidationError('Asset ID is required for external invoice', 'assetId');
-            }
-            const assetId = params.assetId ?? invoiceData.assetId;
-            const destinationAsset = getDestinationAsset('utexo', 'mainnet', assetId??null);
-            if(!destinationAsset) {
-                throw new ValidationError('Destination asset is not supported', 'assetId');
-            }
-
-            if(!params.amount&&!invoiceData.assignment.amount) {
-                throw new ValidationError('Amount is required for external invoice', 'amount');
-            }
-            
-            let amount: number;
-            if(params.amount) {
-                amount = params.amount;
-            } else if(invoiceData.assignment.amount) {
-                amount = fromUnitsNumber(invoiceData.assignment.amount, destinationAsset.precision);
-            } else {
-                throw new ValidationError('Amount is required', 'amount');
-            }
-
-            const bridgeOutTransfer = await bridgeAPI.getBridgeInSignature({
-                sender: {
-                    address: 'rgb-address',
-                    networkName: utexoNetworkIdMap.utexo.networkName,
-                    networkId: utexoNetworkIdMap.utexo.networkId,
-                },
-                tokenId: destinationAsset.tokenId,
-                amount: amount.toString(),
-                destination: {
-                    address:  params.invoice,
-                    networkName: utexoNetworkIdMap.mainnet.networkName,
-                    networkId: utexoNetworkIdMap.mainnet.networkId,
-                },
-                additionalAddresses: [],
-            });
-            const hexInvoice = bridgeOutTransfer.signature;
-            const UTXO_PATH_INDEX = 2;
-            const hex = hexInvoice.startsWith('0x')
-                ? hexInvoice.slice(UTXO_PATH_INDEX)
-                : hexInvoice;
-            const decodedInvoice = Buffer.from(hex, 'hex').toString('utf-8');
-            const isWitness = decodedInvoice.includes("wvout:");
-
-            const psbt = await this.utexoRGBWallet!.sendBegin({
-                invoice: decodedInvoice,
-                amount: Number(bridgeOutTransfer.amount),
-                assetId: destinationAsset.assetId,
-                donation: true,
-                ...(isWitness && {
-                    witnessData: {
-                        amountSat: 1000,
-                        blinding: 0,
-                    }
-                }),
-            });
-
-            return psbt;
+        if (!bridgeTransfer) {
+            console.warn('External invoice UTEXO -> Mainnet initiated');
+            return this.UTEXOToMainnetRGB(params);
         }
         const utexoInvoice = bridgeTransfer.recipient.address;
         const invoiceData = await this.decodeRGBInvoice({ invoice: utexoInvoice })
-        // const amount = invoiceData.assignment.amount;
+        console.log('invoiceData', invoiceData);
         const bridgeAmount = bridgeTransfer.recipientAmount;
         const destinationAsset =utexoNetworkIdMap.utexo.getAssetById(bridgeTransfer.recipientToken.id);
-        if(!destinationAsset) {
+        if (!destinationAsset) {
             throw new ValidationError('Destination asset is not supported', 'assetId');
         }
-     
+        // const amount = invoiceData.assignment.amount;
         const amount = toUnitsNumber(bridgeAmount, destinationAsset.precision);
-        
+
         const isWitness = invoiceData.recipientId.includes("wvout:");
 
-        const assetBalance = await this.getAssetBalance(destinationAsset.assetId);
-
-        if (!assetBalance || !assetBalance.spendable) {
-            throw new ValidationError('Asset balance is not found', 'assetBalance');
-        }
-        if (assetBalance.spendable < amount) {
-            throw new ValidationError(`Insufficient balance ${assetBalance.spendable} < ${amount}`, 'amount');
-        }
+        await this.validateBalance(destinationAsset.assetId, amount);
 
         const psbt = await this.utexoRGBWallet!.sendBegin({
             invoice: utexoInvoice,
@@ -532,14 +500,12 @@ export class UTEXOWallet extends UTEXOProtocol implements IWalletManager, IUTEXO
         // TODO: Need func that returns destinationInvoice by mainnet invoice
         /** Get the bridge RGB utexo invoice by tempRequestId should be by invoice */
         const bridgeTransfer = await bridgeAPI.getTransferByMainnetInvoice(invoice, utexoNetworkIdMap.mainnet.networkId);
-        if(!bridgeTransfer) {
+        if (!bridgeTransfer) {
             // TODO: there should be bridge out flow UTEXO to Mainnet
             throw new ValidationError('Bridge transfer is not found', 'invoice');
         }
-        const utexoInvoice = bridgeTransfer.recipient.address;
-        const invoiceData = await this.decodeRGBInvoice({ invoice: utexoInvoice })
-        const destinationAsset =utexoNetworkIdMap.utexo.getAssetById(bridgeTransfer.recipientToken.id);
-        const transfers = await this.utexoRGBWallet!.listTransfers(destinationAsset?.assetId);
+        const { invoiceData, destinationAsset } = await this.extractInvoiceAndAsset(bridgeTransfer);
+        const transfers = await this.utexoRGBWallet!.listTransfers(destinationAsset.assetId);
         return transfers.length > 0 ? transfers.find(transfer => transfer.recipientId === invoiceData.recipientId)?.status ?? null : null;
     }
 
@@ -565,10 +531,10 @@ export class UTEXOWallet extends UTEXOProtocol implements IWalletManager, IUTEXO
             throw new ValidationError('Amount is required', 'amount');
         }
 
-       const destinationAsset = getDestinationAsset('mainnet','utexo', asset.assetId);
-       if(!destinationAsset) {
-        throw new ValidationError('Destination asset is not supported', 'assetId');
-       }
+        const destinationAsset = getDestinationAsset('mainnet', 'utexo', asset.assetId);
+        if (!destinationAsset) {
+            throw new ValidationError('Destination asset is not supported', 'assetId');
+        }
 
         const destinationInvoice = await this.utexoRGBWallet!.witnessReceive({
             assetId: '', //invoice can receive any asset
@@ -591,88 +557,27 @@ export class UTEXOWallet extends UTEXOProtocol implements IWalletManager, IUTEXO
             additionalAddresses: [],
         });
 
-        const hexInvoice = bridgeTransfer.signature;
-        const UTXO_PATH_INDEX = 2;
-        const hex = hexInvoice.startsWith('0x')
-            ? hexInvoice.slice(UTXO_PATH_INDEX)
-            : hexInvoice;
-        const decodedLnInvoice = Buffer.from(hex, 'hex').toString('utf-8');
+        const decodedLnInvoice = decodeBridgeInvoice(bridgeTransfer.signature);
 
         return {
             lnInvoice: decodedLnInvoice,
         };
     }
+
+   
+
     async payLightningInvoiceBegin(params: PayLightningInvoiceRequestModel): Promise<string> {
         this.ensureInitialized();
 
         const bridgeTransfer = await bridgeAPI.getTransferByMainnetInvoice(params.lnInvoice, utexoNetworkIdMap.mainnetLightning.networkId);
-       if(!bridgeTransfer) {
-        // TODO: there should be bridge out flow UTEXO to Mainnet Lightning
-        // TODO: need func to decode ln invoice
-        // const invoiceData = await this.decodeRGBInvoice({ invoice: params.invoice })
-
-        if(!params.assetId) {
-            throw new ValidationError('Asset ID is required for external invoice', 'assetId');
-        }
-        const assetId = params.assetId ;
-        const destinationAsset = getDestinationAsset('utexo', 'mainnetLightning', assetId??null);
-        if(!destinationAsset) {
-            throw new ValidationError('Destination asset is not supported', 'assetId');
+        if (!bridgeTransfer) {
+            console.warn('External invoice UTEXO -> Mainnet Lightning initiated');
+            throw new ValidationError('UTEXO -> RGB Lightning not implemented', 'lnInvoice');
+            return this.UtexoToMainnetLightning(params);
         }
 
-        if(!params.amount) {
-            throw new ValidationError('Amount is required for external invoice', 'amount');
-        }
-
-        const amount = params.amount;
-        
-        const bridgeOutTransfer = await bridgeAPI.getBridgeInSignature({
-            sender: {
-                address: 'rgb-address',
-                networkName: utexoNetworkIdMap.utexo.networkName,
-                networkId: utexoNetworkIdMap.utexo.networkId,
-            },
-            tokenId: destinationAsset.tokenId,
-            amount: amount.toString(),
-            destination: {
-                address:  params.lnInvoice,
-                networkName: utexoNetworkIdMap.mainnetLightning.networkName,
-                networkId: utexoNetworkIdMap.mainnetLightning.networkId,
-            },
-            additionalAddresses: [],
-        });
-        const hexInvoice = bridgeOutTransfer.signature;
-        const UTXO_PATH_INDEX = 2;
-        const hex = hexInvoice.startsWith('0x')
-            ? hexInvoice.slice(UTXO_PATH_INDEX)
-            : hexInvoice;
-        const decodedInvoice = Buffer.from(hex, 'hex').toString('utf-8');
-        const isWitness = decodedInvoice.includes("wvout:");
-
-        const psbt = await this.utexoRGBWallet!.sendBegin({
-            invoice: decodedInvoice,
-            amount: Number(bridgeOutTransfer.amount),
-            assetId: destinationAsset.assetId,
-            donation: true,
-            ...(isWitness && {
-                witnessData: {
-                    amountSat: 1000,
-                    blinding: 0,
-                }
-            }),
-        });
-
-        return psbt;
-       }
-       
         const bridgeAmount = bridgeTransfer.recipientAmount;
-        const utexoInvoice = bridgeTransfer.recipient.address;
-  
-        const invoiceData = await this.decodeRGBInvoice({ invoice: utexoInvoice })
-        const destinationAsset = utexoNetworkIdMap.utexo.getAssetById(bridgeTransfer.recipientToken.id);
-        if(!destinationAsset) {
-            throw new ValidationError('Destination asset is not supported', 'assetId');
-        }
+        const { utexoInvoice, invoiceData, destinationAsset } = await this.extractInvoiceAndAsset(bridgeTransfer);
         const amount = toUnitsNumber(bridgeAmount, destinationAsset.precision);
 
         const isWitness = invoiceData.recipientId.includes("wvout:");
@@ -712,28 +617,146 @@ export class UTEXOWallet extends UTEXOProtocol implements IWalletManager, IUTEXO
     async getLightningSendRequest(lnInvoice: string): Promise<TransferStatus | null> {
         this.ensureInitialized();
         const bridgeTransfer = await bridgeAPI.getTransferByMainnetInvoice(lnInvoice, utexoNetworkIdMap.mainnetLightning.networkId);
-        if(!bridgeTransfer) {
+        if (!bridgeTransfer) {
             throw new ValidationError('Bridge transfer is not found', 'lnInvoice');
         }
-        const utexoInvoice = bridgeTransfer.recipient.address;
-        const invoiceData = await this.decodeRGBInvoice({ invoice: utexoInvoice })
-        const destinationAsset =utexoNetworkIdMap.utexo.getAssetById(bridgeTransfer.recipientToken.id);
-        const transfers = await this.utexoRGBWallet!.listTransfers(destinationAsset?.assetId);
+        const { invoiceData, destinationAsset } = await this.extractInvoiceAndAsset(bridgeTransfer);
+        const transfers = await this.utexoRGBWallet!.listTransfers(destinationAsset.assetId);
         return transfers.length > 0 ? transfers.find(transfer => transfer.recipientId === invoiceData.recipientId)?.status ?? null : null;
     }
     async getLightningReceiveRequest(lnInvoice: string): Promise<TransferStatus | null> {
         this.ensureInitialized();
         const bridgeTransfer = await bridgeAPI.getTransferByMainnetInvoice(lnInvoice, utexoNetworkIdMap.mainnetLightning.networkId);
-        if(!bridgeTransfer) {
+        if (!bridgeTransfer) {
             throw new ValidationError('Bridge transfer is not found', 'lnInvoice');
         }
-        const utexoInvoice = bridgeTransfer.recipient.address;
-        const invoiceData = await this.decodeRGBInvoice({ invoice: utexoInvoice })
-        const destinationAsset =utexoNetworkIdMap.utexo.getAssetById(bridgeTransfer.recipientToken.id);
-        const transfers = await this.utexoRGBWallet!.listTransfers(destinationAsset?.assetId);
+        const { invoiceData, destinationAsset } = await this.extractInvoiceAndAsset(bridgeTransfer);
+        const transfers = await this.utexoRGBWallet!.listTransfers(destinationAsset.assetId);
         return transfers.length > 0 ? transfers.find(transfer => transfer.recipientId === invoiceData.recipientId)?.status ?? null : null;
     }
 
+    private async UTEXOToMainnetRGB(params: OnchainSendRequestModel): Promise<string> {
+        this.ensureInitialized();
+        const invoiceData = await this.decodeRGBInvoice({ invoice: params.invoice })
+        console.log('UTEXOToMainnetRGB params', params);
+        if (!params.assetId && !invoiceData.assetId) {
+            throw new ValidationError('Asset ID is required for external invoice', 'assetId');
+        }
+        const assetId = params.assetId ?? invoiceData.assetId;
+        const utexoAsset = getDestinationAsset('mainnet', 'utexo', assetId ?? null);
+        if(!utexoAsset){
+            throw new ValidationError('UTEXO asset is not supported', 'assetId');
+        }
+        console.log('utexoAsset', utexoAsset);
+        const destinationAsset = utexoNetworkIdMap.mainnet.getAssetById(utexoAsset?.tokenId??0);
+        console.log('destinationAsset', destinationAsset);
+        // return;
+        if (!destinationAsset) {
+            throw new ValidationError('Destination asset is not supported', 'assetId');
+        }
+
+        if (!params.amount && !invoiceData.assignment.amount) {
+            throw new ValidationError('Amount is required for external invoice', 'amount');
+        }
+
+        let amount: number;
+        if (params.amount) {
+            amount = params.amount;
+        } else if (invoiceData.assignment.amount) {
+            amount = fromUnitsNumber(invoiceData.assignment.amount, destinationAsset.precision);
+        } else {
+            throw new ValidationError('Amount is required', 'amount');
+        }
+
+        const payload={
+            sender: {
+                address: 'rgb-address',
+                networkName: utexoNetworkIdMap.utexo.networkName,
+                networkId: utexoNetworkIdMap.utexo.networkId,
+            },
+            tokenId: destinationAsset.tokenId,
+            amount: amount.toString(),
+            destination: {
+                address: params.invoice,
+                networkName: utexoNetworkIdMap.mainnet.networkName,
+                networkId: utexoNetworkIdMap.mainnet.networkId,
+            },
+            additionalAddresses: [],
+        }
+        console.log('payload', payload);
+
+        const bridgeOutTransfer = await bridgeAPI.getBridgeInSignature(payload);
+        const decodedInvoice = decodeBridgeInvoice(bridgeOutTransfer.signature);
+        const isWitness = decodedInvoice.includes("wvout:");
+
+        const psbt = await this.utexoRGBWallet!.sendBegin({
+            invoice: decodedInvoice,
+            amount: Number(bridgeOutTransfer.amount),
+            assetId: utexoAsset.assetId,
+            donation: true,
+            ...(isWitness && {
+                witnessData: {
+                    amountSat: 1000,
+                    blinding: 0,
+                }
+            }),
+        });
+
+        return psbt;
+    }
+
+    private async UtexoToMainnetLightning(params: PayLightningInvoiceRequestModel): Promise<string> {
+        this.ensureInitialized();
+        if (!params.assetId) {
+            throw new ValidationError('Asset ID is required for external invoice', 'assetId');
+        }
+        const assetId = params.assetId;
+        const destinationAsset = getDestinationAsset('utexo', 'mainnetLightning', assetId ?? null);
+        if (!destinationAsset) {
+            throw new ValidationError('Destination asset is not supported', 'assetId');
+        }
+
+        if (!params.amount) {
+            throw new ValidationError('Amount is required for external invoice', 'amount');
+        }
+
+        const amount = params.amount;
+
+        await this.validateBalance(destinationAsset.assetId, toUnitsNumber(amount.toString(), destinationAsset.precision));
+
+        const bridgeOutTransfer = await bridgeAPI.getBridgeInSignature({
+            sender: {
+                address: 'rgb-address',
+                networkName: utexoNetworkIdMap.utexo.networkName,
+                networkId: utexoNetworkIdMap.utexo.networkId,
+            },
+            tokenId: destinationAsset.tokenId,
+            amount: amount.toString(),
+            destination: {
+                address: params.lnInvoice,
+                networkName: utexoNetworkIdMap.mainnetLightning.networkName,
+                networkId: utexoNetworkIdMap.mainnetLightning.networkId,
+            },
+            additionalAddresses: [],
+        });
+        const decodedInvoice = decodeBridgeInvoice(bridgeOutTransfer.signature);
+        const isWitness = decodedInvoice.includes("wvout:");
+
+        const psbt = await this.utexoRGBWallet!.sendBegin({
+            invoice: decodedInvoice,
+            amount: Number(bridgeOutTransfer.amount),
+            assetId: destinationAsset.assetId,
+            donation: true,
+            ...(isWitness && {
+                witnessData: {
+                    amountSat: 1000,
+                    blinding: 0,
+                }
+            }),
+        });
+
+        return psbt;
+    }
     // TODO: Implement remaining methods as needed:
     // - createLightningInvoice() - will use utexoRGBWallet
     // - getLightningReceiveRequest() - will use utexoRGBWallet

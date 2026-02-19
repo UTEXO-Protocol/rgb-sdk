@@ -100,7 +100,7 @@ class UtexoBridgeApiClient {
      * @returns Promise resolving to transfer information
      * @throws {ApiError} If the request fails
      */
-    async getTransferByMainnetInvoice(mainnetInvoice: string, networkId: number): Promise<TransferByMainnetInvoiceResponse> {
+    async getTransferByMainnetInvoice(mainnetInvoice: string, networkId: number): Promise<TransferByMainnetInvoiceResponse|null> {
         const { data } = await this.axios.get<TransferByMainnetInvoiceResponse>(
             `${this.basePath}/transfer-by-mainnet-invoice`,
             {
