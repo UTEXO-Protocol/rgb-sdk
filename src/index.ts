@@ -2,6 +2,10 @@
 export { wallet, createWallet, WalletManager, createWalletManager, restoreFromBackup } from './wallet/index';
 export type { WalletInitParams } from './wallet/index';
 
+// UTEXO wallet exports
+export { UTEXOWallet, UTEXOProtocol, LightningProtocol, OnchainProtocol } from './utexo';
+export type { ConfigOptions, IUTEXOProtocol, ILightningProtocol, IOnchainProtocol } from './utexo';
+
 
 // Type exports
 export * from './types/rgb-model';
@@ -14,6 +18,7 @@ export {
   generateKeys, 
   deriveKeysFromMnemonic, 
   deriveKeysFromSeed,
+  deriveKeysFromMnemonicOrSeed,
   restoreKeys, 
   accountXpubsFromMnemonic,
   getXprivFromMnemonic,
