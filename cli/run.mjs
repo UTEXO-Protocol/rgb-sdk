@@ -22,6 +22,7 @@ import { run as runOnchainsendbegin } from './commands/onchainsendbegin.mjs';
 import { run as runSignpsbt } from './commands/signpsbt.mjs';
 import { run as runOnchainsendend } from './commands/onchainsendend.mjs';
 import { run as runOnchainsend } from './commands/onchainsend.mjs';
+import { run as runSend } from './commands/send.mjs';
 import { run as runCreatelightninginvoice } from './commands/createlightninginvoice.mjs';
 import { run as runPaylightninginvoicebegin } from './commands/paylightninginvoicebegin.mjs';
 import { run as runPaylightninginvoice } from './commands/paylightninginvoice.mjs';
@@ -45,12 +46,13 @@ Commands (no extra flags): address, btcbalance, listassets, listtransfers, refre
   utexo refresh <wallet>
   utexo listunspents <wallet>
 
-Onchain: getonchainsendstatus, onchainreceive, onchainsendbegin, onchainsendend, onchainsend
+Onchain: getonchainsendstatus, onchainreceive, onchainsendbegin, onchainsendend, onchainsend, send
   utexo getonchainsendstatus <wallet> --invoice "<inv>"
   utexo onchainreceive <wallet> --amount <n> [--assetId <id>] [--minConfirmations <n>] [--durationSeconds <n>]
   utexo onchainsendbegin <wallet> --invoice "<inv>"
   utexo onchainsendend <wallet> --invoice "<inv>" --signedPsbt "<psbt>"
   utexo onchainsend <wallet> --invoice "<inv>" [--mnemonic "<mn>"]
+  utexo send <wallet> --invoice "<inv>" [--assetId <id>] [--amount <n>] [--witnessData "<json>"] [--mnemonic "<mn>"] [--feeRate <n>] [--minConfirmations <n>]
 
 Receive invoices: blindreceive, witnessreceive
   utexo blindreceive <wallet> --amount <n> [--assetId <id>] [--minConfirmations <n>] [--durationSeconds <n>]
@@ -93,6 +95,7 @@ const commands = {
     signpsbt: withUsage(runSignpsbt),
     onchainsendend: withUsage(runOnchainsendend),
     onchainsend: withUsage(runOnchainsend),
+    send: withUsage(runSend),
     createlightninginvoice: withUsage(runCreatelightninginvoice),
     paylightninginvoicebegin: withUsage(runPaylightninginvoicebegin),
     paylightninginvoice: withUsage(runPaylightninginvoice),

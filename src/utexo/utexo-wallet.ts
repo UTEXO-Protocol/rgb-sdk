@@ -452,12 +452,11 @@ export class UTEXOWallet extends UTEXOProtocol implements IWalletManager, IUTEXO
         /** Get the bridge RGB utexo invoice by tempRequestId should be by invoice */
         const bridgeTransfer = await bridgeAPI.getTransferByMainnetInvoice(params.invoice, this.networkIdMap.mainnet.networkId);
         if (!bridgeTransfer) {
-            console.warn('External invoice UTEXO -> Mainnet initiated');
+            console.log('External invoice UTEXO -> Mainnet initiated');
             return this.UTEXOToMainnetRGB(params);
         }
         const utexoInvoice = bridgeTransfer.recipient.address;
         const invoiceData = await this.decodeRGBInvoice({ invoice: utexoInvoice })
-        console.log('invoiceData', invoiceData);
         const bridgeAmount = bridgeTransfer.recipientAmount;
         const destinationAsset = this.networkIdMap.utexo.getAssetById(bridgeTransfer.recipientToken.id);
         if (!destinationAsset) {

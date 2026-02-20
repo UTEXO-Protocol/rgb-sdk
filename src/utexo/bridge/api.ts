@@ -1,4 +1,4 @@
-import axios, { AxiosInstance } from 'axios';
+import axios, { AxiosError, AxiosInstance } from 'axios';
 import { BridgeInSignatureRequest, BridgeInSignatureResponse, ReceiverInvoiceResponse, SubmitTransactionRequest, SubmitTransactionResponse, TransferByMainnetInvoiceResponse, TransferStatuses, VerifyBridgeInRequest } from './types';
 
 export const encodeTransferStatus = (transferStatus: string): number => {
@@ -49,11 +49,20 @@ class UtexoBridgeApiClient {
     async getBridgeInSignature(
         request: BridgeInSignatureRequest,
     ): Promise<BridgeInSignatureResponse> {
+        try{
         const { data } = await this.axios.post<BridgeInSignatureResponse>(
             `${this.basePath}/bridge-in-signature`,
             request,
         );
         return data;
+    } catch (error) {
+        const responseData = (error as AxiosError).response?.data;
+        if (responseData !== undefined) {
+            const message = typeof responseData === 'string' ? responseData : JSON.stringify(responseData);
+            throw new Error(message);
+        }
+        throw error;
+    }
     }
 
     /**
@@ -100,10 +109,10 @@ class UtexoBridgeApiClient {
 
     async getWithdrawTransfer(invoice: string,networkId: number): Promise<TransferByMainnetInvoiceResponse|null> {
         const { data } = await this.axios.get<{transfers: TransferByMainnetInvoiceResponse[]}>(
-            `${this.basePath}/transfers/withdraw`,
+            `${this.basePath}/transfers/history`,
             {
                 params: {
-                    'network-id': String(networkId),
+                    'network_id': String(networkId),
                     'offset': String(0),
                     'limit': String(10),
                     'address': 'rgb-address',

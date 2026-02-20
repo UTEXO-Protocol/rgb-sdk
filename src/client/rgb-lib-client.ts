@@ -211,9 +211,7 @@ export class RGBLibClient {
   }
 
   sendBegin(params: SendAssetBeginRequestModel): string {
-    const online = this.getOnline();
-    console.log('sendBegin params', params);
-    
+    const online = this.getOnline();    
     const feeRate = String(params.feeRate ?? 1);
     const minConfirmations = String(params.minConfirmations ?? 1);
     const donation = params.donation ?? false;
