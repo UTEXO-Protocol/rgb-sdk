@@ -7,7 +7,7 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { UTEXOWallet } from '../dist/index.mjs';
+import { UTEXOWallet, createWalletManager } from '../dist/index.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -168,6 +168,51 @@ export async function runWithWallet(walletName, action, options = {}) {
             console.log('Initializing wallet...');
         }
         await wallet.initialize();
+        await action(wallet, walletConfig);
+    } finally {
+        await wallet.dispose();
+    }
+}
+
+/**
+ * Load wallet config, create WalletManager (from stored generate_keys JSON), run action, then dispose.
+ * Same flow as runWithWallet but for standard RGB WalletManager instead of UTEXOWallet.
+ * @param {string} walletName - Name of the wallet (must exist in data/)
+ * @param {(wallet: import('../dist/index.mjs').WalletManager, walletConfig: object) => Promise<void>} action
+ * @param {{ actionName?: string, quiet?: boolean, indexerUrl?: string, transportEndpoint?: string, dataDir?: string }} options
+ */
+export async function runWithWalletManager(walletName, action, options = {}) {
+    if (!walletName) {
+        console.error('❌ Missing wallet name');
+        process.exit(1);
+    }
+    if (!walletExists(walletName)) {
+        console.error(`❌ Wallet config not found: ${walletName}.json`);
+        console.error(`   Please generate keys first: node run.mjs generate_keys ${walletName} [network]`);
+        process.exit(1);
+    }
+
+    const walletConfig = loadWalletConfig(walletName);
+    const dataDir = options.dataDir ?? path.join(process.cwd(), '.rgb-wallet', String(walletConfig.network), walletConfig.masterFingerprint);
+    const wallet = createWalletManager({
+        xpubVan: walletConfig.accountXpubVanilla,
+        xpubCol: walletConfig.accountXpubColored,
+        masterFingerprint: walletConfig.masterFingerprint,
+        mnemonic: walletConfig.mnemonic,
+        network: walletConfig.network,
+        dataDir,
+        transportEndpoint: options.transportEndpoint ?? process.env.RGB_TRANSPORT_ENDPOINT,
+        indexerUrl: options.indexerUrl ?? process.env.RGB_INDEXER_URL,
+    });
+
+    try {
+        if (!options.quiet) {
+            console.log(`Loading wallet (WalletManager): ${walletConfig.walletName ?? walletName}`);
+            console.log(`Network: ${walletConfig.network}`);
+        }
+        if (options.indexerUrl ?? process.env.RGB_INDEXER_URL) {
+            await wallet.goOnline(options.indexerUrl ?? process.env.RGB_INDEXER_URL);
+        }
         await action(wallet, walletConfig);
     } finally {
         await wallet.dispose();

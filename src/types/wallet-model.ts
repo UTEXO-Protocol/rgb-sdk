@@ -49,6 +49,18 @@ export type RGBHTTPClientParams = {
     amount: number;
     transportEndpoints: string[];
   }
+
+  /** Single recipient entry for batch send (assignment shape expected by rgb-lib sendBegin) */
+  export type BatchRecipient = {
+    recipientId: string;
+    witnessData?: { amountSat: string; blinding?: number | null } | null;
+    assignment: { Fungible: number };
+    transportEndpoints: string[];
+  };
+
+  /** Map assetId -> array of recipients for batch send */
+  export type RecipientMap = Record<string, BatchRecipient[]>;
+
   export interface IssueAssetNiaRequestModel {
     ticker: string;
     name: string;

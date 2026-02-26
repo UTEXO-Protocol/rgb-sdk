@@ -22,7 +22,7 @@ import { normalizeNetwork } from '../utils/validation';
 import type { Network } from '../crypto/types';
 // Use default import for CommonJS compatibility in ESM
 import rgblib from '@utexo/rgb-lib';
-import { Transfer,Transaction, ListAssets, AssetBalance, AssetIfa, AssetNIA, BtcBalance, CreateUtxosEndRequestModel, SendAssetBeginRequestModel, CreateUtxosBeginRequestModel, SendAssetEndRequestModel, SendResult, SendBtcBeginRequestModel, SendBtcEndRequestModel, GetFeeEstimationRequestModel, GetFeeEstimationResponse, InvoiceRequest, InvoiceReceiveData, IssueAssetIfaRequestModel, InflateAssetIfaRequestModel, InflateEndRequestModel, OperationResult, FailTransfersRequest, WalletBackupResponse, WalletRestoreResponse } from '../types/wallet-model';
+import { Transfer, Transaction, ListAssets, AssetBalance, AssetIfa, AssetNIA, BtcBalance, CreateUtxosEndRequestModel, SendAssetBeginRequestModel, CreateUtxosBeginRequestModel, SendAssetEndRequestModel, SendResult, SendBtcBeginRequestModel, SendBtcEndRequestModel, GetFeeEstimationRequestModel, GetFeeEstimationResponse, InvoiceRequest, InvoiceReceiveData, IssueAssetIfaRequestModel, InflateAssetIfaRequestModel, InflateEndRequestModel, OperationResult, FailTransfersRequest, WalletBackupResponse, WalletRestoreResponse, RecipientMap } from '../types/wallet-model';
 /**
  * Map network from client format to rgb-lib format
  */
@@ -270,6 +270,46 @@ export class RGBLibClient {
     return psbt;
   }
 
+  /**
+   * Batch send: accepts an already-built recipientMap and calls sendBegin.
+   */
+  sendBeginBatch(params: {
+    recipientMap: RecipientMap;
+    feeRate?: number;
+    minConfirmations?: number;
+    donation?: boolean;
+  }): string {
+    const online = this.getOnline();
+    const feeRate = String(params.feeRate ?? 1);
+    const minConfirmations = String(params.minConfirmations ?? 1);
+    const donation = params.donation ?? true;
+    const { recipientMap } = params;
+
+    if (!recipientMap || typeof recipientMap !== 'object') {
+      throw new ValidationError('recipientMap is required and must be a non-empty object', 'recipientMap');
+    }
+    const assetIds = Object.keys(recipientMap);
+    if (assetIds.length === 0) {
+      throw new ValidationError('recipientMap must contain at least one asset id', 'recipientMap');
+    }
+    for (const assetId of assetIds) {
+      const recipients = recipientMap[assetId];
+      if (!Array.isArray(recipients) || recipients.length === 0) {
+        throw new ValidationError(`recipientMap["${assetId}"] must be a non-empty array of recipients`, 'recipientMap');
+      }
+    }
+
+    const psbt = this.wallet.sendBegin(
+      online,
+      recipientMap,
+      donation,
+      feeRate,
+      minConfirmations
+    );
+
+    return psbt;
+  }
+
   sendEnd(params: SendAssetEndRequestModel): SendResult {
     const online = this.getOnline();
     const signedPsbt = params.signedPsbt;
@@ -397,7 +437,8 @@ export class RGBLibClient {
     const filter: string[] = [];
     const skipSync = false;
 
-    this.wallet.refresh(online, assetId, filter, skipSync);
+    const result = this.wallet.refresh(online, assetId, filter, skipSync);
+    console.log('refresh state:', result);
   }
 
   dropWallet(): void {

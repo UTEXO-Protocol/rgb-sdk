@@ -259,6 +259,37 @@ export class WalletManager implements IWalletManager {
     return this.client.sendBegin(params);
   }
 
+  /**
+   * Batch send begin: accepts already-built recipientMap.
+   * Returns unsigned PSBT (use signPsbt then sendEnd to complete).
+   */
+  public async sendBeginBatch(params: {
+    recipientMap: IWalletModel.RecipientMap;
+    feeRate?: number;
+    minConfirmations?: number;
+    donation?: boolean;
+  }): Promise<string> {
+    return this.client.sendBeginBatch(params);
+  }
+
+  /**
+   * Complete batch send: sendBeginBatch → sign PSBT → sendEnd.
+   */
+  public async sendBatch(
+    params: {
+      recipientMap: IWalletModel.RecipientMap;
+      feeRate?: number;
+      minConfirmations?: number;
+      donation?: boolean;
+    },
+    mnemonic?: string
+  ): Promise<IWalletModel.SendResult> {
+    this.ensureNotDisposed();
+    const psbt = await this.sendBeginBatch(params);
+    const signedPsbt = await this.signPsbt(psbt, mnemonic);
+    return await this.sendEnd({ signedPsbt });
+  }
+
   public async sendEnd(params: IWalletModel.SendAssetEndRequestModel): Promise<IWalletModel.SendResult> {
     return this.client.sendEnd(params);
   } 
@@ -477,7 +508,7 @@ export class WalletManager implements IWalletManager {
 /**
  * Factory function to create a WalletManager instance
  * Provides a cleaner API than direct constructor
- * 
+ *
  * @example
  * ```typescript
  * const keys = generateKeys('testnet');
