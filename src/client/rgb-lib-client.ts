@@ -8,50 +8,21 @@ import { Wallet } from './../../bdk-wasm/pkg/bitcoindevkit.d';
 import * as path from 'path';
 
 import * as fs from 'fs';
-import type { Readable } from 'stream';
 
 /**
  * Default transport endpoint for RGB protocol
  */
 const DEFAULT_TRANSPORT_ENDPOINT = 'rpcs://proxy.iriswallet.com/0.2/json-rpc';
 import {
-  AssetBalanceResponse,
-  BtcBalance,
-  CreateUtxosBeginRequestModel,
-  CreateUtxosEndRequestModel,
-  FailTransfersRequest,
-  InvoiceReceiveData,
-  InvoiceRequest,
-  IssueAssetNIAResponse,
-  ListAssetsResponse,
-  RGBHTTPClientParams,
-  RgbTransfer,
-  SendAssetBeginRequestModel,
-  SendAssetEndRequestModel,
-  SendResult,
-  Transaction,
   Unspent,
-  WalletBackupResponse,
-  WalletRestoreResponse,
-  RestoreWalletRequestModel,
-  SendBtcBeginRequestModel,
-  SendBtcEndRequestModel,
-  GetFeeEstimationRequestModel,
-  GetFeeEstimationResponse,
-  AssetNIA,
-  IssueAssetIfaRequestModel,
-  AssetIfa,
-  InflateAssetIfaRequestModel,
-  InflateEndRequestModel,
-  OperationResult,
   DecodeRgbInvoiceResponse,
-  WitnessData
 } from '../types/rgb-model';
 import { ValidationError, WalletError, CryptoError } from '../errors';
 import { normalizeNetwork } from '../utils/validation';
 import type { Network } from '../crypto/types';
 // Use default import for CommonJS compatibility in ESM
 import rgblib from '@utexo/rgb-lib';
+import { Transfer, Transaction, ListAssets, AssetBalance, AssetIfa, AssetNIA, BtcBalance, CreateUtxosEndRequestModel, SendAssetBeginRequestModel, CreateUtxosBeginRequestModel, SendAssetEndRequestModel, SendResult, SendBtcBeginRequestModel, SendBtcEndRequestModel, GetFeeEstimationRequestModel, GetFeeEstimationResponse, InvoiceRequest, InvoiceReceiveData, IssueAssetIfaRequestModel, InflateAssetIfaRequestModel, InflateEndRequestModel, OperationResult, FailTransfersRequest, WalletBackupResponse, WalletRestoreResponse, RecipientMap } from '../types/wallet-model';
 /**
  * Map network from client format to rgb-lib format
  */
@@ -137,7 +108,7 @@ export class RGBLibClient {
         'mainnet': 'ssl://electrum.iriswallet.com:50003',
         'testnet': 'ssl://electrum.iriswallet.com:50013',
         'testnet4': 'ssl://electrum.iriswallet.com:50053',
-        'signet': 'tcp://46.224.75.237:50001',
+        'signet': 'https://esplora-api.utexo.com',
         'regtest': 'tcp://regtest.thunderstack.org:50001',
       };
       this.indexerUrl = defaultIndexerUrls[this.network] || defaultIndexerUrls['regtest'];
@@ -160,12 +131,14 @@ export class RGBLibClient {
         rgblib.AssetSchema.Cfa,
         rgblib.AssetSchema.Nia,
         rgblib.AssetSchema.Uda,
+        "Ifa",
       ],
     };
 
     try {
       this.wallet = new rgblib.Wallet(new rgblib.WalletData(walletData));
     } catch (error) {
+      console.log('error', error);
       throw new WalletError('Failed to initialize rgb-lib wallet', undefined, error as Error);
     }
   }
@@ -189,7 +162,7 @@ export class RGBLibClient {
   /**
    * Get online object, creating it if needed
    */
-  private getOnline(): any {
+  getOnline(): any {
     this.ensureOnline();
     return this.online;
   }
@@ -238,12 +211,10 @@ export class RGBLibClient {
   }
 
   sendBegin(params: SendAssetBeginRequestModel): string {
-    const online = this.getOnline();
-    console.log('sendBegin params', params);
-    
+    const online = this.getOnline();    
     const feeRate = String(params.feeRate ?? 1);
     const minConfirmations = String(params.minConfirmations ?? 1);
-    const donation = false;
+    const donation = params.donation ?? false;
 
     let assetId: string | undefined = params.assetId;
     let amount: number | undefined = params.amount;
@@ -288,6 +259,46 @@ export class RGBLibClient {
         transportEndpoints: transportEndpoints,
       }],
     };
+    const psbt = this.wallet.sendBegin(
+      online,
+      recipientMap,
+      donation,
+      feeRate,
+      minConfirmations
+    );
+
+    return psbt;
+  }
+
+  /**
+   * Batch send: accepts an already-built recipientMap and calls sendBegin.
+   */
+  sendBeginBatch(params: {
+    recipientMap: RecipientMap;
+    feeRate?: number;
+    minConfirmations?: number;
+    donation?: boolean;
+  }): string {
+    const online = this.getOnline();
+    const feeRate = String(params.feeRate ?? 1);
+    const minConfirmations = String(params.minConfirmations ?? 1);
+    const donation = params.donation ?? true;
+    const { recipientMap } = params;
+
+    if (!recipientMap || typeof recipientMap !== 'object') {
+      throw new ValidationError('recipientMap is required and must be a non-empty object', 'recipientMap');
+    }
+    const assetIds = Object.keys(recipientMap);
+    if (assetIds.length === 0) {
+      throw new ValidationError('recipientMap must contain at least one asset id', 'recipientMap');
+    }
+    for (const assetId of assetIds) {
+      const recipients = recipientMap[assetId];
+      if (!Array.isArray(recipients) || recipients.length === 0) {
+        throw new ValidationError(`recipientMap["${assetId}"] must be a non-empty array of recipients`, 'recipientMap');
+      }
+    }
+
     const psbt = this.wallet.sendBegin(
       online,
       recipientMap,
@@ -378,7 +389,7 @@ export class RGBLibClient {
     );
   }
 
-  getAssetBalance(asset_id: string): AssetBalanceResponse {
+  getAssetBalance(asset_id: string): AssetBalance {
     return this.wallet.getAssetBalance(asset_id);
   }
 
@@ -403,7 +414,7 @@ export class RGBLibClient {
     throw new ValidationError('inflateEnd is not fully supported in rgb-lib. Use RGB Node server for inflation operations.', 'asset');
   }
 
-  listAssets(): ListAssetsResponse {
+  listAssets(): ListAssets {
     const filterAssetSchemas: string[] = [];
     return this.wallet.listAssets(filterAssetSchemas);
   }
@@ -426,7 +437,8 @@ export class RGBLibClient {
     const filter: string[] = [];
     const skipSync = false;
 
-    this.wallet.refresh(online, assetId, filter, skipSync);
+    const result = this.wallet.refresh(online, assetId, filter, skipSync);
+    console.log('refresh state:', result);
   }
 
   dropWallet(): void {
@@ -446,7 +458,7 @@ export class RGBLibClient {
     return this.wallet.listTransactions(online, skipSync);
   }
 
-  listTransfers(asset_id?: string): RgbTransfer[] {
+  listTransfers(asset_id?: string): Transfer[] {
     return this.wallet.listTransfers(asset_id?asset_id:null);
   }
 

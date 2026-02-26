@@ -7,3 +7,5 @@ package-lock.docs.json
 dist/
 scripts/
 package.docs.json
+cli/data/*
+.rgb-wallet/

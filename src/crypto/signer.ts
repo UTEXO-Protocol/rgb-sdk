@@ -279,7 +279,6 @@ async function signPsbtFromSeedInternal(
   deps: SignerDependencies
 ): Promise<string> {
   validatePsbt(psbtBase64, 'psbtBase64');
-
   const { ecc, factory, bdk } = deps;
   const bip32 = factory(ecc);
   const seedBuffer = normalizeSeedBuffer(seed);
