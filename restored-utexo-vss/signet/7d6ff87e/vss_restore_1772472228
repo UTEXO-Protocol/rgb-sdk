@@ -1,0 +1,8 @@
+2026-03-02T17:23:48.583+00 INFO[/Users/runner/work/rgb-lib-nodejs/rgb-lib-nodejs/platforms/darwin-arm64/rgb-lib/src/wallet/vss.rs:1066:5] Starting VSS restore...
+2026-03-02T17:23:48.583+00 INFO[/Users/runner/work/rgb-lib-nodejs/rgb-lib-nodejs/platforms/darwin-arm64/rgb-lib/src/wallet/vss.rs:1067:5] Server URL: https://vss-server.utexo.com/vss
+2026-03-02T17:23:48.583+00 INFO[/Users/runner/work/rgb-lib-nodejs/rgb-lib-nodejs/platforms/darwin-arm64/rgb-lib/src/wallet/vss.rs:1068:5] Store ID: wallet_7d6ff87e_utexo
+2026-03-02T17:23:48.695+00 INFO[/Users/runner/work/rgb-lib-nodejs/rgb-lib-nodejs/platforms/darwin-arm64/rgb-lib/src/wallet/vss.rs:1076:5] Downloading backup from VSS server...
+2026-03-02T17:23:48.784+00 INFO[/Users/runner/work/rgb-lib-nodejs/rgb-lib-nodejs/platforms/darwin-arm64/rgb-lib/src/wallet/vss.rs:1078:5] Downloaded 9745 bytes (0.01 MB)
+2026-03-02T17:23:48.813+00 INFO[/Users/runner/work/rgb-lib-nodejs/rgb-lib-nodejs/platforms/darwin-arm64/rgb-lib/src/wallet/vss.rs:1087:5] Wallet fingerprint: 7d6ff87e
+2026-03-02T17:23:48.813+00 INFO[/Users/runner/work/rgb-lib-nodejs/rgb-lib-nodejs/platforms/darwin-arm64/rgb-lib/src/wallet/vss.rs:1100:5] Extracting backup to "/Users/yuriibandrivskyi/Desktop/rgb/thunderlink-client/restored-utexo-vss/signet/7d6ff87e"
+2026-03-02T17:23:48.821+00 INFO[/Users/runner/work/rgb-lib-nodejs/rgb-lib-nodejs/platforms/darwin-arm64/rgb-lib/src/wallet/vss.rs:1116:5] VSS restore completed successfully

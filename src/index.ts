@@ -3,8 +3,11 @@ export { wallet, createWallet, WalletManager, createWalletManager, restoreFromBa
 export type { WalletInitParams } from './wallet/index';
 
 // UTEXO wallet exports
-export { UTEXOWallet, UTEXOProtocol, LightningProtocol, OnchainProtocol } from './utexo';
+export { UTEXOWallet, UTEXOProtocol, LightningProtocol, OnchainProtocol, restoreUtxoWalletFromVss, restoreUtxoWalletFromBackup, DEFAULT_VSS_SERVER_URL } from './utexo';
 export type { ConfigOptions, IUTEXOProtocol, ILightningProtocol, IOnchainProtocol } from './utexo';
+
+// VSS backup exports (single-wallet restore; use restoreUtxoWalletFromVss for UTEXOWallet)
+export { restoreFromVss } from './client/rgb-lib-client';
 
 
 // Type exports
@@ -23,7 +26,8 @@ export {
   accountXpubsFromMnemonic,
   getXprivFromMnemonic,
   getXpubFromXpriv,
-  deriveKeysFromXpriv
+  deriveKeysFromXpriv,
+  deriveVssSigningKeyFromMnemonic,
 } from './crypto';
 
 // Error exports

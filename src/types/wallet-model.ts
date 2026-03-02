@@ -59,6 +59,43 @@ export type RGBHTTPClientParams = {
 
   export type RecipientMap = Record<string, BatchRecipient[]>;
 
+  // VSS (Versioned Storage Service) backup types
+
+  /**
+   * VSS backup mode: Async (fire-and-forget) or Blocking (wait for upload).
+   */
+  export type VssBackupMode = 'Async' | 'Blocking';
+
+  /**
+   * VSS backup configuration for cloud backup.
+   *
+   * serverUrl, storeId and signingKey are required; other fields are optional
+   * and default to the underlying rgb-lib defaults when omitted:
+   * - encryptionEnabled: true
+   * - autoBackup: false
+   * - backupMode: 'Async'
+   */
+  export interface VssBackupConfig {
+    serverUrl: string;
+    storeId: string;
+    /**
+     * Signing key as a hex-encoded 32-byte secret key string.
+     */
+    signingKey: string;
+    encryptionEnabled?: boolean;
+    autoBackup?: boolean;
+    backupMode?: VssBackupMode;
+  }
+
+  /**
+   * Information about the current VSS backup status for a wallet.
+   */
+  export interface VssBackupInfo {
+    backupExists: boolean;
+    serverVersion?: number | null;
+    backupRequired: boolean;
+  }
+
   export interface IssueAssetNiaRequestModel {
     ticker: string;
     name: string;

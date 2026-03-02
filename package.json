@@ -23,6 +23,14 @@
     "version:minor": "npm version minor && git push && git push --tags && npm publish --access public",
     "version:major": "npm version major && git push && git push --tags && npm publish --access public",
     "example:complete": "node --experimental-wasm-modules example-flow.mjs",
+    "example:utexo": "node example-utexo-flow.mjs",
+    "example:new-wallet": "node examples/new-wallet.mjs",
+    "example:create-utxos-asset": "node examples/create-utxos-asset.mjs",
+    "example:read-wallet": "node examples/read-wallet.mjs",
+    "example:transfer": "node examples/transfer.mjs",
+    "example:onchain": "node examples/onchain-flow.mjs",
+    "example:vss": "node examples/utexo-vss-backup-restore.mjs",
+    "example:file-backup": "node examples/utexo-file-backup-restore.mjs",
     "utexo": "node cli/run.mjs",
     "generate_keys": "node cli/generate_keys.mjs"
   },
@@ -52,13 +60,13 @@
     "bip39": "^3.1.0",
     "bitcoinjs-lib": "^6.1.7",
     "form-data": "^4.0.0",
-    "@utexo/rgb-lib": "0.3.0-beta.8",
+    "@utexo/rgb-lib": "0.3.0-beta.12.vss",
     "ripemd160": "^2.0.3"
   },
   "optionalDependencies": {
-    "@utexo/rgb-lib-linux-x64": "0.3.0-beta.8",
-    "@utexo/rgb-lib-linux-arm64": "0.3.0-beta.8",
-    "@utexo/rgb-lib-darwin-arm64": "0.3.0-beta.8"
+    "@utexo/rgb-lib-linux-x64": "0.3.0-beta.12.vss",
+    "@utexo/rgb-lib-linux-arm64": "0.3.0-beta.12.vss",
+    "@utexo/rgb-lib-darwin-arm64": "0.3.0-beta.12.vss"
   },
   "keywords": [
     "rgb",

@@ -17,6 +17,8 @@ import type { IWalletManager } from "../wallet/IWalletManager";
 import type { IUTEXOProtocol } from "./IUTEXOProtocol";
 import { UTEXOProtocol } from "./utexo-protocol";
 import { getUtxoNetworkConfig, type UtxoNetworkPreset, type UtxoNetworkMap, type UtxoNetworkIdMap } from "./utils/network";
+import path from "path";
+import fs from "fs";
 
 // Re-export for convenience
 export { UTEXOProtocol } from "./utexo-protocol";
@@ -63,19 +65,16 @@ import type {
     Transfer,
     InvoiceData,
     TransferStatus,
+    VssBackupConfig,
+    VssBackupInfo,
 } from '../types/wallet-model';
 import { bridgeAPI } from "./bridge";
 import { TransferByMainnetInvoiceResponse } from "./bridge/types";
 import { NetworkAsset } from "./utils/network";
 import { decodeBridgeInvoice, fromUnitsNumber, toUnitsNumber } from "./utils/helpers";
-
-export interface ConfigOptions {
-    /**
-     * Network preset: 'mainnet' (production) or 'testnet' (development).
-     * Default: 'mainnet'.
-     */
-    network?: UtxoNetworkPreset;
-}
+import { DEFAULT_VSS_SERVER_URL, getVssConfigs } from "./config/vss";
+import type { ConfigOptions } from "./config/options";
+import { buildVssConfigFromMnemonic, prepareUtxoBackupDirs, finalizeUtxoBackupPaths } from "./restore";
 
 /**
  * UTEXOWallet - Combines standard RGB wallet operations with UTEXO protocol features
@@ -105,7 +104,6 @@ export class UTEXOWallet extends UTEXOProtocol implements IWalletManager, IUTEXO
         this.mnemonicOrSeed = mnemonicOrSeed;
         this.options = options;
 
-        // Initialize network configuration based on preset (default: 'mainnet')
         const preset: UtxoNetworkPreset = options.network ?? 'mainnet';
 
         const networkConfig = getUtxoNetworkConfig(preset);
@@ -116,13 +114,15 @@ export class UTEXOWallet extends UTEXOProtocol implements IWalletManager, IUTEXO
     async initialize(): Promise<void> {
         this.layer1Keys = await this.derivePublicKeys(this.networkMap.mainnet);
         this.utexoKeys = await this.derivePublicKeys(this.networkMap.utexo);
+        const fp = this.utexoKeys.masterFingerprint;
+        const dataDir = this.options.dataDir;
         this.utexoRGBWallet = new WalletManager({
             xpubVan: this.utexoKeys.accountXpubVanilla,
             xpubCol: this.utexoKeys.accountXpubColored,
             masterFingerprint: this.utexoKeys.masterFingerprint,
             network: this.networkMap.utexo,
-
             mnemonic: this.mnemonicOrSeed as string,
+            dataDir: dataDir ? path.join(dataDir, String(this.networkMap.utexo), fp) : undefined,
         });
         this.layer1RGBWallet = new WalletManager({
             xpubVan: this.layer1Keys.accountXpubVanilla,
@@ -130,6 +130,7 @@ export class UTEXOWallet extends UTEXOProtocol implements IWalletManager, IUTEXO
             masterFingerprint: this.layer1Keys.masterFingerprint,
             network: this.networkMap.mainnet,
             mnemonic: this.mnemonicOrSeed as string,
+            dataDir: dataDir ? path.join(dataDir, String(this.networkMap.mainnet), fp) : undefined,
         });
     }
 
@@ -238,22 +239,6 @@ export class UTEXOWallet extends UTEXOProtocol implements IWalletManager, IUTEXO
         return this.utexoRGBWallet!.getAssetBalance(asset_id);
     }
 
-    /**
-     * Validates that the wallet has sufficient spendable balance for the given asset and amount.
-     * @param assetId - Asset ID to check balance for
-     * @param amount - Required amount (in asset units)
-     * @throws {ValidationError} If balance is not found or insufficient
-     */
-    async validateBalance(assetId: string, amount: number): Promise<void> {
-        const assetBalance = await this.getAssetBalance(assetId);
-        if (!assetBalance || !assetBalance.spendable) {
-            throw new ValidationError('Asset balance is not found', 'assetBalance');
-        }
-        if (assetBalance.spendable < amount) {
-            throw new ValidationError(`Insufficient balance ${assetBalance.spendable} < ${amount}`, 'amount');
-        }
-    }
-
     async issueAssetNia(params: IssueAssetNiaRequestModel): Promise<AssetNIA> {
         this.ensureInitialized();
         return this.utexoRGBWallet!.issueAssetNia(params);
@@ -359,9 +344,104 @@ export class UTEXOWallet extends UTEXOProtocol implements IWalletManager, IUTEXO
         return this.utexoRGBWallet!.estimateFee(psbtBase64);
     }
 
-    async createBackup(params: { backupPath: string; password: string }): Promise<WalletBackupResponse> {
+    /**
+     * Create backup for both layer1 and utexo stores in one folder.
+     * Writes backupPath/wallet_{masterFingerprint}_layer1.backup and backupPath/wallet_{masterFingerprint}_utexo.backup
+     * (same naming convention as VSS: storeId_layer1, storeId_utexo with storeId = wallet_<fp>).
+     * Use restoreUtxoWalletFromBackup with the same backupPath to restore both.
+     */
+    async createBackup(params: { backupPath: string; password: string }): Promise<WalletBackupResponse & { layer1BackupPath: string; utexoBackupPath: string }> {
         this.ensureInitialized();
-        return this.utexoRGBWallet!.createBackup(params);
+        const { backupPath, password } = params;
+        if (!backupPath || !password) {
+            throw new ValidationError('backupPath and password are required', 'createBackup');
+        }
+        const fp = this.utexoKeys!.masterFingerprint;
+        const { layer1TmpDir, utexoTmpDir, layer1FinalPath, utexoFinalPath } = prepareUtxoBackupDirs(backupPath, fp);
+        const layer1Result = await this.layer1RGBWallet!.createBackup({ backupPath: layer1TmpDir, password });
+        const utexoResult = await this.utexoRGBWallet!.createBackup({ backupPath: utexoTmpDir, password });
+        finalizeUtxoBackupPaths({
+            layer1BackupPath: layer1Result.backupPath,
+            utexoBackupPath: utexoResult.backupPath,
+            layer1FinalPath,
+            utexoFinalPath,
+            layer1TmpDir,
+            utexoTmpDir,
+        });
+        return {
+            message: 'Backup created successfully (layer1 + utexo)',
+            backupPath,
+            layer1BackupPath: layer1FinalPath,
+            utexoBackupPath: utexoFinalPath,
+        };
+    }
+
+    async configureVssBackup(config: VssBackupConfig): Promise<void> {
+        this.ensureInitialized();
+        const { layer1, utexo } = getVssConfigs(config);
+        await this.layer1RGBWallet!.configureVssBackup(layer1);
+        await this.utexoRGBWallet!.configureVssBackup(utexo);
+    }
+
+    async disableVssAutoBackup(): Promise<void> {
+        this.ensureInitialized();
+        await this.layer1RGBWallet!.disableVssAutoBackup();
+        await this.utexoRGBWallet!.disableVssAutoBackup();
+    }
+
+    /**
+     * Run VSS backup for both layer1 and utexo stores.
+     * Config is optional: when omitted, builds config from mnemonic (option param or wallet mnemonic)
+     * and options.vssServerUrl (or DEFAULT_VSS_SERVER_URL if not set).
+     *
+     * @param config - Optional; when omitted, built from mnemonic and vssServerUrl
+     * @param mnemonic - Optional; when omitted, uses wallet mnemonic (only if wallet was created with mnemonic string)
+     */
+    async vssBackup(config?: VssBackupConfig, mnemonic?: string): Promise<number> {
+        this.ensureInitialized();
+        let vssConfig: VssBackupConfig;
+        if (config) {
+            vssConfig = config;
+        } else {
+            const mnemonicToUse =
+                mnemonic ?? (typeof this.mnemonicOrSeed === 'string' ? this.mnemonicOrSeed : null);
+            if (!mnemonicToUse) {
+                throw new ValidationError(
+                    'mnemonic is required for VSS backup when config is not passed (wallet was created with seed)',
+                    'mnemonic'
+                );
+            }
+            const serverUrl = this.options.vssServerUrl ?? DEFAULT_VSS_SERVER_URL;
+            const preset: UtxoNetworkPreset = this.options.network ?? 'mainnet';
+            vssConfig = await buildVssConfigFromMnemonic(mnemonicToUse.trim(), serverUrl, preset);
+        }
+        const { layer1, utexo } = getVssConfigs(vssConfig);
+        await this.layer1RGBWallet!.vssBackup(layer1);
+        const version = await this.utexoRGBWallet!.vssBackup(utexo);
+        return version;
+    }
+
+    /**
+     * Get VSS backup info. Config is optional; when omitted, built from mnemonic (param or wallet)
+     * and options.vssServerUrl (or DEFAULT_VSS_SERVER_URL if not set).
+     */
+    async vssBackupInfo(config?: VssBackupConfig, mnemonic?: string): Promise<VssBackupInfo> {
+        this.ensureInitialized();
+        let vssConfig: VssBackupConfig;
+        if (config) {
+            vssConfig = config;
+        } else {
+            const mnemonicToUse =
+                mnemonic ?? (typeof this.mnemonicOrSeed === 'string' ? this.mnemonicOrSeed : null);
+            if (!mnemonicToUse) {
+                throw new ValidationError('config or mnemonic required for vssBackupInfo', 'config');
+            }
+            const serverUrl = this.options.vssServerUrl ?? DEFAULT_VSS_SERVER_URL;
+            const preset: UtxoNetworkPreset = this.options.network ?? 'mainnet';
+            vssConfig = await buildVssConfigFromMnemonic(mnemonicToUse.trim(), serverUrl, preset);
+        }
+        const { utexo } = getVssConfigs(vssConfig);
+        return this.utexoRGBWallet!.vssBackupInfo(utexo);
     }
 
     async signPsbt(psbt: string, mnemonic?: string): Promise<string> {
@@ -379,6 +459,21 @@ export class UTEXOWallet extends UTEXOProtocol implements IWalletManager, IUTEXO
         return this.utexoRGBWallet!.verifyMessage(message, signature, accountXpub);
     }
 
+     /**
+     * Validates that the wallet has sufficient spendable balance for the given asset and amount.
+     * @param assetId - Asset ID to check balance for
+     * @param amount - Required amount (in asset units)
+     * @throws {ValidationError} If balance is not found or insufficient
+     */
+     async validateBalance(assetId: string, amount: number): Promise<void> {
+        const assetBalance = await this.getAssetBalance(assetId);
+        if (!assetBalance || !assetBalance.spendable) {
+            throw new ValidationError('Asset balance is not found', 'assetBalance');
+        }
+        if (assetBalance.spendable < amount) {
+            throw new ValidationError(`Insufficient balance ${assetBalance.spendable} < ${amount}`, 'amount');
+        }
+    }
     /**
      * Extracts invoice data and destination asset from a bridge transfer.
      * 

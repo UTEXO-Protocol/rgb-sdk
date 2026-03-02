@@ -26,6 +26,8 @@ export {
 } from './keys';
 export type { GeneratedKeys, AccountXpubs } from './keys';
 
+export { deriveVssSigningKeyFromMnemonic } from './vss-keys';
+
 // Export types
 export type { Network, PsbtType, NetworkVersions, Descriptors } from './types';
 

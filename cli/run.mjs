@@ -20,6 +20,7 @@ import { run as runOnchainreceive } from './commands/onchainreceive.mjs';
 import { run as runCreateutxos } from './commands/createutxos.mjs';
 import { run as runOnchainsendbegin } from './commands/onchainsendbegin.mjs';
 import { run as runSignpsbt } from './commands/signpsbt.mjs';
+import { run as runSignPsbtStandalone } from './commands/sign-psbt.mjs';
 import { run as runOnchainsendend } from './commands/onchainsendend.mjs';
 import { run as runOnchainsend } from './commands/onchainsend.mjs';
 import { run as runSend } from './commands/send.mjs';
@@ -36,6 +37,11 @@ const args = process.argv.slice(2);
 let command = args[0];
 let walletName = args[1];
 let flagArgs = args.slice(2);
+// sign-psbt: no wallet name, only flags (--psbt --network --mnemonic)
+if (command === 'sign-psbt') {
+    walletName = null;
+    flagArgs = args.slice(1);
+}
 
 // WalletManager subcommands: utexo wm <subcommand> <wallet_name> [flags]
 if (command === 'wm') {
@@ -79,10 +85,11 @@ Lightning: createlightninginvoice, paylightninginvoicebegin, paylightninginvoice
   utexo getlightningsendrequest <wallet> --lnInvoice "<inv>"
   utexo getlightningreceiverequest <wallet> --lnInvoice "<inv>"
 
-Other: decodergbinvoice, createutxos, signpsbt, generate_keys
+Other: decodergbinvoice, createutxos, signpsbt, sign-psbt, generate_keys
   utexo decodergbinvoice <wallet> --invoice "<inv>"
   utexo createutxos <wallet> [--num <n>] [--size <n>] [--feeRate <n>] [--upTo]
-  utexo signpsbt <wallet> --psbt "<psbt>" [--mnemonic "<mn>"]
+  utexo signpsbt <wallet> --psbt "<psbt>" [--mnemonic "<mn>"]   # uses wallet (init/goOnline)
+  utexo sign-psbt --psbt "<psbt>" --network <net> --mnemonic "<mn>"   # standalone, no wallet
   utexo generate_keys <wallet_name> [network]   # network: regtest (default), testnet, mainnet
 
 WalletManager (same keys file, standard RGB wallet):
@@ -246,6 +253,7 @@ const commands = {
     createutxos: runCreateutxos,
     onchainsendbegin: withUsage(runOnchainsendbegin),
     signpsbt: withUsage(runSignpsbt),
+    'sign-psbt': withUsage(runSignPsbtStandalone),
     onchainsendend: withUsage(runOnchainsendend),
     onchainsend: withUsage(runOnchainsend),
     send: withUsage(runSend),

@@ -1,14 +1,16 @@
 import axios from 'axios';
 import fs from 'fs/promises';
 import path from 'path';
+import crypto from 'crypto';
 import { fileURLToPath } from 'url';
-import { WalletManager, createWallet } from './dist/index.mjs';
+import { WalletManager, createWallet, restoreFromBackup, restoreFromVss } from './dist/index.mjs';
 
 // Configuration
 const RGB_MANAGER_ENDPOINT = "http://127.0.0.1:8000";
 const BITCOIN_NODE_ENDPOINT = "http://18.119.98.232:5000/execute";
 const TRANSPORT_ENDPOINT = "rpc://regtest.thunderstack.org:3000/json-rpc";
 const INDEXER_URL = "tcp://regtest.thunderstack.org:50001";
+const VSS_SERVER_URL = "https://vss-server.utexo.com/vss";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -72,24 +74,122 @@ const reciver_keys = {
     masterFingerprint: '2f4de38a',
     xpriv: 'tprv8ZgxMBicQKsPeuTyYdb8KgwKcwy8D18gEVoJUfCMcfS9rBwueNofZsq6pfVULHAjDDapA857Pj6zp1zv9BqhrGgq3gQheSipDBWP4k3VnnM'
 }
-const Keysgenerated= {
+const Keysgenerated = {
     mnemonic: 'panther real human slogan almost unfold task gown hold army fall save',
     xpub: 'tpubD6NzVbkrYhZ4XzhbVsPwjczpu3tZi4ERagjPpivQxzm13Tb5Murmvbb1KeVA43PLPmFgCXS98XBF9w3QZVEAp3uimkjwjG3BiyvEeELPBf7',
     accountXpubVanilla: 'tpubDCjUD8f5QGVjbgvKZRvPx7GCNncXoxGAAu9F26cApEpdEsjZiHPqJdjhHdSagVJBMRU4GCcq7N8nngPWENqWXfxBKiPrUvTLtkAuBNZbRbL',
     accountXpubColored: 'tpubDC4VePJFVqLB473vPiiBVFHE46qsmKBsU5h7JqSz9BHTJVBbkDRFxKpBvfNzvkws3aNL1hJpQGMtUdneYazAjrKiuuhKH4nJzCZyMqZHy9k',
     masterFingerprint: 'dfc09a55',
     xpriv: 'tprv8ZgxMBicQKsPeXfocDjMLDLiL2NdYj3X1P8cYCt7YixcCyLJjX3Bk6y99U6Nm6QwrGi2wdNSn4wQDsDiLhPnCnCpjKFtdL7E6xp3MWrYeCn'
-  }
+}
 
-  const signet_keys = {
+const signet_keys = {
     mnemonic: 'zebra canyon believe puppy attend whip enough hover style blood boss aim',
     xpub: 'tpubD6NzVbkrYhZ4XE3cTdpMfiLErtKy5YZexxehGeJwU7HCAdL3CUiGb5V1QtRqfDxqqJQ9X6W4MGoD6Dh93PMs3SKbCrTaEgV7o9EsZMdVxeL',
     accountXpubVanilla: 'tpubDChRCioutECCiy9V7o5Uiw6hsZNPa9KydCQPZsZLjDDHEpGenAqG59hZuDrETEq4ESCur78P61w1stKM5CzNWLHSh2j1LV2m4wJQm45zDeZ',
     accountXpubColored: 'tpubDCFrxT5TCk6LwC6FDcnNwqNMpDyG61BPZsJ9Nvxq15hGbAifmD9rdqs4TSU8QPd9xo7eTNUwHCcY1DRdhFD79fLpF9byF3nZN2qxm94K3MT',
     masterFingerprint: '3780bc30',
     xpriv: 'tprv8ZgxMBicQKsPdm1pZz9mGJg8Hrp2vDNkPf3uz8Ge3qUoL95Ga5tgQas9EmwVDcx67S2LACiGykAMrZCZoTAoqzdHjrj9rMTHYcyPPhAqYey'
-  }
+}
 const bitcoinNetwork = 'signet'; // Regtest network
+
+function deriveVssSigningKeyFromMnemonic(mnemonic) {
+    const hmac = crypto.createHmac('sha256', 'rgb-lib-vss-backup-encryption-v1');
+    hmac.update(mnemonic, 'utf8');
+    return hmac.digest('hex');
+}
+
+/**
+ * Local backup flow: create backup file → restore into new data dir → optional WalletManager from restored dir.
+ * @param {import('./dist/index.mjs').WalletManager} wallet - Initialized wallet to backup
+ * @param {{ accountXpubVanilla: string, accountXpubColored: string, masterFingerprint: string, mnemonic: string }} keys - Wallet keys (for restored instance)
+ * @param {{ backupPassword?: string, backupDir?: string, restoredDataDir?: string, network?: string, transportEndpoint?: string }} options
+ * @returns {{ backupResponse: { message: string, backupPath: string }, restoredDataDir: string, restoredWallet?: import('./dist/index.mjs').WalletManager }}
+ */
+async function runLocalBackupFlow(wallet, keys, options = {}) {
+    const backupPassword = options.backupPassword ?? 'test-backup-password';
+    const backupDir = options.backupDir ?? path.join(__dirname, 'backups');
+    const restoredDataDir = options.restoredDataDir ?? path.join(__dirname, 'restored-wallet');
+    const network = options.network ?? 'signet';
+    const transportEndpoint = options.transportEndpoint ?? TRANSPORT_ENDPOINT;
+
+    console.log('\n--- Local backup flow ---');
+    console.log('Creating wallet backup (local file)...');
+    await fs.mkdir(backupDir, { recursive: true });
+
+    const backupResponse = await wallet.createBackup({
+        backupPath: backupDir,
+        password: backupPassword,
+    });
+    console.log('Backup response:', backupResponse);
+
+    console.log('Restoring wallet from backup (new data dir)...');
+    await fs.mkdir(restoredDataDir, { recursive: true });
+    restoreFromBackup({
+        backupFilePath: backupResponse.backupPath,
+        password: backupPassword,
+        dataDir: restoredDataDir,
+    });
+    console.log('Wallet restored to:', restoredDataDir);
+
+    const restoredWallet = new WalletManager({
+        xpubVan: keys.accountXpubVanilla,
+        xpubCol: keys.accountXpubColored,
+        masterFingerprint: keys.masterFingerprint,
+        mnemonic: keys.mnemonic,
+        network,
+        transportEndpoint,
+        dataDir: restoredDataDir,
+    });
+    const restoredAssets = restoredWallet.listAssets();
+    console.log('Assets after restore:', JSON.stringify(restoredAssets, null, 2));
+
+    return { backupResponse, restoredDataDir, restoredWallet };
+}
+
+/**
+ * VSS backup flow: configure VSS → upload backup → optional restore from VSS into new data dir.
+ * Uses storeId = wallet_<masterFingerprint> and signingKey derived from mnemonic (or env overrides).
+ * @param {import('./dist/index.mjs').WalletManager} wallet - Initialized wallet
+ * @param {{ masterFingerprint: string, mnemonic: string }} keys - Wallet keys for VSS config derivation
+ * @param {{ serverUrl?: string, vssRestoredDir?: string }} options
+ * @returns {{ vssConfig: { serverUrl: string, storeId: string, signingKey: string }, walletPath?: string }}
+ */
+async function runVssBackupFlow(wallet, keys, options = {}) {
+    const serverUrl = options.serverUrl ?? VSS_SERVER_URL;
+    const vssRestoredDir = options.vssRestoredDir ?? path.join(__dirname, 'restored-from-vss');
+
+    const storeId = process.env.VSS_STORE_ID ?? `wallet_${keys.masterFingerprint}`;
+    const signingKey = process.env.VSS_SIGNING_KEY ?? deriveVssSigningKeyFromMnemonic(keys.mnemonic);
+
+    const vssConfig = {
+        serverUrl,
+        storeId,
+        signingKey,
+    };
+    console.log("vssConfig", vssConfig);
+    console.log('\n--- VSS backup flow ---');
+    console.log('Configuring VSS backup...');
+    await wallet.configureVssBackup(vssConfig);
+
+    console.log('Triggering VSS backup...');
+    const vssVersion = await wallet.vssBackup(vssConfig);
+    console.log('VSS backup server version:', vssVersion);
+
+    const vssInfo = await wallet.vssBackupInfo(vssConfig);
+    console.log('VSS backup info:', vssInfo);
+
+    console.log('Restoring wallet from VSS into new data dir...');
+    await fs.mkdir(vssRestoredDir, { recursive: true });
+    const { walletPath } = restoreFromVss({
+        config: vssConfig,
+        targetDir: vssRestoredDir,
+    });
+    console.log('Wallet restored from VSS at:', walletPath);
+
+    return { vssConfig, walletPath };
+}
+
 async function initWallet(keys) {
     console.log("\nInitializing wallet with RGB SDK...");
 
@@ -137,7 +237,7 @@ async function initWallet(keys) {
 
     // Get address
     const address = wallet.getAddress();
-    
+
     console.log("Address:", address);
 
     // Send some BTC to the address
@@ -147,12 +247,12 @@ async function initWallet(keys) {
     // await new Promise(resolve => setTimeout(resolve, 2000));
 
     // Get updated BTC balance
-    const updatedBtcBalance = wallet.getBtcBalance();
-    console.log("Updated BTC balance:", JSON.stringify(updatedBtcBalance));
+    const updatedBtcBalance = await wallet.getBtcBalance();
+    console.log("Updated BTC balance:", updatedBtcBalance);
 
     // Create UTXOs
-    console.log("Creating UTXOs...");
-    const utxosCreated = await wallet.createUtxos({ upTo: true, num: 2, size: 1500, feeRate: 1 });
+    // console.log("Creating UTXOs...");
+    // const utxosCreated = await wallet.createUtxos({ upTo: true, num: 2, size: 1500, feeRate: 1 });
     // const psbt = await wallet.createUtxosBegin({
     //     upTo: true,
     //     num: 2,
@@ -162,7 +262,7 @@ async function initWallet(keys) {
     // console.log('psbt', psbt);
     // const signedPsbt = await wallet.signPsbt(psbt);
     // const utxosCreated = wallet.createUtxosEnd({ signedPsbt: signedPsbt });
-    console.log(`Created UTXOs successfully`, utxosCreated);
+    // console.log(`Created UTXOs successfully`, utxosCreated);
     return { wallet, keys };
 }
 
@@ -181,7 +281,22 @@ async function main() {
         // const { wallet: senderWallet, keys: senderKeys } = await initWallet(reciver_keys);
         //  const keys = await createWallet(bitcoinNetwork);
         const { wallet: senderWallet, keys: senderKeys } = await initWallet(signet_keys);
-return;
+        console.log("Running VSS backup flow...", senderKeys);
+        try {
+            const { vssConfig, walletPath } = await runVssBackupFlow(senderWallet, senderKeys, {
+                serverUrl: VSS_SERVER_URL,
+            });
+            console.log('VSS backup config:', vssConfig);
+            console.log('Wallet path:', walletPath);
+        } catch (vssErr) {
+            const msg = vssErr?.message ?? String(vssErr);
+            if (msg.includes('NotValidForName') || msg.includes('invalid peer certificate')) {
+                console.warn('VSS backup failed (TLS certificate hostname mismatch). Use a server URL whose host matches the server certificate (e.g. use the certificate hostname, not an IP).', msg);
+            } else {
+                console.warn('VSS backup flow failed:', msg);
+            }
+        }
+        return;
         // const txss = await senderWallet.listTransfers();
         // console.log("Transfers:", JSON.stringify(txss, null, 2));
         // const senderWalletres = await senderWallet.blindReceive({
@@ -206,7 +321,7 @@ return;
         const unspents2 = await senderWallet.listUnspents();
         console.log("Unspents2:", JSON.stringify(unspents2, null, 2));
 
-return 
+        return
 
         const asset12 = senderWallet.issueAssetNia({
             ticker: "USDT",
@@ -246,7 +361,7 @@ return
         console.log("\nListing assets...");
         const assets1 = senderWallet.listAssets();
         console.log("Assets:", JSON.stringify(assets1, null, 2));
-return
+        return
         const asset_balance = senderWallet.getAssetBalance(asset1.assetId);
         console.log("Asset balance:", JSON.stringify(asset_balance, null, 2));
 
@@ -419,26 +534,26 @@ return
         senderWallet.refreshWallet();
         receiverWallet.refreshWallet();
 
-        console.log("\nCreating wallet backup...");
-        const backupPassword = "test-backup-password";
-        const backupInfo = senderWallet.createBackup(backupPassword);
-        console.log("Backup info:", backupInfo);
-
-        console.log("Downloading backup file...");
-        const backupBinary = senderWallet.downloadBackup();
-        const backupBuffer = backupBinary instanceof ArrayBuffer ? Buffer.from(backupBinary) : backupBinary;
-        const backupFileName = `${senderKeys.accountXpubVanilla}.backup`;
-        const backupFilePath = path.join(__dirname, backupFileName);
-        await fs.writeFile(backupFilePath, backupBuffer);
-        console.log(`Backup saved to ${backupFilePath}`);
-
-        console.log("\nRestoring wallet from backup...");
-        const restoreResult = await senderWallet.restoreFromBackup({
-            backup: backupBuffer,
-            password: backupPassword,
-            filename: backupFileName
+        // Local backup flow: create backup file → restore → new WalletManager from restored dir
+        await runLocalBackupFlow(senderWallet, senderKeys, {
+            backupPassword: 'test-backup-password',
+            network: bitcoinNetwork,
+            transportEndpoint: TRANSPORT_ENDPOINT,
         });
-        console.log("Restore result:", restoreResult);
+
+        // VSS backup flow (optional; requires VSS server and rgb-lib built with VSS)
+        // Uses VSS_SERVER_URL from top of file.
+        if (VSS_SERVER_URL) {
+            try {
+                await runVssBackupFlow(senderWallet, senderKeys, {
+                    serverUrl: VSS_SERVER_URL,
+                });
+            } catch (vssErr) {
+                console.warn("VSS backup flow skipped or failed (native addon may segfault if VSS is unstable):", vssErr?.message ?? vssErr);
+            }
+        } else {
+            console.log("\nVSS backup flow skipped (set VSS_SERVER_URL at top of file to enable).");
+        }
 
         console.log("\nExample completed successfully!");
         console.log("=".repeat(50));
@@ -483,6 +598,9 @@ export {
     main,
     initWallet,
     mine,
-    sendToAddress
+    sendToAddress,
+    runLocalBackupFlow,
+    runVssBackupFlow,
+    deriveVssSigningKeyFromMnemonic,
 };
 

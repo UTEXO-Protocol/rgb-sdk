@@ -8,11 +8,7 @@ import { Wallet } from './../../bdk-wasm/pkg/bitcoindevkit.d';
 import * as path from 'path';
 
 import * as fs from 'fs';
-
-/**
- * Default transport endpoint for RGB protocol
- */
-const DEFAULT_TRANSPORT_ENDPOINT = 'rpcs://proxy.iriswallet.com/0.2/json-rpc';
+import { DEFAULT_TRANSPORT_ENDPOINTS, DEFAULT_INDEXER_URLS } from './network-config';
 import {
   Unspent,
   DecodeRgbInvoiceResponse,
@@ -22,7 +18,7 @@ import { normalizeNetwork } from '../utils/validation';
 import type { Network } from '../crypto/types';
 // Use default import for CommonJS compatibility in ESM
 import rgblib from '@utexo/rgb-lib';
-import { Transfer, Transaction, ListAssets, AssetBalance, AssetIfa, AssetNIA, BtcBalance, CreateUtxosEndRequestModel, SendAssetBeginRequestModel, CreateUtxosBeginRequestModel, SendAssetEndRequestModel, SendResult, SendBtcBeginRequestModel, SendBtcEndRequestModel, GetFeeEstimationRequestModel, GetFeeEstimationResponse, InvoiceRequest, InvoiceReceiveData, IssueAssetIfaRequestModel, InflateAssetIfaRequestModel, InflateEndRequestModel, OperationResult, FailTransfersRequest, WalletBackupResponse, WalletRestoreResponse, RecipientMap } from '../types/wallet-model';
+import { Transfer, Transaction, ListAssets, AssetBalance, AssetIfa, AssetNIA, BtcBalance, CreateUtxosEndRequestModel, SendAssetBeginRequestModel, CreateUtxosBeginRequestModel, SendAssetEndRequestModel, SendResult, SendBtcBeginRequestModel, SendBtcEndRequestModel, GetFeeEstimationRequestModel, GetFeeEstimationResponse, InvoiceRequest, InvoiceReceiveData, IssueAssetIfaRequestModel, InflateAssetIfaRequestModel, InflateEndRequestModel, OperationResult, FailTransfersRequest, WalletBackupResponse, WalletRestoreResponse, RecipientMap, VssBackupConfig, VssBackupInfo } from '../types/wallet-model';
 /**
  * Map network from client format to rgb-lib format
  */
@@ -69,6 +65,38 @@ export const restoreWallet = (params: { backupFilePath: string; password: string
 }
 
 /**
+ * Restore a wallet from a VSS backup into a target directory.
+ * Returns a message indicating the restored wallet path.
+ */
+export const restoreFromVss = (params: {
+  config: VssBackupConfig;
+  targetDir: string;
+}): WalletRestoreResponse & { walletPath: string } => {
+  const anyLib: any = rgblib as any;
+  if (typeof anyLib.restoreFromVss !== 'function') {
+    throw new WalletError('VSS restore is not available in the current rgb-lib build.');
+  }
+
+  if (!params.targetDir) {
+    throw new ValidationError('targetDir is required', 'targetDir');
+  }
+
+  const { config, targetDir } = params;
+  // Native binding expects snake_case: server_url, store_id, signing_key
+  const mappedConfig: any = {
+    server_url: config.serverUrl,
+    store_id: config.storeId,
+    signing_key: config.signingKey,
+  };
+
+  const walletPath: string = anyLib.restoreFromVss(mappedConfig, targetDir);
+  return {
+    message: 'Wallet restored from VSS successfully',
+    walletPath,
+  };
+};
+
+/**
  * RGB Lib Client class - Local implementation using rgb-lib
  */
 export class RGBLibClient {
@@ -99,19 +127,15 @@ export class RGBLibClient {
     this.network = normalizeNetwork(this.originalNetwork);
     
     this.dataDir = params.dataDir;
-    this.transportEndpoint = params.transportEndpoint || DEFAULT_TRANSPORT_ENDPOINT;
-    
+    this.transportEndpoint =
+      params.transportEndpoint ||
+      DEFAULT_TRANSPORT_ENDPOINTS[this.network] ||
+      DEFAULT_TRANSPORT_ENDPOINTS.signet;
+
     if (params.indexerUrl) {
       this.indexerUrl = params.indexerUrl;
     } else {
-      const defaultIndexerUrls: Record<Network, string> = {
-        'mainnet': 'ssl://electrum.iriswallet.com:50003',
-        'testnet': 'ssl://electrum.iriswallet.com:50013',
-        'testnet4': 'ssl://electrum.iriswallet.com:50053',
-        'signet': 'https://esplora-api.utexo.com',
-        'regtest': 'tcp://regtest.thunderstack.org:50001',
-      };
-      this.indexerUrl = defaultIndexerUrls[this.network] || defaultIndexerUrls['regtest'];
+      this.indexerUrl = DEFAULT_INDEXER_URLS[this.network] || DEFAULT_INDEXER_URLS.signet;
     }
 
     if (!fs.existsSync(this.dataDir)) {
@@ -152,7 +176,6 @@ export class RGBLibClient {
     }
 
     try {
-      console.log('indexerUrl', this.indexerUrl);
       this.online = this.wallet.goOnline(false, this.indexerUrl);
     } catch (error) {
       throw new WalletError('Failed to establish online connection', undefined, error as Error);
@@ -503,6 +526,107 @@ export class RGBLibClient {
       message: 'Backup created successfully',
       backupPath: fullBackupPath,
     };
+  }
+
+  /**
+   * Ensure VSS backup support is available in the underlying rgb-lib bindings.
+   * Returns the wallet instance and rgb-lib namespace as `any` for internal use.
+   */
+  private getVssBindingsOrThrow(methodName: 'vssBackup' | 'vssBackupInfo') {
+    const walletAny: any = this.wallet;
+    const anyLib: any = rgblib as any;
+    if (!walletAny || typeof anyLib.VssBackupClient !== 'function' || typeof walletAny[methodName] !== 'function') {
+      throw new WalletError('VSS backup is not available in the current rgb-lib build.');
+    }
+    return { walletAny, anyLib };
+  }
+
+  /**
+   * Configure VSS cloud backup for this wallet.
+   */
+  configureVssBackup(config: VssBackupConfig): void {
+    const walletAny: any = this.wallet;
+    if (!walletAny || typeof walletAny.configureVssBackup !== 'function') {
+      throw new WalletError('VSS backup is not available in the current rgb-lib build.');
+    }
+
+    // Native binding expects snake_case: server_url, store_id, signing_key
+    const mappedConfig: any = {
+      server_url: config.serverUrl,
+      store_id: config.storeId,
+      signing_key: config.signingKey,
+    };
+    if (config.encryptionEnabled !== undefined) {
+      mappedConfig.encryptionEnabled = config.encryptionEnabled;
+    }
+    if (config.autoBackup !== undefined) {
+      mappedConfig.autoBackup = config.autoBackup;
+    }
+    if (config.backupMode !== undefined) {
+      mappedConfig.backupMode = config.backupMode;
+    }
+
+    walletAny.configureVssBackup(mappedConfig);
+  }
+
+  /**
+   * Disable automatic VSS backup for this wallet.
+   */
+  disableVssAutoBackup(): void {
+    const walletAny: any = this.wallet;
+    if (!walletAny || typeof walletAny.disableVssAutoBackup !== 'function') {
+      throw new WalletError('VSS backup is not available in the current rgb-lib build.');
+    }
+    walletAny.disableVssAutoBackup();
+  }
+
+  /**
+   * Trigger a VSS backup immediately using a one-off client created from config.
+   * Returns the server version of the stored backup.
+   */
+  vssBackup(config: VssBackupConfig): number {
+    const { walletAny, anyLib } = this.getVssBindingsOrThrow('vssBackup');
+
+    const client = new anyLib.VssBackupClient({
+      server_url: config.serverUrl,
+      store_id: config.storeId,
+      signing_key: config.signingKey,
+    });
+
+    try {
+      const version: number = walletAny.vssBackup(client);
+      return version;
+    } finally {
+      if (typeof (client as any).drop === 'function') {
+        (client as any).drop();
+      }
+    }
+  }
+
+  /**
+   * Get VSS backup status information for this wallet using a one-off client.
+   */
+  vssBackupInfo(config: VssBackupConfig): VssBackupInfo {
+    const { walletAny, anyLib } = this.getVssBindingsOrThrow('vssBackupInfo');
+
+    const client = new anyLib.VssBackupClient({
+      server_url: config.serverUrl,
+      store_id: config.storeId,
+      signing_key: config.signingKey,
+    });
+
+    try {
+      const info: any = walletAny.vssBackupInfo(client);
+      return {
+        backupExists: Boolean(info.backupExists ?? info.backup_exists),
+        serverVersion: info.serverVersion ?? info.server_version ?? null,
+        backupRequired: Boolean(info.backupRequired ?? info.backup_required),
+      };
+    } finally {
+      if (typeof (client as any).drop === 'function') {
+        (client as any).drop();
+      }
+    }
   }
   /**
    * Cleanup resources

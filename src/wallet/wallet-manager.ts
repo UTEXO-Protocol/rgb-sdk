@@ -428,6 +428,38 @@ export class WalletManager implements IWalletManager {
   }
 
   /**
+   * Configure VSS cloud backup for this wallet.
+   */
+  public async configureVssBackup(config: IWalletModel.VssBackupConfig): Promise<void> {
+    this.ensureNotDisposed();
+    this.client.configureVssBackup(config);
+  }
+
+  /**
+   * Disable automatic VSS backup.
+   */
+  public async disableVssAutoBackup(): Promise<void> {
+    this.ensureNotDisposed();
+    this.client.disableVssAutoBackup();
+  }
+
+  /**
+   * Trigger a VSS backup immediately and return the server version.
+   */
+  public async vssBackup(config: IWalletModel.VssBackupConfig): Promise<number> {
+    this.ensureNotDisposed();
+    return this.client.vssBackup(config);
+  }
+
+  /**
+   * Get VSS backup info for this wallet.
+   */
+  public async vssBackupInfo(config: IWalletModel.VssBackupConfig): Promise<IWalletModel.VssBackupInfo> {
+    this.ensureNotDisposed();
+    return this.client.vssBackupInfo(config);
+  }
+
+  /**
    * Sign a PSBT using the wallet's mnemonic or a provided mnemonic
    * @param psbt - Base64 encoded PSBT
    * @param mnemonic - Optional mnemonic (uses wallet's mnemonic if not provided)

@@ -43,6 +43,8 @@ import type {
     Transaction,
     Transfer,
     InvoiceData,
+    VssBackupConfig,
+    VssBackupInfo,
   } from '../types/wallet-model';
   import type { EstimateFeeResult, Network } from '../crypto';
   
@@ -382,6 +384,32 @@ import type {
      * @returns Promise that resolves when sync is complete
      */
     syncWallet(): Promise<void>;
+
+    // ============================================
+    // VSS Cloud Backup (optional)
+    // ============================================
+
+    /**
+     * Configure VSS (Versioned Storage Service) cloud backup for this wallet.
+     * When configured with autoBackup enabled, the wallet will perform automatic
+     * backups after state-changing operations according to the underlying rgb-lib behavior.
+     */
+    configureVssBackup(config: VssBackupConfig): Promise<void>;
+
+    /**
+     * Disable automatic VSS backup for this wallet.
+     */
+    disableVssAutoBackup(): Promise<void>;
+
+    /**
+     * Trigger a VSS backup immediately and return the server version of the stored backup.
+     */
+    vssBackup(config: VssBackupConfig): Promise<number>;
+
+    /**
+     * Get VSS backup status information for this wallet.
+     */
+    vssBackupInfo(config: VssBackupConfig): Promise<VssBackupInfo>;
   
     // ============================================
     // Fee Estimation
