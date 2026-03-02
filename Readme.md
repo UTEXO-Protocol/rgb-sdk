@@ -22,7 +22,7 @@ With this SDK, developers can:
 
 ## ⚙️ Capabilities of `@utexo/rgb-sdk` (via `UTEXOWallet`)
 
-The primary wallet class is **`UTEXOWallet`**: initialize with a mnemonic (or seed) and optional `{ network, dataDir, vssServerUrl }`, then call `await wallet.initialize()` before use. It combines standard RGB operations with UTEXO features (Lightning, on-chain deposit/withdrawal). For VSS backup/restore, the server URL defaults to `DEFAULT_VSS_SERVER_URL`; override with `vssServerUrl`. The server hostname must match its TLS certificate.
+The primary wallet class is **`UTEXOWallet`**: initialize with a mnemonic (or seed) and optional `{ network, dataDir }`, then call `await wallet.initialize()` before use. It combines standard RGB operations with UTEXO features (Lightning, on-chain deposit/withdrawal).
 
 | Method / Function | Description |
 |-------------------|-------------|
@@ -56,12 +56,20 @@ The primary wallet class is **`UTEXOWallet`**: initialize with a mnemonic (or se
 | `createBackup({ backupPath, password })` | Create encrypted backup (layer1 + utexo in one folder) |
 | `vssBackup(config?, mnemonic?)` | Backup to VSS (config optional; built from mnemonic + default server URL) |
 | `vssBackupInfo(config?, mnemonic?)` | Get VSS backup info |
-
-**UTEXO-specific:** `onchainReceive()`, `onchainSend()`, `getOnchainSendStatus()`, `createLightningInvoice()`, `payLightningInvoice()`, `getLightningSendRequest()`, `getLightningReceiveRequest()` – see [cli/README.md](./cli/README.md).
-
-- **Standard RGB:** `getAddress()`, `getBtcBalance()`, `listAssets()`, `listTransfers()`, `blindReceive()`, `witnessReceive()`, `sendBegin()` / `sendEnd()` / `send()`, `createBackup()`, VSS backup methods, etc.
-- **On-chain (UTEXO):** `onchainReceive()` (generate invoice for depositing from mainnet to UTEXO), `onchainSendBegin()` / `onchainSendEnd()` / `onchainSend()` (withdraw from UTEXO to mainnet), `getOnchainSendStatus()`.
-- **Lightning (UTEXO):** `createLightningInvoice()`, `payLightningInvoiceBegin()` / `payLightningInvoiceEnd()` / `payLightningInvoice()`, `getLightningSendRequest()`, `getLightningReceiveRequest()`, `listLightningPayments()`.
+| *On-chain* | |
+| `onchainReceive(params)` | Generate invoice for depositing from mainnet to UTEXO |
+| `onchainSendBegin(params)` | Start on-chain withdraw (returns unsigned PSBT) |
+| `onchainSendEnd(params)` | Finalize on-chain withdraw with signed PSBT |
+| `onchainSend(params, mnemonic?)` | Complete on-chain withdraw (begin → sign → end) |
+| `getOnchainSendStatus(invoice)` | Get status of on-chain withdraw |
+| *Lightning* | |
+| `createLightningInvoice(params)` | Create Lightning invoice for receiving |
+| `payLightningInvoiceBegin(params)` | Start Lightning payment (returns unsigned PSBT) |
+| `payLightningInvoiceEnd(params)` | Finalize Lightning payment with signed PSBT |
+| `payLightningInvoice(params, mnemonic?)` | Complete Lightning payment (begin → sign → end) |
+| `getLightningSendRequest(lnInvoice)` | Get status of Lightning send |
+| `getLightningReceiveRequest(lnInvoice)` | Get status of Lightning receive |
+| `listLightningPayments()` | List Lightning payments |
 
 **Examples:** [examples/](./examples/). **CLI (dev tools):** [cli/](./cli/).
 

@@ -1,41 +1,35 @@
 # UTEXO CLI
 
-This folder contains the CLI and utility scripts for UTEXOWallet.
+CLI for UTEXOWallet. All commands run via the single entrypoint.
+
+**Usage:** `utexo <command> <wallet_name> [options]` or `npm run utexo -- <command> <wallet_name> [options]` or `node cli/run.mjs <command> <wallet_name> [options]`
+
+**Exception:** `sign-psbt` has no wallet: `utexo sign-psbt --psbt "<psbt>" --network <net> --mnemonic "<mn>"`
 
 ## Structure
 
-- **`run.mjs`** — Single entrypoint. Run via `utexo <command> <wallet_name> [options]` or `node cli/run.mjs <command> <wallet_name> [options]`.
-- **`commands/`** — Command modules (e.g. `address.mjs`, `getonchainsendstatus.mjs`). Each exports a `run(walletName, flagArgs[, options])` function.
-- **`utils.mjs`** — Shared helpers (parseFlags, runWithWallet, wallet config load/save).
-- **`data/`** — Wallet configs and other test data (e.g. `data/<wallet_name>.json`).
-- **`generate_keys.mjs`** — Setup script to create a new wallet config.
-- Standalone scripts (e.g. `btcbalance.mjs`, `listassets.mjs`) remain for commands not yet in `run.mjs`.
+- **`run.mjs`** — Single entrypoint for all commands
+- **`commands/`** — Command modules (each exports `run(walletName, flagArgs[, options])`)
+- **`utils.mjs`** — Shared helpers (parseFlags, runWithWallet, wallet config load/save)
+- **`data/`** — Wallet configs (`data/<wallet_name>.json`)
+- **`generate_keys.mjs`** — Setup script to create a new wallet config (also: `utexo generate_keys <wallet> [network]`)
 
 ## Scripts
 
-### generate_keys.mjs
+### generate_keys
 
 Generates new wallet keys and saves them to a JSON file.
 
-**Usage (npm):**
+**Usage:**
 ```bash
-npm run generate_keys -- <wallet_name>
-npm run generate_keys -- <wallet_name> [network]
-```
-
-**Usage (direct):**
-```bash
-node cli/generate_keys.mjs <wallet_name>
-node cli/generate_keys.mjs <wallet_name> [network]
+utexo generate_keys <wallet_name> [network]
+# or: node cli/generate_keys.mjs <wallet_name> [network]
 ```
 
 **Examples:**
 ```bash
-# Generate keys with default network (regtest)
-npm run generate_keys -- mywallet
-
-# Generate keys with specific network
-npm run generate_keys -- mywallet testnet
+utexo generate_keys mywallet          # default: regtest
+utexo generate_keys mywallet testnet
 ```
 
 **Parameters:**
@@ -53,26 +47,11 @@ npm run generate_keys -- mywallet testnet
   - xpriv
   - Created timestamp
 
-### address.mjs
+### address
 
-Loads a wallet configuration and retrieves the address using UTEXOWallet.
+Get wallet address.
 
-**Usage (npm):**
-```bash
-npm run address -- <wallet_name>
-```
-
-**Usage (direct):**
-```bash
-node cli/address.mjs <wallet_name>
-```
-
-**Example:**
-```bash
-npm run address -- mywallet
-# or
-node cli/address.mjs mywallet
-```
+**Usage:** `utexo address <wallet_name>`
 
 **Parameters:**
 - `wallet_name` (required) - Name of the wallet (must match a file in `data/<wallet_name>.json`)
@@ -80,26 +59,11 @@ node cli/address.mjs mywallet
 **Output:**
 - Displays the wallet address and wallet information
 
-### btcbalance.mjs
+### btcbalance
 
-Loads a wallet configuration and retrieves the BTC balance using UTEXOWallet.
+Get BTC balance.
 
-**Usage (npm):**
-```bash
-npm run btcbalance -- <wallet_name>
-```
-
-**Usage (direct):**
-```bash
-node cli/btcbalance.mjs <wallet_name>
-```
-
-**Example:**
-```bash
-npm run btcbalance -- mywallet
-# or
-node cli/btcbalance.mjs mywallet
-```
+**Usage:** `utexo btcbalance <wallet_name>`
 
 **Parameters:**
 - `wallet_name` (required) - Name of the wallet (must match a file in `data/<wallet_name>.json`)
@@ -110,19 +74,11 @@ node cli/btcbalance.mjs mywallet
   - Colored (RGB Assets) balance: settled, future, spendable
   - Wallet information
 
-### createutxos.mjs
+### createutxos
 
-Loads a wallet configuration and creates UTXOs using UTEXOWallet.
+Create UTXOs.
 
-**Usage (npm):**
-```bash
-npm run createutxos -- <wallet_name> [options]
-```
-
-**Usage (direct):**
-```bash
-node cli/createutxos.mjs <wallet_name> [options]
-```
+**Usage:** `utexo createutxos <wallet_name> [options]`
 
 **Options:**
 - `--num <number>` - Number of UTXOs to create (default: 5)
@@ -132,14 +88,9 @@ node cli/createutxos.mjs <wallet_name> [options]
 
 **Examples:**
 ```bash
-# Create UTXOs with default parameters (5 UTXOs, 1000 sats each, fee rate 1)
-npm run createutxos -- mywallet
-
-# Create 10 UTXOs with custom size and fee rate
-npm run createutxos -- mywallet --num 10 --size 2000 --feeRate 2
-
-# Create UTXOs up to the specified number
-npm run createutxos -- mywallet --num 20 --upTo
+utexo createutxos mywallet
+utexo createutxos mywallet --num 10 --size 2000 --feeRate 2
+utexo createutxos mywallet --num 20 --upTo
 ```
 
 **Parameters:**
@@ -152,26 +103,11 @@ npm run createutxos -- mywallet --num 20 --upTo
 
 **Note:** This command requires the wallet to have sufficient BTC balance to create UTXOs and pay fees.
 
-### listassets.mjs
+### listassets
 
-Loads a wallet configuration and lists RGB assets using UTEXOWallet.
+List RGB assets.
 
-**Usage (npm):**
-```bash
-npm run listassets -- <wallet_name>
-```
-
-**Usage (direct):**
-```bash
-node cli/listassets.mjs <wallet_name>
-```
-
-**Example:**
-```bash
-npm run listassets -- mywallet
-# or
-node cli/listassets.mjs mywallet
-```
+**Usage:** `utexo listassets <wallet_name> [--assetId <id>]`
 
 **Parameters:**
 - `wallet_name` (required) - Name of the wallet (must match `data/<wallet_name>.json`)
@@ -182,19 +118,11 @@ node cli/listassets.mjs mywallet
 - Total asset count
 - Raw JSON response from `listAssets()`
 
-### blindreceive.mjs
+### blindreceive
 
-Creates a blind receive invoice using UTEXOWallet.blindReceive().
+Create blind receive invoice.
 
-**Usage (npm):**
-```bash
-npm run blindreceive -- <wallet_name> --amount <number> [options]
-```
-
-**Usage (direct):**
-```bash
-node cli/blindreceive.mjs <wallet_name> --amount <number> [options]
-```
+**Usage:** `utexo blindreceive <wallet_name> --amount <number> [options]`
 
 **Options:**
 - `--amount <number>` (required) - Amount to receive
@@ -204,30 +132,19 @@ node cli/blindreceive.mjs <wallet_name> --amount <number> [options]
 
 **Examples:**
 ```bash
-# Create blind receive invoice for 100 units
-npm run blindreceive -- mywallet --amount 100
-
-# With asset ID and duration
-npm run blindreceive -- mywallet --amount 50 --assetId rgb:xxx... --durationSeconds 2000
+utexo blindreceive mywallet --amount 100
+utexo blindreceive mywallet --amount 50 --assetId rgb:xxx... --durationSeconds 2000
 ```
 
 **Output:**
 - Raw JSON response from `blindReceive()`: invoice, recipientId, expirationTimestamp, batchTransferIdx
 - Wallet info
 
-### witnessreceive.mjs
+### witnessreceive
 
-Creates a witness receive invoice using UTEXOWallet.witnessReceive().
+Create witness receive invoice.
 
-**Usage (npm):**
-```bash
-npm run witnessreceive -- <wallet_name> --amount <number> [options]
-```
-
-**Usage (direct):**
-```bash
-node cli/witnessreceive.mjs <wallet_name> --amount <number> [options]
-```
+**Usage:** `utexo witnessreceive <wallet_name> --amount <number> [options]`
 
 **Options:**
 - `--amount <number>` (required) - Amount to receive
@@ -237,61 +154,29 @@ node cli/witnessreceive.mjs <wallet_name> --amount <number> [options]
 
 **Examples:**
 ```bash
-# Create witness receive invoice for 100 units
-npm run witnessreceive -- mywallet --amount 100
-
-# With asset ID and duration
-npm run witnessreceive -- mywallet --amount 50 --assetId rgb:xxx... --durationSeconds 2000
+utexo witnessreceive mywallet --amount 100
+utexo witnessreceive mywallet --amount 50 --assetId rgb:xxx... --durationSeconds 2000
 ```
 
 **Output:**
 - Raw JSON response from `witnessReceive()`: invoice, recipientId, expirationTimestamp, batchTransferIdx
 - Wallet info
 
-### decodergbinvoice.mjs
+### decodergbinvoice
 
-Decodes an RGB invoice using UTEXOWallet.decodeRGBInvoice().
+Decode an RGB invoice.
 
-**Usage (npm):**
-```bash
-npm run decodergbinvoice -- <wallet_name> --invoice "<invoice_string>"
-```
-
-**Usage (direct):**
-```bash
-node cli/decodergbinvoice.mjs <wallet_name> --invoice "<invoice_string>"
-```
-
-**Options:**
-- `--invoice <string>` (required) - RGB invoice string to decode
-
-**Examples:**
-```bash
-npm run decodergbinvoice -- mywallet --invoice "rgb:~/~/BF/sb:wvout:BSfzP7Eu-..."
-```
+**Usage:** `utexo decodergbinvoice <wallet_name> --invoice "<invoice_string>"`
 
 **Output:**
 - Raw JSON response from `decodeRGBInvoice()`: invoice, recipientId, assetSchema, assetId, network, assignment, assignmentName, expirationTimestamp, transportEndpoints
 - Wallet info
 
-### refresh.mjs
+### refresh
 
-Refreshes wallet state using UTEXOWallet.refreshWallet().
+Refresh wallet state.
 
-**Usage (npm):**
-```bash
-npm run refresh -- <wallet_name>
-```
-
-**Usage (direct):**
-```bash
-node cli/refresh.mjs <wallet_name>
-```
-
-**Example:**
-```bash
-npm run refresh -- mywallet
-```
+**Usage:** `utexo refresh <wallet_name>`
 
 **Parameters:**
 - `wallet_name` (required) - Name of the wallet (must match `data/<wallet_name>.json`)
@@ -299,30 +184,17 @@ npm run refresh -- mywallet
 **Output:**
 - Success message and wallet info
 
-### listtransfers.mjs
+### listtransfers
 
-Lists transfers using UTEXOWallet.listTransfers().
+List transfers.
 
-**Usage (npm):**
-```bash
-npm run listtransfers -- <wallet_name> [--assetId <asset_id>]
-```
-
-**Usage (direct):**
-```bash
-node cli/listtransfers.mjs <wallet_name> [--assetId <asset_id>]
-```
-
-**Options:**
+**Usage:** `utexo listtransfers <wallet_name> [--assetId <asset_id>]`
 - `--assetId <string>` (optional) - Filter transfers by asset ID
 
 **Examples:**
 ```bash
-# List all transfers
-npm run listtransfers -- mywallet
-
-# List transfers for a specific asset
-npm run listtransfers -- mywallet --assetId rgb:xxx...
+utexo listtransfers mywallet
+utexo listtransfers mywallet --assetId rgb:xxx...
 ```
 
 **Output:**
@@ -330,442 +202,128 @@ npm run listtransfers -- mywallet --assetId rgb:xxx...
 - Total transfer count
 - Wallet info
 
-### onchainsendbegin.mjs
+### onchainreceive
 
-Begins an onchain send and returns a PSBT using UTEXOWallet.onchainSendBegin().
+Generate on-chain deposit invoice (mainnet → UTEXO).
 
-**Usage (npm):**
-```bash
-npm run onchainsendbegin -- <wallet_name> --invoice "<invoice_string>"
-```
+**Usage:** `utexo onchainreceive <wallet_name> --amount <n> [--assetId <id>] [--minConfirmations <n>] [--durationSeconds <n>]`
 
-**Usage (direct):**
-```bash
-node cli/onchainsendbegin.mjs <wallet_name> --invoice "<invoice_string>"
-```
+**Output:** Mainnet invoice for depositing to UTEXO.
 
-**Options:**
-- `--invoice <string>` (required) - Mainnet invoice
+### onchainsendbegin
 
-**Example:**
-```bash
-npm run onchainsendbegin -- mywallet --invoice "rgb:..."
-```
+Begin on-chain send, returns unsigned PSBT.
 
-**Output:**
-- PSBT string from `onchainSendBegin()`
-- Wallet info
+**Usage:** `utexo onchainsendbegin <wallet_name> --invoice "<invoice_string>"`
 
-### signpsbt.mjs
+### signpsbt
 
-Signs a PSBT using UTEXOWallet.signPsbt().
+Sign PSBT (uses wallet; requires init/goOnline).
 
-**Usage (npm):**
-```bash
-npm run signpsbt -- <wallet_name> --psbt "<psbt_string>" [--mnemonic "<mnemonic>"]
-```
+**Usage:** `utexo signpsbt <wallet_name> --psbt "<psbt_string>" [--mnemonic "<mnemonic>"]`
 
-**Usage (direct):**
-```bash
-node cli/signpsbt.mjs <wallet_name> --psbt "<psbt_string>" [--mnemonic "<mnemonic>"]
-```
+### sign-psbt
 
-**Options:**
-- `--psbt <string>` (required) - PSBT to sign
-- `--mnemonic <string>` (optional) - Mnemonic for signing (uses wallet mnemonic if not provided)
+Sign PSBT standalone (no wallet). Use when signing without loading a wallet config.
 
-**Example:**
-```bash
-npm run signpsbt -- mywallet --psbt "cHNidP8BAIkB..."
-```
+**Usage:** `utexo sign-psbt --psbt "<psbt>" --network <regtest|testnet|mainnet> --mnemonic "<mnemonic>"`
 
-**Output:**
-- Signed PSBT string
-- Wallet info
+### onchainsendend
 
-### onchainsendend.mjs
+Complete on-chain send with signed PSBT.
 
-Completes an onchain send with signed PSBT using UTEXOWallet.onchainSendEnd().
+**Usage:** `utexo onchainsendend <wallet_name> --invoice "<invoice_string>" --signedPsbt "<signed_psbt>"`
 
-**Usage (npm):**
-```bash
-npm run onchainsendend -- <wallet_name> --invoice "<invoice_string>" --signedPsbt "<signed_psbt>"
-```
+### onchainsend
 
-**Usage (direct):**
-```bash
-node cli/onchainsendend.mjs <wallet_name> --invoice "<invoice_string>" --signedPsbt "<signed_psbt>"
-```
+Complete on-chain send flow (begin + sign + end).
 
-**Options:**
-- `--invoice <string>` (required) - Mainnet invoice
-- `--signedPsbt <string>` (required) - Signed PSBT
+**Usage:** `utexo onchainsend <wallet_name> --invoice "<invoice_string>" [--mnemonic "<mnemonic>"]`
 
-**Example:**
-```bash
-npm run onchainsendend -- mywallet --invoice "rgb:..." --signedPsbt "cHNidP8BAIkB..."
-```
+### send
 
-**Output:**
-- Raw JSON response from `onchainSendEnd()`: txid, batchTransferIdx
-- Wallet info
+Standard RGB send (blind/witness invoice).
 
-### onchainsend.mjs
+**Usage:** `utexo send <wallet_name> --invoice "<inv>" [--assetId <id>] [--amount <n>] [--witnessData "<json>"] [--mnemonic "<mn>"] [--feeRate <n>] [--minConfirmations <n>]`
 
-Performs complete onchain send flow (begin + sign + end) using UTEXOWallet.onchainSend().
+### listunspents
 
-**Usage (npm):**
-```bash
-npm run onchainsend -- <wallet_name> --invoice "<invoice_string>" [--mnemonic "<mnemonic>"]
-```
+List unspent UTXOs.
 
-**Usage (direct):**
-```bash
-node cli/onchainsend.mjs <wallet_name> --invoice "<invoice_string>" [--mnemonic "<mnemonic>"]
-```
+**Usage:** `utexo listunspents <wallet_name>`
 
-**Options:**
-- `--invoice <string>` (required) - Mainnet invoice
-- `--mnemonic <string>` (optional) - Mnemonic for signing (uses wallet mnemonic if not provided)
+### getonchainsendstatus
 
-**Example:**
-```bash
-npm run onchainsend -- mywallet --invoice "rgb:..."
-```
+Get on-chain send status.
 
-**Output:**
-- Raw JSON response from `onchainSend()`: txid, batchTransferIdx
-- Wallet info
+**Usage:** `utexo getonchainsendstatus <wallet_name> --invoice "<invoice_string>"`
 
-### listunspents.mjs
+### createlightninginvoice
 
-Lists unspent UTXOs using UTEXOWallet.listUnspents().
+Create Lightning invoice.
 
-**Usage (npm):**
-```bash
-npm run listunspents -- <wallet_name>
-```
+**Usage:** `utexo createlightninginvoice <wallet_name> --assetId <id> --amount <n> [--amountSats <n>] [--expirySeconds <n>]`
 
-**Usage (direct):**
-```bash
-node cli/listunspents.mjs <wallet_name>
-```
+### paylightninginvoicebegin
 
-**Example:**
-```bash
-npm run listunspents -- mywallet
-```
+Begin Lightning payment, returns unsigned PSBT.
 
-**Parameters:**
-- `wallet_name` (required) - Name of the wallet (must match `data/<wallet_name>.json`)
+**Usage:** `utexo paylightninginvoicebegin <wallet_name> --lnInvoice "<ln_invoice>" [--maxFee <n>]`
 
-**Output:**
-- Raw JSON response from `listUnspents()` (array of unspent UTXOs with utxo and rgbAllocations)
-- Total unspent count
-- Wallet info
+### paylightninginvoice
 
-### getonchainsendstatus.mjs
+Complete Lightning payment (begin + sign + end).
 
-Gets the status of an onchain send using UTEXOWallet.getOnchainSendStatus().
+**Usage:** `utexo paylightninginvoice <wallet_name> --lnInvoice "<ln_invoice>" [--amount <n>] [--assetId <id>] [--maxFee <n>] [--mnemonic "<mn>"]`
 
-**Usage (npm):**
-```bash
-npm run getonchainsendstatus -- <wallet_name> --invoice "<invoice_string>"
-```
+### paylightninginvoiceend
 
-**Usage (direct):**
-```bash
-node cli/getonchainsendstatus.mjs <wallet_name> --invoice "<invoice_string>"
-```
+Complete Lightning payment with signed PSBT.
 
-**Options:**
-- `--invoice <string>` (required) - Invoice to check status for
+**Usage:** `utexo paylightninginvoiceend <wallet_name> --lnInvoice "<ln_invoice>" --signedPsbt "<signed_psbt>"`
 
-**Example:**
-```bash
-npm run getonchainsendstatus -- mywallet --invoice "rgb:..."
-```
+### getlightningsendrequest
 
-**Output:**
-- TransferStatus from `getOnchainSendStatus()`: 'WaitingCounterparty', 'WaitingConfirmations', 'Settled', 'Failed', or null if not found
-- Wallet info
+Get Lightning send status.
 
-### createlightninginvoice.mjs
+**Usage:** `utexo getlightningsendrequest <wallet_name> --lnInvoice "<ln_invoice>"`
 
-Creates a Lightning invoice using UTEXOWallet.createLightningInvoice().
+### getlightningreceiverequest
 
-**Usage (npm):**
-```bash
-npm run createlightninginvoice -- <wallet_name> --assetId <asset_id> --amount <number> [options]
-```
+Get Lightning receive status.
 
-**Usage (direct):**
-```bash
-node cli/createlightninginvoice.mjs <wallet_name> --assetId <asset_id> --amount <number> [options]
-```
-
-**Options:**
-- `--assetId <string>` (required) - Asset ID
-- `--amount <number>` (required) - Amount
-- `--amountSats <number>` (optional) - Amount in satoshis
-- `--expirySeconds <n>` (optional) - Invoice expiry in seconds
-
-**Examples:**
-```bash
-# Create Lightning invoice for asset
-npm run createlightninginvoice -- mywallet --assetId rgb:xxx... --amount 100
-
-# With expiry
-npm run createlightninginvoice -- mywallet --assetId rgb:xxx... --amount 100 --expirySeconds 3600
-```
-
-**Output:**
-- Raw JSON response from `createLightningInvoice()`: lnInvoice, expiresAt, tempRequestId
-- Wallet info
-
-### paylightninginvoicebegin.mjs
-
-Begins a Lightning invoice payment and returns a PSBT using UTEXOWallet.payLightningInvoiceBegin().
-
-**Usage (npm):**
-```bash
-npm run paylightninginvoicebegin -- <wallet_name> --lnInvoice "<ln_invoice>" [--maxFee <number>]
-```
-
-**Usage (direct):**
-```bash
-node cli/paylightninginvoicebegin.mjs <wallet_name> --lnInvoice "<ln_invoice>" [--maxFee <number>]
-```
-
-**Options:**
-- `--lnInvoice <string>` (required) - Lightning invoice
-- `--maxFee <number>` (optional) - Maximum fee
-
-**Example:**
-```bash
-npm run paylightninginvoicebegin -- mywallet --lnInvoice "lnbc..."
-```
-
-**Output:**
-- PSBT string from `payLightningInvoiceBegin()`
-- Wallet info
-
-### paylightninginvoice.mjs
-
-Performs a complete Lightning invoice payment (begin + sign + end) using UTEXOWallet.payLightningInvoice().
-
-**Usage (npm):**
-```bash
-npm run paylightninginvoice -- <wallet_name> --lnInvoice "<ln_invoice>" [--amount <number>] [--assetId <string>] [--maxFee <number>] [--mnemonic "<mnemonic>"]
-```
-
-**Usage (direct):**
-```bash
-node cli/paylightninginvoice.mjs <wallet_name> --lnInvoice "<ln_invoice>" [--amount <number>] [--assetId <string>] [--maxFee <number>] [--mnemonic "<mnemonic>"]
-```
-
-**Options:**
-- `--lnInvoice <string>` (required) - Lightning invoice
-- `--amount <number>` (optional) - Amount
-- `--assetId <string>` (optional) - Asset ID
-- `--maxFee <number>` (optional) - Maximum fee
-- `--mnemonic <string>` (optional) - Mnemonic for signing (uses wallet mnemonic if not provided)
-
-**Example:**
-```bash
-npm run paylightninginvoice -- mywallet --lnInvoice "lnbc..."
-```
-
-**Output:**
-- Raw JSON response from `payLightningInvoice()`: txid, batchTransferIdx, etc.
-- Wallet info
-
-### paylightninginvoiceend.mjs
-
-Completes a Lightning invoice payment with signed PSBT using UTEXOWallet.payLightningInvoiceEnd().
-
-**Usage (npm):**
-```bash
-npm run paylightninginvoiceend -- <wallet_name> --lnInvoice "<ln_invoice>" --signedPsbt "<signed_psbt>"
-```
-
-**Usage (direct):**
-```bash
-node cli/paylightninginvoiceend.mjs <wallet_name> --lnInvoice "<ln_invoice>" --signedPsbt "<signed_psbt>"
-```
-
-**Options:**
-- `--lnInvoice <string>` (required) - Lightning invoice
-- `--signedPsbt <string>` (required) - Signed PSBT
-
-**Example:**
-```bash
-npm run paylightninginvoiceend -- mywallet --lnInvoice "lnbc..." --signedPsbt "cHNidP8BAIkB..."
-```
-
-**Output:**
-- Raw JSON response from `payLightningInvoiceEnd()`: txid, batchTransferIdx
-- Wallet info
-
-### getlightningsendrequest.mjs
-
-Gets the status of a Lightning send request using UTEXOWallet.getLightningSendRequest().
-
-**Usage (npm):**
-```bash
-npm run getlightningsendrequest -- <wallet_name> --lnInvoice "<ln_invoice>"
-```
-
-**Usage (direct):**
-```bash
-node cli/getlightningsendrequest.mjs <wallet_name> --lnInvoice "<ln_invoice>"
-```
-
-**Options:**
-- `--lnInvoice <string>` (required) - Lightning invoice to check status for
-
-**Example:**
-```bash
-npm run getlightningsendrequest -- mywallet --lnInvoice "lnbc..."
-```
-
-**Output:**
-- TransferStatus from `getLightningSendRequest()`: 'WaitingCounterparty', 'WaitingConfirmations', 'Settled', 'Failed', or null if not found
-- Wallet info
-
-### getlightningreceiverequest.mjs
-
-Gets the status of a Lightning receive request using UTEXOWallet.getLightningReceiveRequest().
-
-**Usage (npm):**
-```bash
-npm run getlightningreceiverequest -- <wallet_name> --lnInvoice "<ln_invoice>"
-```
-
-**Usage (direct):**
-```bash
-node cli/getlightningreceiverequest.mjs <wallet_name> --lnInvoice "<ln_invoice>"
-```
-
-**Options:**
-- `--lnInvoice <string>` (required) - Lightning invoice to check status for
-
-**Example:**
-```bash
-npm run getlightningreceiverequest -- mywallet --lnInvoice "lnbc..."
-```
-
-**Output:**
-- TransferStatus from `getLightningReceiveRequest()`: 'WaitingCounterparty', 'WaitingConfirmations', 'Settled', 'Failed', or null if not found
-- Wallet info
+**Usage:** `utexo getlightningreceiverequest <wallet_name> --lnInvoice "<ln_invoice>"`
 
 ## Example Workflow
 
-1. Generate keys for a new wallet (uses default network: regtest):
-   ```bash
-   npm run generate_keys -- testwallet
-   ```
+```bash
+# 1. Generate keys (default: regtest)
+utexo generate_keys testwallet
 
-2. Get the address for the wallet:
-   ```bash
-   npm run address -- testwallet
-   ```
+# 2. Get address, balance, create UTXOs
+utexo address testwallet
+utexo btcbalance testwallet
+utexo createutxos testwallet --num 10 --size 1500
+utexo listassets testwallet
 
-3. Get the BTC balance for the wallet:
-   ```bash
-   npm run btcbalance -- testwallet
-   ```
+# 3. Receive invoices
+utexo blindreceive testwallet --amount 100
+utexo witnessreceive testwallet --amount 100
 
-4. Create UTXOs for the wallet:
-   ```bash
-   npm run createutxos -- testwallet --num 10 --size 1500
-   ```
+# 4. On-chain (UTEXO)
+utexo onchainreceive testwallet --amount 100
+utexo onchainsend testwallet --invoice "<mainnet_invoice>"
+utexo getonchainsendstatus testwallet --invoice "<invoice>"
 
-5. List assets in the wallet:
-   ```bash
-   npm run listassets -- testwallet
-   ```
+# 5. Lightning
+utexo createlightninginvoice testwallet --assetId rgb:xxx... --amount 100
+utexo paylightninginvoice testwallet --lnInvoice "lnbc..."
 
-6. Create a blind receive invoice:
-   ```bash
-   npm run blindreceive -- testwallet --amount 100
-   ```
+# 6. Standard RGB send
+utexo send testwallet --invoice "<inv>" --assetId <id> --amount <n>
+```
 
-7. Create a witness receive invoice:
-   ```bash
-   npm run witnessreceive -- testwallet --amount 100
-   ```
-
-8. Decode an RGB invoice:
-   ```bash
-   npm run decodergbinvoice -- testwallet --invoice "<invoice_string>"
-   ```
-
-9. Refresh wallet state:
-   ```bash
-   npm run refresh -- testwallet
-   ```
-
-10. List transfers:
-   ```bash
-   npm run listtransfers -- testwallet
-   npm run listtransfers -- testwallet --assetId rgb:xxx...
-   ```
-
-11. Onchain send (complete flow):
-   ```bash
-   npm run onchainsend -- testwallet --invoice "<invoice_string>"
-   ```
-
-12. Onchain send (step by step):
-   ```bash
-   # Step 1: Begin
-   npm run onchainsendbegin -- testwallet --invoice "<invoice_string>"
-   
-   # Step 2: Sign PSBT
-   npm run signpsbt -- testwallet --psbt "<psbt_from_step1>"
-   
-   # Step 3: End
-   npm run onchainsendend -- testwallet --invoice "<invoice_string>" --signedPsbt "<signed_psbt_from_step2>"
-   ```
-
-13. List unspent UTXOs:
-   ```bash
-   npm run listunspents -- testwallet
-   ```
-
-14. Get onchain send status:
-   ```bash
-   npm run getonchainsendstatus -- testwallet --invoice "<invoice_string>"
-   ```
-
-15. Create Lightning invoice:
-   ```bash
-   npm run createlightninginvoice -- testwallet --assetId rgb:xxx... --amount 100
-   ```
-
-16. Pay Lightning invoice (complete flow):
-   ```bash
-   npm run paylightninginvoice -- testwallet --lnInvoice "lnbc..."
-   ```
-
-17. Pay Lightning invoice (step by step):
-   ```bash
-   # Step 1: Begin
-   npm run paylightninginvoicebegin -- testwallet --lnInvoice "lnbc..."
-   
-   # Step 2: Sign PSBT
-   npm run signpsbt -- testwallet --psbt "<psbt_from_step1>"
-   
-   # Step 3: End
-   npm run paylightninginvoiceend -- testwallet --lnInvoice "lnbc..." --signedPsbt "<signed_psbt_from_step2>"
-   ```
-
-18. Get Lightning send/receive request status:
-   ```bash
-   npm run getlightningsendrequest -- testwallet --lnInvoice "lnbc..."
-   npm run getlightningreceiverequest -- testwallet --lnInvoice "lnbc..."
-   ```
+**WalletManager (standard RGB, same keys):** `utexo wm address|btcbalance|refresh|sync|createutxos|blindreceive|listassets|listtransfers|sendbatch <wallet> [options]`
 
 ## Security Warning
 
