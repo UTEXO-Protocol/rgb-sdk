@@ -451,13 +451,12 @@ const { targetDir: vssDir } = await restoreUtxoWalletFromVss({
 
 ## Full Examples
 
-For complete working examples (run after `npm run build`), see the **`examples/`** folder:
+- [new-wallet](examples/new-wallet.mjs) – Generate keys and create a new UTEXO wallet
+- [read-wallet](examples/read-wallet.mjs) – Initialize by mnemonic and call getXpub, getNetwork, getAddress, getBtcBalance, listAssets
+- [create-utxos-asset](examples/create-utxos-asset.mjs) – Create UTXOs and issue a NIA asset
+- [transfer](examples/transfer.mjs) – Two wallets: witness + blind receive, refresh, listTransfers (requires ASSET_ID and funded wallets)
+- [onchain-flow](examples/onchain-flow.mjs) – On-chain transfer: receive + send
+- [utexo-vss-backup-restore](examples/utexo-vss-backup-restore.mjs) – VSS backup and restore
+- [utexo-file-backup-restore](examples/utexo-file-backup-restore.mjs) – File backup and restore
 
-- **`examples/new-wallet.mjs`** – Generate keys and create a new UTEXO wallet
-- **`examples/read-wallet.mjs`** – Initialize by mnemonic and call getXpub, getNetwork, getAddress, getBtcBalance, listAssets
-- **`examples/create-utxos-asset.mjs`** – Create UTXOs and issue a NIA asset
-- **`examples/transfer.mjs`** – Two wallets: witness + blind receive, refresh, listTransfers (requires ASSET_ID and funded wallets)
-- **`examples/utexo-vss-backup-restore.mjs`** – VSS backup and restore
-- **`examples/utexo-file-backup-restore.mjs`** – File backup and restore
-
-See **`examples/README.md`** for run commands. For CLI usage (onchain send/receive, Lightning, etc.) see **`cli/README.md`** and **`example-utexo-flow.mjs`**.
+See [examples/README.md](examples/README.md) for run commands. CLI: [cli/](cli/). 
