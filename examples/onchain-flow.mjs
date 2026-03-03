@@ -19,7 +19,7 @@ const MNEMONIC_B =
     process.env.MNEMONIC_B ||
     'famous hurt miss favorite pitch rich rude cricket fault hammer split guilt';
 
-const ASSET_ID = process.env.ASSET_ID || '';
+const ASSET_ID = process.env.ASSET_ID || 'rgb:WPRv95Nj-icdrgPp-zpQhIp_-2TyJ~Ge-k~FvuMZ-~vVnkA0';
 const AMOUNT = Number(process.env.AMOUNT || '10'); // in asset units
 
 async function main() {

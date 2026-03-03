@@ -278,30 +278,19 @@ const transfers = await receiverWallet.listTransfers(assetId);
 ```javascript
 const { UTEXOWallet } = require('@utexo/rgb-sdk');
 
-const NETWORK = 'testnet';
-const MNEMONIC_A = "test mnemonic one"; // sender
-const MNEMONIC_B = "test mnemonic second"; // receiver 
-const ASSET_ID = process.env.ASSET_ID;      // rgb:... supported by UTEXO preset
-const AMOUNT = Number(process.env.AMOUNT || '10');
-
-async function onchainFlow() {
-  if (!MNEMONIC_A || !MNEMONIC_B || !ASSET_ID) {
-    throw new Error('MNEMONIC_A, MNEMONIC_B, ASSET_ID required');
-  }
-
-  const sender = new UTEXOWallet(MNEMONIC_A, { network: NETWORK });
-  const receiver = new UTEXOWallet(MNEMONIC_B, { network: NETWORK });
+  const sender = new UTEXOWallet("test mnemonic sender", { network: 'testnet' });
+  const receiver = new UTEXOWallet("test mnemonic receiver", { network: 'testnet' });
   await sender.initialize();
   await receiver.initialize();
 
   // 1) Receiver: onchainReceive – create mainnet invoice for deposit
   const { invoice } = await receiver.onchainReceive({
-    assetId: ASSET_ID,
-    amount: AMOUNT,
+    assetId: "rgb:WPRv95Nj-icdrgPp-zpQhIp_-2TyJ~Ge-k~FvuMZ-~vVnkA0",
+    amount: 5,
   });
 
   // 2) Sender: onchainSend – pay that mainnet invoice from UTEXO
-  const sendResult = await sender.onchainSend({ invoice }, MNEMONIC_A);
+  const sendResult = await sender.onchainSend({ invoice });
   console.log('Onchain send result:', sendResult);
 
   await receiver.refreshWallet()
@@ -313,10 +302,8 @@ async function onchainFlow() {
   await sender.refreshWallet()
 
   const status = await receiver.getOnchainSendStatus(invoice)
+  console.log(status)
 
-  await sender.dispose();
-  await receiver.dispose();
-}
 ```
 
 ### Balance and Asset Management
