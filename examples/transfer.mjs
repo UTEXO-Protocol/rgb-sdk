@@ -34,39 +34,40 @@ async function main() {
         console.log('Wallet A address:', await walletA.getAddress());
         console.log('Wallet B address:', await walletB.getAddress());
 
-        // const amountWitness = 10;
-        // const amountBlind = 20;
+        const amountWitness = 10;
+        const amountBlind = 20;
 
-        // const invWitness = await walletB.witnessReceive({ amount: amountWitness });
-        // console.log('Wallet B witness invoice created');
-        // const sendWitness = await walletA.send({
-        //     invoice: invWitness.invoice,
-        //     assetId: ASSET_ID,
-        //     amount: amountWitness,
-        //     witnessData: { amountSat: 1000 },
-        // });
-        // console.log('Witness transfer sent:', sendWitness);
+        const invWitness = await walletB.witnessReceive({ amount: amountWitness });
+        console.log('Wallet B witness invoice created');
+        const sendWitness = await walletA.send({
+            invoice: invWitness.invoice,
+            assetId: ASSET_ID,
+            amount: amountWitness,
+            witnessData: { amountSat: 1000 },
+        });
+        console.log('Witness transfer sent:', sendWitness);
 
-        // const invBlind = await walletB.blindReceive({ amount: amountBlind });
-        // console.log('Wallet B blind invoice created');
-        // const sendBlind = await walletA.send({
-        //     invoice: invBlind.invoice,
-        //     assetId: ASSET_ID,
-        //     amount: amountBlind,
-        // });
-        // console.log('Blind transfer sent:', sendBlind);
-        // await new Promise(resolve => setTimeout(resolve, 20000));
+        const invBlind = await walletB.blindReceive({ amount: amountBlind });
+        console.log('Wallet B blind invoice created');
+        const sendBlind = await walletA.send({
+            invoice: invBlind.invoice,
+            assetId: ASSET_ID,
+            amount: amountBlind,
+        });
+        console.log('Blind transfer sent:', sendBlind);
+        await new Promise(resolve => setTimeout(resolve, 20000));
         await walletA.refreshWallet();
         await walletB.refreshWallet();
         // // delay for 10 seconds
         // await new Promise(resolve => setTimeout(resolve, 30000));
-        console.log('Refreshed both wallets');
-        // await walletA.refreshWallet();
-        // await walletB.refreshWallet();
+        console.log('wait 3 confirmations');
+
+        await walletA.refreshWallet();
+        await walletB.refreshWallet();
 
 
-        const transfersA = await walletA.listTransfers(ASSET_ID);
-        const transfersB = await walletB.listTransfers(ASSET_ID);
+        const transfersA = await walletA.listTransfers(ASSET_ID); // sent stansfer should be settled
+        const transfersB = await walletB.listTransfers(ASSET_ID); // received transfer should be settled
         console.log('Wallet A listTransfers:', transfersA.length, transfersA);
         console.log('Wallet B listTransfers:', transfersB.length, transfersB);
     } finally {
