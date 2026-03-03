@@ -16,7 +16,7 @@ import type {
     GetOnchainSendResponse,
     ListLightningPaymentsResponse,
 } from '../types/utexo';
-import type { SendAssetEndRequestModel, Transfer, TransferStatus } from '../types/wallet-model';
+import type { SendAssetEndRequestModel, Transfer, TransferStatus, OnchainSendStatus } from '../types/wallet-model';
 
 /**
  * Lightning Protocol Interface
@@ -146,7 +146,7 @@ export interface IOnchainProtocol {
      * @param send_id - The on-chain send ID
      * @returns Promise resolving to on-chain send status response
      */
-    getOnchainSendStatus(send_id: string): Promise<TransferStatus|null>;
+    getOnchainSendStatus(send_id: string): Promise<OnchainSendStatus | null>;
 
     /**
      * Lists on-chain transfers for a specific asset.

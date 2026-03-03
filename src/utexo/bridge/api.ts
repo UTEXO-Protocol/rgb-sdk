@@ -49,20 +49,20 @@ class UtexoBridgeApiClient {
     async getBridgeInSignature(
         request: BridgeInSignatureRequest,
     ): Promise<BridgeInSignatureResponse> {
-        try{
-        const { data } = await this.axios.post<BridgeInSignatureResponse>(
-            `${this.basePath}/bridge-in-signature`,
-            request,
-        );
-        return data;
-    } catch (error) {
-        const responseData = (error as AxiosError).response?.data;
-        if (responseData !== undefined) {
-            const message = typeof responseData === 'string' ? responseData : JSON.stringify(responseData);
-            throw new Error(message);
+        try {
+            const { data } = await this.axios.post<BridgeInSignatureResponse>(
+                `${this.basePath}/bridge-in-signature`,
+                request,
+            );
+            return data;
+        } catch (error) {
+            const responseData = (error as AxiosError).response?.data;
+            if (responseData !== undefined) {
+                const message = typeof responseData === 'string' ? responseData : JSON.stringify(responseData);
+                throw new Error(message);
+            }
+            throw error;
         }
-        throw error;
-    }
     }
 
     /**
@@ -105,10 +105,10 @@ class UtexoBridgeApiClient {
         );
         return data.invoice;
     }
-    
 
-    async getWithdrawTransfer(invoice: string,networkId: number): Promise<TransferByMainnetInvoiceResponse|null> {
-        const { data } = await this.axios.get<{transfers: TransferByMainnetInvoiceResponse[]}>(
+
+    async getWithdrawTransfer(invoice: string, networkId: number): Promise<TransferByMainnetInvoiceResponse | null> {
+        const { data } = await this.axios.get<{ transfers: TransferByMainnetInvoiceResponse[] }>(
             `${this.basePath}/transfers/history`,
             {
                 params: {
@@ -119,13 +119,14 @@ class UtexoBridgeApiClient {
                 },
             },
         );
+        console.log('data', data);
 
-        if(data.transfers.length === 0) {
+        if (data.transfers.length === 0) {
             return null;
         }
 
-        const withdrawTransfer = data.transfers.map(transfer => ({...transfer, status: TransferStatuses[encodeTransferStatus(transfer.status)]})).find(transfer => transfer.recipient.address === invoice);
-        if(!withdrawTransfer) {
+        const withdrawTransfer = data.transfers.map(transfer => ({ ...transfer, status: TransferStatuses[encodeTransferStatus(transfer.status)] })).find(transfer => transfer.recipient.address === invoice);
+        if (!withdrawTransfer) {
             return null;
         }
 
@@ -140,22 +141,26 @@ class UtexoBridgeApiClient {
      * @returns Promise resolving to transfer information
      * @throws {ApiError} If the request fails
      */
-    async getTransferByMainnetInvoice(mainnetInvoice: string, networkId: number): Promise<TransferByMainnetInvoiceResponse|null> {
-       try{
-        const { data } = await this.axios.get<TransferByMainnetInvoiceResponse>(
-            `${this.basePath}/transfer-by-mainnet-invoice`,
-            {
-                params: {
-                    mainnet_invoice: mainnetInvoice,
-                    network_id: networkId,
+    async getTransferByMainnetInvoice(mainnetInvoice: string, networkId: number): Promise<TransferByMainnetInvoiceResponse | null> {
+        try {
+            const { data } = await this.axios.get<TransferByMainnetInvoiceResponse>(
+                `${this.basePath}/transfer-by-mainnet-invoice`,
+                {
+                    params: {
+                        mainnet_invoice: mainnetInvoice,
+                        network_id: networkId,
+                    },
                 },
-            },
-        );
-        return data;
-    } catch (error) {
-        console.log('Mainnet invoice not found');
-        return null;
-    }
+            );
+            if (data) {
+                return { ...data, status: TransferStatuses[encodeTransferStatus(data.status)] }
+            }
+            return data;
+
+        } catch (error) {
+            console.log('Mainnet invoice not found');
+            return null;
+        }
     }
 }
 

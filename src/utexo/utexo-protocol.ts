@@ -19,7 +19,7 @@ import type {
     OnchainReceiveRequestModel,
     OnchainReceiveResponse,
 } from '../types/utexo';
-import type { SendAssetEndRequestModel, Transfer, TransferStatus } from '../types/wallet-model';
+import type { SendAssetEndRequestModel, Transfer, TransferStatus, OnchainSendStatus } from '../types/wallet-model';
 
 /**
  * Lightning Protocol Base Class
@@ -83,7 +83,7 @@ export class OnchainProtocol implements IOnchainProtocol {
         throw new Error('onchainSend not implemented');
     }
 
-    async getOnchainSendStatus(send_id: string): Promise<TransferStatus|null> {
+    async getOnchainSendStatus(send_id: string): Promise<OnchainSendStatus | null> {
         throw new Error('getOnchainSendStatus not implemented');
     }
 
@@ -117,7 +117,7 @@ export class UTEXOProtocol extends LightningProtocol implements IUTEXOProtocol {
         return this.onchainProtocol.onchainSend(params, mnemonic);
     }
 
-    async getOnchainSendStatus(send_id: string): Promise<TransferStatus|null> {
+    async getOnchainSendStatus(send_id: string): Promise<OnchainSendStatus | null> {
         return this.onchainProtocol.getOnchainSendStatus(send_id);
     }
 

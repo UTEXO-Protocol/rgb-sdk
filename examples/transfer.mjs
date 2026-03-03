@@ -55,16 +55,13 @@ async function main() {
             amount: amountBlind,
         });
         console.log('Blind transfer sent:', sendBlind);
-        await new Promise(resolve => setTimeout(resolve, 20000));
-        await walletA.refreshWallet();
         await walletB.refreshWallet();
         // // delay for 10 seconds
-        // await new Promise(resolve => setTimeout(resolve, 30000));
+        await new Promise(resolve => setTimeout(resolve, 120000));
         console.log('wait 3 confirmations');
 
-        await walletA.refreshWallet();
         await walletB.refreshWallet();
-
+        await walletA.refreshWallet();
 
         const transfersA = await walletA.listTransfers(ASSET_ID); // sent stansfer should be settled
         const transfersB = await walletB.listTransfers(ASSET_ID); // received transfer should be settled

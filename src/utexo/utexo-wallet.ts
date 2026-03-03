@@ -64,6 +64,7 @@ import type {
     Transaction,
     Transfer,
     InvoiceData,
+    OnchainSendStatus,
     TransferStatus,
     VssBackupConfig,
     VssBackupInfo,
@@ -459,13 +460,13 @@ export class UTEXOWallet extends UTEXOProtocol implements IWalletManager, IUTEXO
         return this.utexoRGBWallet!.verifyMessage(message, signature, accountXpub);
     }
 
-     /**
-     * Validates that the wallet has sufficient spendable balance for the given asset and amount.
-     * @param assetId - Asset ID to check balance for
-     * @param amount - Required amount (in asset units)
-     * @throws {ValidationError} If balance is not found or insufficient
-     */
-     async validateBalance(assetId: string, amount: number): Promise<void> {
+    /**
+    * Validates that the wallet has sufficient spendable balance for the given asset and amount.
+    * @param assetId - Asset ID to check balance for
+    * @param amount - Required amount (in asset units)
+    * @throws {ValidationError} If balance is not found or insufficient
+    */
+    async validateBalance(assetId: string, amount: number): Promise<void> {
         const assetBalance = await this.getAssetBalance(assetId);
         if (!assetBalance || !assetBalance.spendable) {
             throw new ValidationError('Asset balance is not found', 'assetBalance');
@@ -597,18 +598,26 @@ export class UTEXOWallet extends UTEXOProtocol implements IWalletManager, IUTEXO
         return await this.onchainSendEnd({ signedPsbt: signed_psbt, invoice: params.invoice });
     }
 
-    async getOnchainSendStatus(invoice: string): Promise<TransferStatus | null> {
+    async getOnchainSendStatus(invoice: string): Promise<OnchainSendStatus | null> {
         const bridgeTransfer = await bridgeAPI.getTransferByMainnetInvoice(invoice, this.networkIdMap.mainnet.networkId);
+        // console.log('bridgeTransfer', bridgeTransfer);
         if (!bridgeTransfer) {
             const withdrawTransfer = await bridgeAPI.getWithdrawTransfer(invoice, this.networkIdMap.utexo.networkId);
             if (!withdrawTransfer) {
                 return null;
             }
-            return withdrawTransfer.status as TransferStatus;
+            return withdrawTransfer.status as OnchainSendStatus;
         }
         const { invoiceData, destinationAsset } = await this.extractInvoiceAndAsset(bridgeTransfer);
         const transfers = await this.utexoRGBWallet!.listTransfers(destinationAsset.assetId);
-        return transfers.length > 0 ? transfers.find(transfer => transfer.recipientId === invoiceData.recipientId)?.status ?? null : null;
+        const transfer = transfers.find(transfer => transfer.recipientId === invoiceData.recipientId);
+        if (transfer) {
+            return transfer.status;
+        }
+        if (bridgeTransfer) {
+            return bridgeTransfer.status as OnchainSendStatus;
+        }
+        return null;
     }
 
     async listOnchainTransfers(asset_id?: string): Promise<Transfer[]> {
@@ -792,6 +801,8 @@ export class UTEXOWallet extends UTEXOProtocol implements IWalletManager, IUTEXO
             },
             additionalAddresses: [],
         }
+
+        console.log('payload', payload);
 
         const bridgeOutTransfer = await bridgeAPI.getBridgeInSignature(payload);
         const decodedInvoice = decodeBridgeInvoice(bridgeOutTransfer.signature);

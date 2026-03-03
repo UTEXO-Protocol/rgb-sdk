@@ -239,6 +239,21 @@ export type RGBHTTPClientParams = {
     | 'WaitingConfirmations'
     | 'Settled'
     | 'Failed';
+
+  /** Bridge transfer statuses (from UTEXO bridge API) */
+  export type BridgeTransferStatus =
+    | 'Unspecified'
+    | 'Confirming'
+    | 'Canceled'
+    | 'Finished'
+    | 'Waiting'
+    | 'Cancelling'
+    | 'Failed'
+    | 'Fetching';
+
+  /** Unified status for on-chain operations (from RGB wallet or bridge) */
+  export type OnchainSendStatus = TransferStatus | BridgeTransferStatus;
+
   export interface Unspent {
     utxo: Utxo;
     rgbAllocations: RgbAllocation[];

@@ -12,6 +12,7 @@ export { restoreFromVss } from './client/rgb-lib-client';
 
 // Type exports
 export * from './types/rgb-model';
+export type { TransferStatus, BridgeTransferStatus, OnchainSendStatus } from './types/wallet-model';
 export type { Network, PsbtType, SignPsbtOptions, NetworkVersions, Descriptors } from './crypto';
 export type { GeneratedKeys, AccountXpubs } from './crypto';
 
