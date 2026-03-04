@@ -1,1 +1,1 @@
-export { bridgeAPI } from './api';
+export { getBridgeAPI } from './api';

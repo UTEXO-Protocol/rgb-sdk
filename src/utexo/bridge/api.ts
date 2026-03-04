@@ -1,4 +1,6 @@
 import axios, { AxiosError, AxiosInstance } from 'axios';
+import type { UtxoNetworkPreset } from '../utils/network';
+import { DEFAULT_GATEWAY_BASE_URLS } from '../config/gateway';
 import { BridgeInSignatureRequest, BridgeInSignatureResponse, ReceiverInvoiceResponse, SubmitTransactionRequest, SubmitTransactionResponse, TransferByMainnetInvoiceResponse, TransferStatuses, VerifyBridgeInRequest } from './types';
 
 export const encodeTransferStatus = (transferStatus: string): number => {
@@ -119,7 +121,6 @@ class UtexoBridgeApiClient {
                 },
             },
         );
-        console.log('data', data);
 
         if (data.transfers.length === 0) {
             return null;
@@ -165,19 +166,13 @@ class UtexoBridgeApiClient {
 }
 
 /**
- * Singleton axios instance for UTEXO Bridge API
+ * Returns a UTEXO Bridge API client for network.
+ *
+ * @param network - 'mainnet' | 'testnet'
  */
-const utexoBridgeAxios: AxiosInstance = axios.create({
-    baseURL: 'https://dev.gateway.utexo.tricorn.network/',
-});
-
-/**
- * Pre-configured UTEXO Bridge API client instance
- */
-const utexoBridgeClient = new UtexoBridgeApiClient(utexoBridgeAxios);
-
-/**
- * Singleton UTEXO Bridge API instance
- * 
- */
-export const bridgeAPI = utexoBridgeClient;
+export function getBridgeAPI(network: UtxoNetworkPreset = 'mainnet'): UtexoBridgeApiClient {
+    const axiosInstance = axios.create({
+        baseURL: DEFAULT_GATEWAY_BASE_URLS[network],
+    });
+    return new UtexoBridgeApiClient(axiosInstance);
+}
