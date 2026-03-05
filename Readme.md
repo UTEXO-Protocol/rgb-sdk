@@ -306,6 +306,33 @@ const { UTEXOWallet } = require('@utexo/rgb-sdk');
 
 ```
 
+### Lightning receive/send
+
+```javascript
+const { UTEXOWallet } = require('@utexo/rgb-sdk');
+
+const sender = new UTEXOWallet("test mnemonic sender", { network: 'testnet' });
+const receiver = new UTEXOWallet("test mnemonic receiver", { network: 'testnet' });
+await sender.initialize();
+await receiver.initialize();
+
+// 1) Receiver: createLightningInvoice – create Lightning invoice for receiving
+const assetId = "rgb:WPRv95Nj-icdrgPp-zpQhIp_-2TyJ~Ge-k~FvuMZ-~vVnkA0";
+const { lnInvoice } = await receiver.createLightningInvoice({
+  asset: { assetId, amount: 5 },
+});
+
+// 2) Sender: payLightningInvoice – pay that Lightning invoice from UTEXO
+const sendResult = await sender.payLightningInvoice({ lnInvoice, assetId, amount: 5 });
+console.log('Lightning send result:', sendResult);
+
+await receiver.refreshWallet();
+await sender.refreshWallet();
+
+const status = await sender.getLightningSendRequest(lnInvoice);
+console.log(status);
+```
+
 ### Balance and Asset Management
 
 ```javascript
@@ -443,6 +470,7 @@ const { targetDir: vssDir } = await restoreUtxoWalletFromVss({
 - [create-utxos-asset](examples/create-utxos-asset.mjs) – Create UTXOs and issue a NIA asset
 - [transfer](examples/transfer.mjs) – Two wallets: witness + blind receive, refresh, listTransfers (requires ASSET_ID and funded wallets)
 - [onchain-flow](examples/onchain-flow.mjs) – On-chain transfer: receive + send
+- [lightning-flow](examples/lightning-flow.mjs) – Lightning transfer: createLightningInvoice + payLightningInvoice
 - [utexo-vss-backup-restore](examples/utexo-vss-backup-restore.mjs) – VSS backup and restore
 - [utexo-file-backup-restore](examples/utexo-file-backup-restore.mjs) – File backup and restore
 

@@ -104,7 +104,7 @@ export class UTEXOWallet extends UTEXOProtocol implements IWalletManager, IUTEXO
         this.mnemonicOrSeed = mnemonicOrSeed;
         this.options = options;
 
-        const preset: UtxoNetworkPreset = options.network ?? 'mainnet';
+        const preset: UtxoNetworkPreset = options.network ?? 'testnet';
 
         const networkConfig = getUtxoNetworkConfig(preset);
         this.networkMap = networkConfig.networkMap;

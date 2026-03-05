@@ -53,6 +53,16 @@ ASSET_ID="rgb:..." MNEMONIC_A="..." MNEMONIC_B="..." node examples/transfer.mjs
 MNEMONIC_A="..." MNEMONIC_B="..." ASSET_ID="rgb:..." AMOUNT=10 node examples/onchain-flow.mjs
 ```
 
+## Lightning bridge (receive + send)
+
+- **`lightning-flow.mjs`** – Two wallets (2 mnemonics): Wallet B calls `createLightningInvoice` to obtain a Lightning invoice; Wallet A calls `payLightningInvoice` to pay that invoice from UTEXO. For external Lightning invoices, set `LN_INVOICE` env.
+  - Env: `ASSET_ID` (required), `MNEMONIC_A`, `MNEMONIC_B` (optional), `AMOUNT` (optional; default 10), `LN_INVOICE` (optional; external LN invoice to pay). Requires bridge backend + indexer/network.
+
+```bash
+MNEMONIC_A="..." MNEMONIC_B="..." ASSET_ID="rgb:..." AMOUNT=10 node examples/lightning-flow.mjs
+LN_INVOICE="lnbc..." MNEMONIC_A="..." ASSET_ID="rgb:..." AMOUNT=10 node examples/lightning-flow.mjs
+```
+
 ## VSS backup and restore
 
 - **`utexo-vss-backup-restore.mjs`** – VSS only (no file backup).
