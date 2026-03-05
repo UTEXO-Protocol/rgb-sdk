@@ -19,9 +19,9 @@ describe('keys', () => {
   const expectedKeys = {
     mnemonic: testMnemonic,
     xpub: 'tpubD6NzVbkrYhZ4XCaTDersU6277zvyyV6uCCeEgx1jfv7bUYMrbTt8Vem1MBt5Gmp7eMwjv4rB54s2kjqNNtTLYpwFsVX7H2H93pJ8SpZFRRi',
-    account_xpub_vanilla: 'tpubDDMTD6EJKKLP6Gx9JUnMpjf9NYyePJszmqBnNqULNmcgEuU1yQ3JsHhWZdRFecszWETnNsmhEe9vnaNibfzZkDDHycbR2rGFbXdHWRgBfu7',
-    account_xpub_colored: 'tpubDDPLJfdVbDoGtnn6hSto3oCnm6hpfHe9uk2MxcANanxk87EuquhSVfSLQv7e5UykgzaFn41DUXaikjjVGcUSUTGNaJ9LcozfRwatKp1vTfC',
-    master_fingerprint: 'a66bffef',
+    accountXpubVanilla: 'tpubDDMTD6EJKKLP6Gx9JUnMpjf9NYyePJszmqBnNqULNmcgEuU1yQ3JsHhWZdRFecszWETnNsmhEe9vnaNibfzZkDDHycbR2rGFbXdHWRgBfu7',
+    accountXpubColored: 'tpubDDPLJfdVbDoGtnn6hSto3oCnm6hpfHe9uk2MxcANanxk87EuquhSVfSLQv7e5UykgzaFn41DUXaikjjVGcUSUTGNaJ9LcozfRwatKp1vTfC',
+    masterFingerprint: 'a66bffef',
   };
 
   describe('generateKeys', () => {
@@ -30,9 +30,9 @@ describe('keys', () => {
       
       expect(keys).toHaveProperty('mnemonic');
       expect(keys).toHaveProperty('xpub');
-      expect(keys).toHaveProperty('account_xpub_vanilla');
-      expect(keys).toHaveProperty('account_xpub_colored');
-      expect(keys).toHaveProperty('master_fingerprint');
+      expect(keys).toHaveProperty('accountXpubVanilla');
+      expect(keys).toHaveProperty('accountXpubColored');
+      expect(keys).toHaveProperty('masterFingerprint');
       expect(keys).toHaveProperty('xpriv');
       
       // Validate mnemonic format
@@ -41,11 +41,11 @@ describe('keys', () => {
       
       // Validate xpub format (starts with tpub for testnet)
       expect(keys.xpub).toMatch(/^tpub/);
-      expect(keys.account_xpub_vanilla).toMatch(/^tpub/);
-      expect(keys.account_xpub_colored).toMatch(/^tpub/);
+      expect(keys.accountXpubVanilla).toMatch(/^tpub/);
+      expect(keys.accountXpubColored).toMatch(/^tpub/);
       
       // Validate master fingerprint format (8 hex chars)
-      expect(keys.master_fingerprint).toMatch(/^[0-9a-f]{8}$/i);
+      expect(keys.masterFingerprint).toMatch(/^[0-9a-f]{8}$/i);
       expect(keys.xpriv).toMatch(/^tprv/);
     });
 
@@ -53,9 +53,9 @@ describe('keys', () => {
       const keys = await generateKeys('mainnet');
       
       expect(keys.xpub).toMatch(/^xpub/);
-      expect(keys.account_xpub_vanilla).toMatch(/^xpub/);
-      expect(keys.account_xpub_colored).toMatch(/^xpub/);
-      expect(keys.master_fingerprint).toMatch(/^[0-9a-f]{8}$/i);
+      expect(keys.accountXpubVanilla).toMatch(/^xpub/);
+      expect(keys.accountXpubColored).toMatch(/^xpub/);
+      expect(keys.masterFingerprint).toMatch(/^[0-9a-f]{8}$/i);
       expect(keys.xpriv).toMatch(/^xprv/);
     });
 
@@ -63,9 +63,9 @@ describe('keys', () => {
       const keys = await generateKeys('regtest');
       
       expect(keys.xpub).toMatch(/^tpub/);
-      expect(keys.account_xpub_vanilla).toMatch(/^tpub/);
-      expect(keys.account_xpub_colored).toMatch(/^tpub/);
-      expect(keys.master_fingerprint).toMatch(/^[0-9a-f]{8}$/i);
+      expect(keys.accountXpubVanilla).toMatch(/^tpub/);
+      expect(keys.accountXpubColored).toMatch(/^tpub/);
+      expect(keys.masterFingerprint).toMatch(/^[0-9a-f]{8}$/i);
       expect(keys.xpriv).toMatch(/^tprv/);
     });
 
@@ -82,8 +82,8 @@ describe('keys', () => {
       const keys = await generateKeys(3); // Regtest
       
       expect(keys).toHaveProperty('mnemonic');
-      expect(keys).toHaveProperty('account_xpub_vanilla');
-      expect(keys).toHaveProperty('account_xpub_colored');
+      expect(keys).toHaveProperty('accountXpubVanilla');
+      expect(keys).toHaveProperty('accountXpubColored');
     });
   });
 
@@ -94,9 +94,9 @@ describe('keys', () => {
       
       expect(keys.mnemonic).toBe(testMnemonic);
       expect(keys.xpub).toBe(expectedKeys.xpub);
-      expect(keys.account_xpub_vanilla).toBe(expectedKeys.account_xpub_vanilla);
-      expect(keys.account_xpub_colored).toBe(expectedKeys.account_xpub_colored);
-      expect(keys.master_fingerprint.toLowerCase()).toBe(expectedKeys.master_fingerprint.toLowerCase());
+      expect(keys.accountXpubVanilla).toBe(expectedKeys.accountXpubVanilla);
+      expect(keys.accountXpubColored).toBe(expectedKeys.accountXpubColored);
+      expect(keys.masterFingerprint.toLowerCase()).toBe(expectedKeys.masterFingerprint.toLowerCase());
       expect(keys.xpriv).toBe(expectedXpriv);
     });
 
@@ -106,8 +106,8 @@ describe('keys', () => {
       const keys = await deriveKeysFromMnemonic('testnet', trimmedMnemonic.trim());
       const expectedXpriv = await getXprivFromMnemonic('testnet', testMnemonic);
       
-      expect(keys.account_xpub_vanilla).toBe(expectedKeys.account_xpub_vanilla);
-      expect(keys.master_fingerprint.toLowerCase()).toBe(expectedKeys.master_fingerprint.toLowerCase());
+      expect(keys.accountXpubVanilla).toBe(expectedKeys.accountXpubVanilla);
+      expect(keys.masterFingerprint.toLowerCase()).toBe(expectedKeys.masterFingerprint.toLowerCase());
       expect(keys.xpriv).toBe(expectedXpriv);
     });
 
@@ -131,17 +131,17 @@ describe('keys', () => {
       const mainnetKeys = await deriveKeysFromMnemonic('mainnet', testMnemonic);
       
       // Mainnet and testnet use different BIP32 versions, so xpubs will differ
-      expect(testnetKeys.account_xpub_vanilla).not.toBe(mainnetKeys.account_xpub_vanilla);
+      expect(testnetKeys.accountXpubVanilla).not.toBe(mainnetKeys.accountXpubVanilla);
       
       // Master fingerprint should be the same (derived from seed, not network)
-      expect(testnetKeys.master_fingerprint).toBe(mainnetKeys.master_fingerprint);
+      expect(testnetKeys.masterFingerprint).toBe(mainnetKeys.masterFingerprint);
     });
 
     it('should accept network as number', async () => {
       const keys = await deriveKeysFromMnemonic(2, testMnemonic); // Testnet = 2
       
-      expect(keys.account_xpub_vanilla).toMatch(/^tpub/);
-      expect(keys.account_xpub_colored).toMatch(/^tpub/);
+      expect(keys.accountXpubVanilla).toMatch(/^tpub/);
+      expect(keys.accountXpubColored).toMatch(/^tpub/);
     });
 
     it('should produce deterministic results', async () => {
@@ -150,9 +150,9 @@ describe('keys', () => {
       
       expect(keys1.mnemonic).toBe(keys2.mnemonic);
       expect(keys1.xpub).toBe(keys2.xpub);
-      expect(keys1.account_xpub_vanilla).toBe(keys2.account_xpub_vanilla);
-      expect(keys1.account_xpub_colored).toBe(keys2.account_xpub_colored);
-      expect(keys1.master_fingerprint).toBe(keys2.master_fingerprint);
+      expect(keys1.accountXpubVanilla).toBe(keys2.accountXpubVanilla);
+      expect(keys1.accountXpubColored).toBe(keys2.accountXpubColored);
+      expect(keys1.masterFingerprint).toBe(keys2.masterFingerprint);
     });
   });
 
@@ -171,9 +171,9 @@ describe('keys', () => {
 
       expect(keys.mnemonic).toBe('');
       expect(keys.xpub).toBe(expectedKeys.xpub);
-      expect(keys.account_xpub_vanilla).toBe(expectedKeys.account_xpub_vanilla);
-      expect(keys.account_xpub_colored).toBe(expectedKeys.account_xpub_colored);
-      expect(keys.master_fingerprint.toLowerCase()).toBe(expectedKeys.master_fingerprint.toLowerCase());
+      expect(keys.accountXpubVanilla).toBe(expectedKeys.accountXpubVanilla);
+      expect(keys.accountXpubColored).toBe(expectedKeys.accountXpubColored);
+      expect(keys.masterFingerprint.toLowerCase()).toBe(expectedKeys.masterFingerprint.toLowerCase());
       expect(keys.xpriv).toBe(expectedXpriv);
     });
 
@@ -182,17 +182,17 @@ describe('keys', () => {
 
       expect(keys.mnemonic).toBe('');
       expect(keys.xpub).toBe(expectedKeys.xpub);
-      expect(keys.account_xpub_vanilla).toBe(expectedKeys.account_xpub_vanilla);
-      expect(keys.account_xpub_colored).toBe(expectedKeys.account_xpub_colored);
-      expect(keys.master_fingerprint.toLowerCase()).toBe(expectedKeys.master_fingerprint.toLowerCase());
+      expect(keys.accountXpubVanilla).toBe(expectedKeys.accountXpubVanilla);
+      expect(keys.accountXpubColored).toBe(expectedKeys.accountXpubColored);
+      expect(keys.masterFingerprint.toLowerCase()).toBe(expectedKeys.masterFingerprint.toLowerCase());
       expect(keys.xpriv).toBe(expectedXpriv);
     });
 
     it('should accept network as number', async () => {
       const keys = await deriveKeysFromSeed(2, seedHex);
 
-      expect(keys.account_xpub_vanilla).toMatch(/^tpub/);
-      expect(keys.account_xpub_colored).toMatch(/^tpub/);
+      expect(keys.accountXpubVanilla).toMatch(/^tpub/);
+      expect(keys.accountXpubColored).toMatch(/^tpub/);
     });
 
     it('should throw ValidationError for invalid seed string', async () => {
@@ -205,8 +205,8 @@ describe('keys', () => {
       const keys = await restoreKeys('testnet', testMnemonic);
       
       expect(keys.mnemonic).toBe(testMnemonic);
-      expect(keys.account_xpub_vanilla).toBe(expectedKeys.account_xpub_vanilla);
-      expect(keys.master_fingerprint.toLowerCase()).toBe(expectedKeys.master_fingerprint.toLowerCase());
+      expect(keys.accountXpubVanilla).toBe(expectedKeys.accountXpubVanilla);
+      expect(keys.masterFingerprint.toLowerCase()).toBe(expectedKeys.masterFingerprint.toLowerCase());
     });
   });
 
@@ -306,9 +306,9 @@ describe('keys', () => {
       
       // Should match expected keys (except mnemonic which will be empty)
       expect(keys.xpub).toBe(expectedKeys.xpub);
-      expect(keys.account_xpub_vanilla).toBe(expectedKeys.account_xpub_vanilla);
-      expect(keys.account_xpub_colored).toBe(expectedKeys.account_xpub_colored);
-      expect(keys.master_fingerprint.toLowerCase()).toBe(expectedKeys.master_fingerprint.toLowerCase());
+      expect(keys.accountXpubVanilla).toBe(expectedKeys.accountXpubVanilla);
+      expect(keys.accountXpubColored).toBe(expectedKeys.accountXpubColored);
+      expect(keys.masterFingerprint.toLowerCase()).toBe(expectedKeys.masterFingerprint.toLowerCase());
       // Mnemonic should be empty when derived from xpriv
       expect(keys.mnemonic).toBe('');
     });
@@ -319,9 +319,9 @@ describe('keys', () => {
       
       // All keys should match except mnemonic
       expect(xprivKeys.xpub).toBe(mnemonicKeys.xpub);
-      expect(xprivKeys.account_xpub_vanilla).toBe(mnemonicKeys.account_xpub_vanilla);
-      expect(xprivKeys.account_xpub_colored).toBe(mnemonicKeys.account_xpub_colored);
-      expect(xprivKeys.master_fingerprint).toBe(mnemonicKeys.master_fingerprint);
+      expect(xprivKeys.accountXpubVanilla).toBe(mnemonicKeys.accountXpubVanilla);
+      expect(xprivKeys.accountXpubColored).toBe(mnemonicKeys.accountXpubColored);
+      expect(xprivKeys.masterFingerprint).toBe(mnemonicKeys.masterFingerprint);
       
       // Mnemonic should differ (empty for xpriv, actual mnemonic for mnemonic)
       expect(xprivKeys.mnemonic).toBe('');
@@ -336,10 +336,10 @@ describe('keys', () => {
       const mainnetKeys = await deriveKeysFromXpriv('mainnet', mainnetXpriv);
       
       // Mainnet and testnet use different BIP32 versions, so xpubs will differ
-      expect(testnetKeys.account_xpub_vanilla).not.toBe(mainnetKeys.account_xpub_vanilla);
+      expect(testnetKeys.accountXpubVanilla).not.toBe(mainnetKeys.accountXpubVanilla);
       
       // Master fingerprint should be the same (derived from seed, not network)
-      expect(testnetKeys.master_fingerprint).toBe(mainnetKeys.master_fingerprint);
+      expect(testnetKeys.masterFingerprint).toBe(mainnetKeys.masterFingerprint);
     });
 
     it('should produce deterministic results', async () => {
@@ -347,9 +347,9 @@ describe('keys', () => {
       const keys2 = await deriveKeysFromXpriv('testnet', testXpriv);
       
       expect(keys1.xpub).toBe(keys2.xpub);
-      expect(keys1.account_xpub_vanilla).toBe(keys2.account_xpub_vanilla);
-      expect(keys1.account_xpub_colored).toBe(keys2.account_xpub_colored);
-      expect(keys1.master_fingerprint).toBe(keys2.master_fingerprint);
+      expect(keys1.accountXpubVanilla).toBe(keys2.accountXpubVanilla);
+      expect(keys1.accountXpubColored).toBe(keys2.accountXpubColored);
+      expect(keys1.masterFingerprint).toBe(keys2.masterFingerprint);
     });
 
     it('should throw ValidationError for empty xpriv', async () => {
@@ -364,8 +364,8 @@ describe('keys', () => {
     it('should accept network as number', async () => {
       const keys = await deriveKeysFromXpriv(2, testXpriv); // Testnet = 2
       
-      expect(keys.account_xpub_vanilla).toMatch(/^tpub/);
-      expect(keys.account_xpub_colored).toMatch(/^tpub/);
+      expect(keys.accountXpubVanilla).toMatch(/^tpub/);
+      expect(keys.accountXpubColored).toMatch(/^tpub/);
     });
   });
 

@@ -17,6 +17,7 @@ export {
   generateKeys, 
   deriveKeysFromMnemonic, 
   deriveKeysFromSeed,
+  deriveKeysFromMnemonicOrSeed,
   restoreKeys, 
   accountXpubsFromMnemonic,
   getXprivFromMnemonic,
@@ -24,6 +25,8 @@ export {
   deriveKeysFromXpriv
 } from './keys';
 export type { GeneratedKeys, AccountXpubs } from './keys';
+
+export { deriveVssSigningKeyFromMnemonic } from './vss-keys';
 
 // Export types
 export type { Network, PsbtType, NetworkVersions, Descriptors } from './types';
