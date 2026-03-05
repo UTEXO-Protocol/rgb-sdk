@@ -487,7 +487,6 @@ export class WalletManager implements IWalletManager {
     this.ensureNotDisposed();
     const psbt = await this.sendBegin(invoiceTransfer);
     const signedPsbt = await this.signPsbt(psbt, mnemonic);
-    console.log('send signedPsbt', signedPsbt);
     return await this.sendEnd({ signedPsbt });
   }
 

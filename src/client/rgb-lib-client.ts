@@ -155,7 +155,6 @@ export class RGBLibClient {
         rgblib.AssetSchema.Cfa,
         rgblib.AssetSchema.Nia,
         rgblib.AssetSchema.Uda,
-        "Ifa",
       ],
     };
 
@@ -461,7 +460,7 @@ export class RGBLibClient {
     const skipSync = false;
 
     const result = this.wallet.refresh(online, assetId, filter, skipSync);
-    console.log('refresh state:', result);
+    console.log('refresh state:', JSON.stringify(result, null, 2));
   }
 
   dropWallet(): void {
