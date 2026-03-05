@@ -124,16 +124,20 @@ This SDK uses `rgb-protocol libraries`. All operations are performed locally.
 
 The SDK uses default endpoints for RGB transport and Bitcoin indexing. These are automatically used if not specified:
 
-**Transport Endpoint** (RGB protocol communication):
+**Transport Endpoints** (RGB protocol communication):
 
-- Default: `rpcs://proxy.iriswallet.com/0.2/json-rpc`
+- **Mainnet**: `rpcs://rgb-proxy-mainnet.utexo.com/json-rpc`
+- **Testnet**: `rpcs://rgb-proxy-testnet3.utexo.com/json-rpc`
+- **Testnet4**: `rpcs://proxy.iriswallet.com/0.2/json-rpc`
+- **Signet**: `rpcs://rgb-proxy-utexo.utexo.com/json-rpc`
+- **Regtest**: `rpcs://proxy.iriswallet.com/0.2/json-rpc`
 
 **Indexer URLs** (Bitcoin blockchain data):
 
 - **Mainnet**: `ssl://electrum.iriswallet.com:50003`
 - **Testnet**: `ssl://electrum.iriswallet.com:50013`
 - **Testnet4**: `ssl://electrum.iriswallet.com:50053`
-- **Signet**: `tcp://46.224.75.237:50001`
+- **Signet**: `https://esplora-api.utexo.com`
 - **Regtest**: `tcp://regtest.thunderstack.org:50001`
 
 UTEXOWallet uses network (`testnet` / `mainnet`) that define indexer and transport endpoints internally.
