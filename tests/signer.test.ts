@@ -5,15 +5,15 @@ import { estimatePsbt } from '../src/crypto/signer';
 import bip39 from 'bip39';
 const expectedKeys = {
   xpub: 'tpubD6NzVbkrYhZ4XCaTDersU6277zvyyV6uCCeEgx1jfv7bUYMrbTt8Vem1MBt5Gmp7eMwjv4rB54s2kjqNNtTLYpwFsVX7H2H93pJ8SpZFRRi',
-  account_xpub_vanilla: 'tpubDDMTD6EJKKLP6Gx9JUnMpjf9NYyePJszmqBnNqULNmcgEuU1yQ3JsHhWZdRFecszWETnNsmhEe9vnaNibfzZkDDHycbR2rGFbXdHWRgBfu7',
-  account_xpub_colored: 'tpubDDPLJfdVbDoGtnn6hSto3oCnm6hpfHe9uk2MxcANanxk87EuquhSVfSLQv7e5UykgzaFn41DUXaikjjVGcUSUTGNaJ9LcozfRwatKp1vTfC',
-  master_fingerprint: 'a66bffef',
+  accountXpubVanilla: 'tpubDDMTD6EJKKLP6Gx9JUnMpjf9NYyePJszmqBnNqULNmcgEuU1yQ3JsHhWZdRFecszWETnNsmhEe9vnaNibfzZkDDHycbR2rGFbXdHWRgBfu7',
+  accountXpubColored: 'tpubDDPLJfdVbDoGtnn6hSto3oCnm6hpfHe9uk2MxcANanxk87EuquhSVfSLQv7e5UykgzaFn41DUXaikjjVGcUSUTGNaJ9LcozfRwatKp1vTfC',
+  masterFingerprint: 'a66bffef',
 };
 
 const testKeysv2={
   "mnemonic": "vivid local super hockey boy model vintage ancient art organ cry demise",
   "xpub": "tpubD6NzVbkrYhZ4YBBMLRg9m7MJRXFREpzKAzeEFAH5Nkz3EyoJEZMVk9XEMqgUAwtSszXVQPZAAf68T9x7c6Z1jEg8hhrGR39xCyNHwUiMgUP",
-  "account_xpub_vanilla": "tpubDDFXNYFNPDFmGGATzpUcdBXjbCdBZdFmB5AsPCbWQWH7PWiZLWNXD5wGSuu4QJSFMSBUQHWe6PSZr71eVgtDTbUHhEPm14B3JeVya2Ywd5L",
+  "accountXpubVanilla": "tpubDDFXNYFNPDFmGGATzpUcdBXjbCdBZdFmB5AsPCbWQWH7PWiZLWNXD5wGSuu4QJSFMSBUQHWe6PSZr71eVgtDTbUHhEPm14B3JeVya2Ywd5L",
   "account_xpub_colored": "tpubDDt55tE7JJ56G8EnuB7qymh6oims7aJAYfmE6QQ1URDhAzPRi7aNoNr9rbHRLQ8WFPCyEKmdd1fTEkDHYvkFViZ7kseruuXv5FWvVFsnRcP",
   "master_fingerprint": "77f3f0ce"
 }
@@ -138,7 +138,7 @@ describe('signer', () => {
       const verified = await verifyMessage({
         message: testMessage,
         signature: signature,
-        accountXpub: expectedKeys.account_xpub_vanilla,
+        accountXpub: expectedKeys.accountXpubVanilla,
         network: 'testnet',
       });
       expect(verified).toBe(true);
@@ -154,7 +154,7 @@ describe('signer', () => {
       const tampered = await verifyMessage({
         message: `${testMessage}!`,
         signature: signed,
-        accountXpub: expectedKeys.account_xpub_vanilla,
+        accountXpub: expectedKeys.accountXpubVanilla,
         network: 'testnet',
       });
       expect(tampered).toBe(false);
@@ -191,7 +191,7 @@ describe('signer', () => {
       const verified = await verifyMessage({
         message: testMessage,
         signature: signed,
-        accountXpub: expectedKeys.account_xpub_vanilla,
+        accountXpub: expectedKeys.accountXpubVanilla,
         network: 'testnet',
       });
 

@@ -1,0 +1,1 @@
+export { getBridgeAPI } from './api';
