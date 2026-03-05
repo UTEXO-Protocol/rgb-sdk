@@ -1,4 +1,3 @@
-import { Wallet } from './../../bdk-wasm/pkg/bitcoindevkit.d';
 /**
  * RGB Lib Client - Local client using rgb-lib directly instead of HTTP server
  * 
