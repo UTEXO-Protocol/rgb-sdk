@@ -1,6 +1,6 @@
 // RGB PSBT Signer Library using bdk-wasm
 // Signs both create_utxo_begin and send_begin PSBTs from rgb-lib
-// 
+//
 // This module provides RGB-specific PSBT signing functionality for:
 // - create_utxo_begin PSBTs: Creating UTXOs for RGB wallet operations
 // - send_begin PSBTs: Signing RGB asset transfer transactions
@@ -10,9 +10,16 @@
 //   const signedPsbt = signPsbt(mnemonic, psbtBase64, 'testnet');
 
 import type { BIP32Interface } from 'bip32';
-import type { Psbt as BitcoinJsPsbt, Network as BitcoinJsNetwork } from 'bitcoinjs-lib';
+import type {
+  Psbt as BitcoinJsPsbt,
+  Network as BitcoinJsNetwork,
+} from 'bitcoinjs-lib';
 import { ValidationError, CryptoError } from '../errors';
-import { validateMnemonic, validatePsbt, normalizeNetwork } from '../utils/validation';
+import {
+  validateMnemonic,
+  validatePsbt,
+  normalizeNetwork,
+} from '../utils/validation';
 import {
   DERIVATION_PURPOSE,
   DERIVATION_ACCOUNT,
@@ -23,21 +30,28 @@ import {
   COIN_BITCOIN_MAINNET,
   COIN_BITCOIN_TESTNET,
 } from '../constants';
-import type { 
-  Network, 
-  PsbtType, 
-  NetworkVersions, 
+import type {
+  Network,
+  PsbtType,
+  NetworkVersions,
   Descriptors,
   BDKWallet,
   BDKPsbt,
   BDKNetwork,
-  BDKSignOptions
+  BDKSignOptions,
 } from './types';
 import { calculateMasterFingerprint } from '../utils/fingerprint';
-import { getNetworkVersions as getBIP32NetworkVersions, normalizeSeedBuffer } from '../utils/bip32-helpers';
+import {
+  getNetworkVersions as getBIP32NetworkVersions,
+  normalizeSeedBuffer,
+} from '../utils/bip32-helpers';
 import { accountDerivationPath, normalizeSeedInput } from './keys';
 import { sha256 } from '../utils/crypto-browser';
-import { ensureBaseDependencies, ensureSignerDependencies, type SignerDependencies } from './dependencies';
+import {
+  ensureBaseDependencies,
+  ensureSignerDependencies,
+  type SignerDependencies,
+} from './dependencies';
 
 // Re-export types from types module
 export type { Network, PsbtType, NetworkVersions, Descriptors } from './types';
@@ -79,12 +93,14 @@ function pathToString(path: DerivationPath): string {
   if (typeof path === 'string') {
     return path;
   } else if (Array.isArray(path)) {
-    return path.map(p => {
-      if (typeof p === 'number') {
-        return p >= 0x80000000 ? `${(p & 0x7fffffff)}'` : `${p}`;
-      }
-      return String(p);
-    }).join('/');
+    return path
+      .map((p) => {
+        if (typeof p === 'number') {
+          return p >= 0x80000000 ? `${p & 0x7fffffff}'` : `${p}`;
+        }
+        return String(p);
+      })
+      .join('/');
   }
   return '';
 }
@@ -104,36 +120,41 @@ function preprocessPsbtForBDK(
     throw new CryptoError('BitcoinJS modules not loaded');
   }
   const psbt = Psbt.fromBase64(psbtBase64.trim()) as BitcoinJsPsbt;
-  const bjsNet: BitcoinJsNetwork = network === 'mainnet' ? networks.bitcoin : networks.testnet;
-  
+  const bjsNet: BitcoinJsNetwork =
+    network === 'mainnet' ? networks.bitcoin : networks.testnet;
+
   for (let i = 0; i < psbt.inputCount; i++) {
     const input = psbt.data.inputs[i];
-    
+
     if (input.tapBip32Derivation && input.tapBip32Derivation.length > 0) {
       input.tapBip32Derivation.forEach((deriv) => {
         const normalizedPath = normalizePath(deriv.path as DerivationPath);
         deriv.path = pathToString(normalizedPath);
         let pathStr = pathToString(normalizedPath);
-        
+
         if (!pathStr.startsWith('m/')) {
           pathStr = 'm/' + pathStr;
         }
-        
+
         try {
           const derivedNode = rootNode.derivePath(pathStr);
           const pubkey = derivedNode.publicKey;
           if (!pubkey) {
             return;
           }
-          const pubkeyBuffer = pubkey instanceof Buffer ? pubkey : Buffer.from(pubkey);
+          const pubkeyBuffer =
+            pubkey instanceof Buffer ? pubkey : Buffer.from(pubkey);
           const xOnly = toXOnly(pubkeyBuffer);
-          const p2tr = payments.p2tr({ internalPubkey: xOnly, network: bjsNet });
+          const p2tr = payments.p2tr({
+            internalPubkey: xOnly,
+            network: bjsNet,
+          });
           const expectedScript = p2tr.output;
-          
+
           if (!expectedScript) {
             return;
           }
-          
+
           // Update witness_utxo.script if it doesn't match
           if (input.witnessUtxo && expectedScript) {
             const currentScript = input.witnessUtxo.script;
@@ -141,14 +162,14 @@ function preprocessPsbtForBDK(
               input.witnessUtxo.script = expectedScript;
             }
           }
-          
+
           // Update tapInternalKey to match derivation
           if (xOnly) {
             if (!input.tapInternalKey || !input.tapInternalKey.equals(xOnly)) {
               input.tapInternalKey = xOnly;
             }
           }
-          
+
           // Update master fingerprint
           const fingerprintBuf = Buffer.from(fp, 'hex');
           if (!deriv.masterFingerprint) {
@@ -159,17 +180,17 @@ function preprocessPsbtForBDK(
               deriv.masterFingerprint = fingerprintBuf;
             }
           }
-          
+
           // Update pubkey in derivation
           if (!deriv.pubkey || !deriv.pubkey.equals(xOnly)) {
             deriv.pubkey = xOnly;
           }
-        } catch (e) {
+        } catch (_e) {
           // Skip this derivation if it can't be derived from path
         }
       });
-    } 
-    
+    }
+
     // Update legacy bip32Derivation if needed
     if (input.bip32Derivation && input.bip32Derivation.length > 0) {
       input.bip32Derivation.forEach((deriv) => {
@@ -178,7 +199,7 @@ function preprocessPsbtForBDK(
       });
     }
   }
-  
+
   return psbt.toBase64();
 }
 
@@ -186,7 +207,10 @@ function preprocessPsbtForBDK(
  * Detect PSBT type by examining derivation paths
  * @returns {'create_utxo'|'send'} PSBT type
  */
-function detectPsbtType(psbtBase64: string, deps: SignerDependencies): PsbtType {
+function detectPsbtType(
+  psbtBase64: string,
+  deps: SignerDependencies
+): PsbtType {
   const { Psbt } = deps;
   if (!Psbt) {
     throw new CryptoError('BitcoinJS Psbt module not loaded');
@@ -206,7 +230,7 @@ function detectPsbtType(psbtBase64: string, deps: SignerDependencies): PsbtType 
       }
     }
     return 'create_utxo';
-  } catch (e) {
+  } catch (_e) {
     return 'create_utxo'; // Default to simpler structure
   }
 }
@@ -223,7 +247,7 @@ function deriveDescriptors(
   const isMainnet = network === 'mainnet';
   const coinTypeBtc = isMainnet ? COIN_BITCOIN_MAINNET : COIN_BITCOIN_TESTNET;
   const coinTypeRgb = isMainnet ? COIN_RGB_MAINNET : COIN_RGB_TESTNET;
-  
+
   if (psbtType === 'create_utxo') {
     // For create_utxo_begin: Use account-level xprv structure
     const accountPath = `m/${DERIVATION_PURPOSE}'/${coinTypeBtc}'/${DERIVATION_ACCOUNT}'`;
@@ -232,7 +256,7 @@ function deriveDescriptors(
     const origin = `[${fp}/${DERIVATION_PURPOSE}'/${coinTypeBtc}'/${DERIVATION_ACCOUNT}']`;
     return {
       external: `tr(${origin}${accountXprv}/0/*)`,
-      internal: `tr(${origin}${accountXprv}/1/*)`
+      internal: `tr(${origin}${accountXprv}/1/*)`,
     };
   } else {
     // For send_begin: Use RGB descriptor structure
@@ -241,16 +265,16 @@ function deriveDescriptors(
     const rgbKeychainNode = rgbAccountNode.derive(KEYCHAIN_RGB);
     const rgbKeychainXprv = rgbKeychainNode.toBase58();
     const rgbOrigin = `[${fp}/${DERIVATION_PURPOSE}'/${coinTypeRgb}'/${DERIVATION_ACCOUNT}'/${KEYCHAIN_RGB}]`;
-    
+
     const btcAccountPath = `m/${DERIVATION_PURPOSE}'/${coinTypeBtc}'/${DERIVATION_ACCOUNT}'`;
     const btcAccountNode = rootNode.derivePath(btcAccountPath);
     const btcKeychainNode = btcAccountNode.derive(KEYCHAIN_BTC);
     const btcKeychainXprv = btcKeychainNode.toBase58();
     const btcOrigin = `[${fp}/${DERIVATION_PURPOSE}'/${coinTypeBtc}'/${DERIVATION_ACCOUNT}'/${KEYCHAIN_BTC}]`;
-    
+
     return {
       external: `tr(${rgbOrigin}${rgbKeychainXprv}/*)`,
-      internal: `tr(${btcOrigin}${btcKeychainXprv}/*)`
+      internal: `tr(${btcOrigin}${btcKeychainXprv}/*)`,
     };
   }
 }
@@ -288,13 +312,21 @@ async function signPsbtFromSeedInternal(
   try {
     rootNode = bip32.fromSeed(seedBuffer, versions);
   } catch (error) {
-    throw new CryptoError('Failed to derive root node from seed', error as Error);
+    throw new CryptoError(
+      'Failed to derive root node from seed',
+      error as Error
+    );
   }
 
   const fp = await getMasterFingerprint(rootNode);
   const psbtType = detectPsbtType(psbtBase64, deps);
   const needsPreprocessing = psbtType === 'send';
-  const { external, internal } = deriveDescriptors(rootNode, fp, network, psbtType);
+  const { external, internal } = deriveDescriptors(
+    rootNode,
+    fp,
+    network,
+    psbtType
+  );
 
   let wallet: BDKWallet;
   try {
@@ -306,7 +338,13 @@ async function signPsbtFromSeedInternal(
   let processedPsbt = psbtBase64.trim();
   if (needsPreprocessing || options.preprocess) {
     try {
-      processedPsbt = preprocessPsbtForBDK(psbtBase64, rootNode, fp, network, deps);
+      processedPsbt = preprocessPsbtForBDK(
+        psbtBase64,
+        rootNode,
+        fp,
+        network,
+        deps
+      );
     } catch (error) {
       throw new CryptoError('Failed to preprocess PSBT', error as Error);
     }
@@ -331,9 +369,9 @@ async function signPsbtFromSeedInternal(
 
 /**
  * Sign a PSBT using BDK
- * 
+ *
  * Note: This function is async due to dependency loading and crypto operations.
- * 
+ *
  * @param mnemonic - BIP39 mnemonic phrase (12 or 24 words)
  * @param psbtBase64 - Base64 encoded PSBT string
  * @param network - Bitcoin network ('mainnet' | 'testnet' | 'signet' | 'regtest')
@@ -343,7 +381,7 @@ async function signPsbtFromSeedInternal(
  * @returns Base64 encoded signed PSBT
  * @throws {ValidationError} If mnemonic or PSBT format is invalid
  * @throws {CryptoError} If signing fails
- * 
+ *
  * @example
  * ```typescript
  * const signedPsbt = signPsbt(
@@ -370,18 +408,27 @@ export async function signPsbt(
     let seed: Buffer;
     try {
       seed = bip39.mnemonicToSeedSync(mnemonic);
-    } catch (error) {
+    } catch (_error) {
       throw new ValidationError('Invalid mnemonic format', 'mnemonic');
     }
 
     const normalizedNetwork = normalizeNetwork(network);
     const deps = await ensureSignerDependencies();
-    return await signPsbtFromSeedInternal(seed, psbtBase64, normalizedNetwork, options, deps);
+    return await signPsbtFromSeedInternal(
+      seed,
+      psbtBase64,
+      normalizedNetwork,
+      options,
+      deps
+    );
   } catch (error) {
     if (error instanceof ValidationError || error instanceof CryptoError) {
       throw error;
     }
-    throw new CryptoError('Unexpected error during PSBT signing', error as Error);
+    throw new CryptoError(
+      'Unexpected error during PSBT signing',
+      error as Error
+    );
   }
 }
 
@@ -409,17 +456,13 @@ export async function signPsbtFromSeed(
   const normalizedSeed = normalizeSeedInput(seed);
   const normalizedNetwork = normalizeNetwork(network);
   const deps = await ensureSignerDependencies();
-  return signPsbtFromSeedInternal(normalizedSeed, psbtBase64, normalizedNetwork, options, deps);
-}
-
-function ensureDerivationPath(path: string): string {
-  if (!path || typeof path !== 'string') {
-    throw new ValidationError('derivationPath must be a non-empty string', 'derivationPath');
-  }
-  if (!path.startsWith('m/')) {
-    throw new ValidationError('derivationPath must start with "m/"', 'derivationPath');
-  }
-  return path;
+  return signPsbtFromSeedInternal(
+    normalizedSeed,
+    psbtBase64,
+    normalizedNetwork,
+    options,
+    deps
+  );
 }
 
 function ensureMessageInput(message: string | Uint8Array): Uint8Array {
@@ -435,7 +478,10 @@ function ensureMessageInput(message: string | Uint8Array): Uint8Array {
     }
     return Buffer.from(message);
   }
-  throw new ValidationError('message must be a string or Uint8Array', 'message');
+  throw new ValidationError(
+    'message must be a string or Uint8Array',
+    'message'
+  );
 }
 
 async function deriveRootFromSeedInput(
@@ -449,11 +495,12 @@ async function deriveRootFromSeedInput(
   try {
     return bip32.fromSeed(normalizedSeed, versions);
   } catch (error) {
-    throw new CryptoError('Failed to create BIP32 root node from seed', error as Error);
+    throw new CryptoError(
+      'Failed to create BIP32 root node from seed',
+      error as Error
+    );
   }
 }
-
-
 
 const DEFAULT_RELATIVE_PATH = '0/0';
 
@@ -504,12 +551,16 @@ export async function signMessage(params: SignMessageParams): Promise<string> {
   }
 
   const messageHash = await sha256(messageBytes);
-  const signature = Buffer.from(ecc.signSchnorr(messageHash, privateKey)).toString('base64');
+  const signature = Buffer.from(
+    ecc.signSchnorr(messageHash, privateKey)
+  ).toString('base64');
   // const accountXpub = accountNode.neutered().toBase58();
   return signature;
 }
 
-export async function verifyMessage(params: VerifyMessageParams): Promise<boolean> {
+export async function verifyMessage(
+  params: VerifyMessageParams
+): Promise<boolean> {
   const { message, signature, accountXpub } = params;
   const messageBytes = ensureMessageInput(message);
   const relativePath = DEFAULT_RELATIVE_PATH;
@@ -520,19 +571,26 @@ export async function verifyMessage(params: VerifyMessageParams): Promise<boolea
   const versions = getNetworkVersions(normalizedNetwork);
   const { ecc, factory } = await ensureBaseDependencies();
 
-  if (!ecc || typeof ecc.verifySchnorr !== 'function' || typeof ecc.xOnlyPointFromPoint !== 'function') {
+  if (
+    !ecc ||
+    typeof ecc.verifySchnorr !== 'function' ||
+    typeof ecc.xOnlyPointFromPoint !== 'function'
+  ) {
     throw new CryptoError('Schnorr verification not supported by ECC module');
   }
 
   let accountNode: BIP32Interface;
   try {
     accountNode = factory(ecc).fromBase58(accountXpub, versions);
-  } catch (error) {
+  } catch (_error) {
     throw new ValidationError('Invalid account xpub provided', 'accountXpub');
   }
 
   const child = accountNode.derivePath(relativePath);
-  const pubkeyBuffer = child.publicKey instanceof Buffer ? child.publicKey : Buffer.from(child.publicKey);
+  const pubkeyBuffer =
+    child.publicKey instanceof Buffer
+      ? child.publicKey
+      : Buffer.from(child.publicKey);
   const xOnlyPubkey = ecc.xOnlyPointFromPoint(pubkeyBuffer);
 
   const messageHash = await sha256(messageBytes);
@@ -544,7 +602,9 @@ export async function verifyMessage(params: VerifyMessageParams): Promise<boolea
   }
 }
 
-export async function estimatePsbt(psbtBase64: string): Promise<EstimateFeeResult> {
+export async function estimatePsbt(
+  psbtBase64: string
+): Promise<EstimateFeeResult> {
   if (!psbtBase64) {
     throw new ValidationError('psbt is required', 'psbt');
   }
@@ -561,16 +621,9 @@ export async function estimatePsbt(psbtBase64: string): Promise<EstimateFeeResul
       fee: psbt.getFee(),
       feeRate: psbt.getFeeRate(),
       vbytes: psbt.extractTransaction().virtualSize(),
-    };    
+    };
   } catch (error) {
     console.log('error', error);
     throw new ValidationError('Invalid PSBT provided', 'psbt');
   }
 }
-
-
-
-
-
-
-
