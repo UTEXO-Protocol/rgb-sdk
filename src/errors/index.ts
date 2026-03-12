@@ -22,7 +22,7 @@ export class SDKError extends Error {
     this.statusCode = statusCode;
     this.cause = cause;
     Object.setPrototypeOf(this, SDKError.prototype);
-
+    
     // Maintains proper stack trace for where error was thrown (V8 only)
     if (Error.captureStackTrace) {
       Error.captureStackTrace(this, SDKError);
@@ -95,7 +95,7 @@ export class CryptoError extends SDKError {
  * Configuration errors (missing or invalid configuration)
  */
 export class ConfigurationError extends SDKError {
-  constructor(message: string, _field?: string) {
+  constructor(message: string, field?: string) {
     super(message, 'CONFIGURATION_ERROR');
     this.name = 'ConfigurationError';
     Object.setPrototypeOf(this, ConfigurationError.prototype);
@@ -145,3 +145,4 @@ export class RgbNodeError extends SDKError {
     Object.setPrototypeOf(this, RgbNodeError.prototype);
   }
 }
+

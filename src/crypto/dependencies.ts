@@ -36,16 +36,12 @@ async function loadBaseDependencies(): Promise<BaseDependencies> {
     const requireFromModule = createRequire(import.meta.url);
 
     const bip39 = requireFromModule('bip39') as unknown as BIP39Module;
-    const eccModule = requireFromModule(
-      '@bitcoinerlab/secp256k1'
-    ) as unknown as { default?: unknown };
+    const eccModule = requireFromModule('@bitcoinerlab/secp256k1') as unknown as { default?: unknown };
     const ecc =
-      eccModule && typeof eccModule === 'object' && 'default' in eccModule
+      (eccModule && typeof eccModule === 'object' && 'default' in eccModule
         ? (eccModule.default as ECCModule)
-        : (eccModule as unknown as ECCModule);
-    const bip32 = requireFromModule('bip32') as unknown as {
-      BIP32Factory: BIP32Factory;
-    };
+        : (eccModule as unknown as ECCModule));
+    const bip32 = requireFromModule('bip32') as unknown as { BIP32Factory: BIP32Factory };
 
     return {
       bip39,
@@ -55,17 +51,14 @@ async function loadBaseDependencies(): Promise<BaseDependencies> {
   }
 
   const bip39Module = await import('bip39');
-  const bip39 =
-    (bip39Module.default as BIP39Module) ||
-    (bip39Module as unknown as BIP39Module);
+  const bip39 = (bip39Module.default as BIP39Module) || (bip39Module as unknown as BIP39Module);
 
   const eccModule = await import('@bitcoinerlab/secp256k1');
   const ecc =
-    (eccModule.default as ECCModule) || (eccModule as unknown as ECCModule);
+    (eccModule.default as ECCModule) ||
+    (eccModule as unknown as ECCModule);
 
-  const bip32 = (await import('bip32')) as unknown as {
-    BIP32Factory: BIP32Factory;
-  };
+  const bip32 = (await import('bip32')) as unknown as { BIP32Factory: BIP32Factory };
 
   return {
     bip39,
@@ -79,16 +72,14 @@ export async function ensureBaseDependencies(): Promise<BaseDependencies> {
     return baseDeps;
   }
   if (!basePromise) {
-    basePromise = loadBaseDependencies()
-      .then((deps) => {
-        baseDeps = deps;
-        basePromise = null;
-        return deps;
-      })
-      .catch((error) => {
-        basePromise = null;
-        throw error;
-      });
+    basePromise = loadBaseDependencies().then((deps) => {
+      baseDeps = deps;
+      basePromise = null;
+      return deps;
+    }).catch((error) => {
+      basePromise = null;
+      throw error;
+    });
   }
   return basePromise;
 }
@@ -121,9 +112,7 @@ async function loadSignerDependencies(): Promise<SignerDependencies> {
     const payments = bitcoinjs.payments;
     const networks = bitcoinjs.networks;
 
-    const bip341 = requireFromModule(
-      'bitcoinjs-lib/src/payments/bip341.js'
-    ) as unknown as BIP341Module;
+    const bip341 = requireFromModule('bitcoinjs-lib/src/payments/bip341.js') as unknown as BIP341Module;
     const toXOnly =
       bip341.toXOnly || ((pubkey: Buffer) => Buffer.from(pubkey.slice(1)));
 
@@ -154,8 +143,7 @@ async function loadSignerDependencies(): Promise<SignerDependencies> {
   const payments = bitcoinModule.payments;
   const networks = bitcoinModule.networks;
 
-  const bip341 =
-    (await import('bitcoinjs-lib/src/payments/bip341.js')) as unknown as BIP341Module;
+  const bip341 = (await import('bitcoinjs-lib/src/payments/bip341.js')) as unknown as BIP341Module;
   const toXOnly =
     bip341.toXOnly || ((pubkey: Buffer) => Buffer.from(pubkey.slice(1)));
 
@@ -175,16 +163,15 @@ export async function ensureSignerDependencies(): Promise<SignerDependencies> {
     return signerDeps;
   }
   if (!signerPromise) {
-    signerPromise = loadSignerDependencies()
-      .then((deps) => {
-        signerDeps = deps;
-        signerPromise = null;
-        return deps;
-      })
-      .catch((error) => {
-        signerPromise = null;
-        throw error;
-      });
+    signerPromise = loadSignerDependencies().then((deps) => {
+      signerDeps = deps;
+      signerPromise = null;
+      return deps;
+    }).catch((error) => {
+      signerPromise = null;
+      throw error;
+    });
   }
   return signerPromise;
 }
+

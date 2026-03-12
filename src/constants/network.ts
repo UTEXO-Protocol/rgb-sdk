@@ -67,3 +67,4 @@ export const BIP32_VERSIONS = {
     private: 0x04358394,
   },
 } as const satisfies Record<Network, { public: number; private: number }>;
+

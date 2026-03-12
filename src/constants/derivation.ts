@@ -21,3 +21,4 @@ export const KEYCHAIN_RGB = 0;
  * Bitcoin keychain index
  */
 export const KEYCHAIN_BTC = 0;
+

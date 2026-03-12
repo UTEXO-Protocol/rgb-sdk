@@ -7,12 +7,16 @@ export function isNode(): boolean {
 }
 
 export function isBare(): boolean {
-  return typeof globalThis !== 'undefined' && (globalThis as any).Bare;
+  return (
+    typeof globalThis !== 'undefined' &&
+    (globalThis as any).Bare
+  );
 }
 
 export function isBrowser(): boolean {
   return (
-    typeof window !== 'undefined' && typeof window.document !== 'undefined'
+    typeof window !== 'undefined' &&
+    typeof window.document !== 'undefined'
   );
 }
 
@@ -23,3 +27,4 @@ export function getEnvironment(): Environment {
   if (isBrowser()) return 'browser';
   return 'unknown';
 }
+

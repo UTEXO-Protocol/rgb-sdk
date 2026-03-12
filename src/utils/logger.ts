@@ -73,3 +73,4 @@ export const logger = new Logger();
 export function configureLogging(level: LogLevel): void {
   logger.setLevel(level);
 }
+

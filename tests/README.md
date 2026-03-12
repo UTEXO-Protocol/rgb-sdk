@@ -40,31 +40,11 @@ Tests for PSBT signing and message signing:
 
 ### `utexo-flows.test.ts`
 
-Structure tests for UTEXOWallet – verifies all methods exist (core, keys, balance, UTXO, assets, transfer, sync, fee, backup, signing, onchain, lightning). Does NOT require network or bridge.
+Structure tests for UTEXOWallet onchain and lightning flows:
 
-### `restore.test.ts`
-
-Unit tests for restore utilities:
-
-- `getBackupStoreId` – returns `wallet_<fp>` format
-- `prepareUtxoBackupDirs` – creates backup dirs and returns paths
-- `restoreUtxoWalletFromBackup` validation – throws on missing params, invalid path, missing/mismatched backup files
-
-### `utexo-mocked.test.ts`
-
-Restore flow tests with mocked `restoreWallet` (uses `jest.unstable_mockModule` for ESM):
-
-- Tests full `restoreUtxoWalletFromBackup` path with valid backup structure
-- No real backup files needed – mock avoids native rgb-lib calls
-
-### `utexo-wallet-mocked.test.ts`
-
-UTEXOWallet tests with mocked `WalletManager` (uses `jest.unstable_mockModule` for ESM):
-
-- Tests `getAddress`, `getBtcBalance`, `listAssets`, `listTransfers`, `listTransactions`, `listUnspents`
-- Tests `getAssetBalance`, `blindReceive`, `witnessReceive`
-- Tests `getXpub`, `getNetwork`
-- No network or native rgb-lib – mock returns predefined responses
+- Verifies `onchainReceive`, `onchainSend`, `onchainSendBegin`, `onchainSendEnd`, `getOnchainSendStatus` exist
+- Verifies `createLightningInvoice`, `payLightningInvoice`, `payLightningInvoiceBegin`, `payLightningInvoiceEnd`, `getLightningSendRequest`, `getLightningReceiveRequest` exist
+- Does NOT require network or bridge (API shape only)
 
 ## Onchain and Lightning Flow Integration Tests
 

@@ -1,6 +1,6 @@
 /**
  * RGB Crypto module types
- *
+ * 
  * Type definitions for RGB-specific cryptographic operations including
  * PSBT signing and key derivation for RGB protocol
  */
@@ -37,17 +37,12 @@ export interface Descriptors {
 /**
  * Buffer-like object that can be converted to Buffer or Uint8Array
  */
-export type BufferLike =
-  | Buffer
-  | Uint8Array
-  | ArrayBuffer
-  | {
-      buffer?: ArrayBuffer;
-      byteOffset?: number;
-      byteLength?: number;
-      length?: number;
-    }
-  | number[];
+export type BufferLike = Buffer | Uint8Array | ArrayBuffer | {
+  buffer?: ArrayBuffer;
+  byteOffset?: number;
+  byteLength?: number;
+  length?: number;
+} | number[];
 
 /**
  * BDK Network type (from bdk-wasm)
@@ -80,11 +75,7 @@ export interface BDKSignOptions {
  */
 export interface BDKModule {
   Wallet: {
-    create: (
-      network: BDKNetwork,
-      external: string,
-      internal: string
-    ) => BDKWallet;
+    create: (network: BDKNetwork, external: string, internal: string) => BDKWallet;
   };
   Psbt: {
     from_string: (psbt: string) => BDKPsbt;
@@ -107,11 +98,7 @@ export interface BIP39Module {
   mnemonicToSeedSync: (mnemonic: string) => Buffer;
   validateMnemonic: (mnemonic: string, wordlist?: string[]) => boolean;
   setDefaultWordlist?: (wordlist: string) => void;
-  generateMnemonic?: (
-    strength?: number,
-    rng?: (size: number) => Buffer,
-    wordlist?: string[]
-  ) => string;
+  generateMnemonic?: (strength?: number, rng?: (size: number) => Buffer, wordlist?: string[]) => string;
   [key: string]: unknown;
 }
 
@@ -120,16 +107,8 @@ export interface BIP39Module {
  * Note: This is a simplified interface that matches the actual ECC module
  */
 export interface ECCModule {
-  signSchnorr: (
-    message: Uint8Array,
-    privateKey: Uint8Array,
-    auxRand?: Uint8Array
-  ) => Uint8Array;
-  verifySchnorr: (
-    message: Uint8Array,
-    publicKey: Uint8Array,
-    signature: Uint8Array
-  ) => boolean;
+  signSchnorr: (message: Uint8Array, privateKey: Uint8Array, auxRand?: Uint8Array) => Uint8Array;
+  verifySchnorr: (message: Uint8Array, publicKey: Uint8Array, signature: Uint8Array) => boolean;
   xOnlyPointFromPoint: (point: Uint8Array) => Uint8Array;
   [key: string]: unknown;
 }
@@ -138,14 +117,8 @@ export interface ECCModule {
  * BIP32 Factory function type
  */
 export type BIP32Factory = (ecc: unknown) => {
-  fromSeed: (
-    seed: Buffer | Uint8Array,
-    versions?: NetworkVersions
-  ) => import('bip32').BIP32Interface;
-  fromBase58: (
-    base58: string,
-    versions?: NetworkVersions
-  ) => import('bip32').BIP32Interface;
+  fromSeed: (seed: Buffer | Uint8Array, versions?: NetworkVersions) => import('bip32').BIP32Interface;
+  fromBase58: (base58: string, versions?: NetworkVersions) => import('bip32').BIP32Interface;
 };
 
 /**
@@ -178,3 +151,4 @@ export interface BIP341Module {
   toXOnly?: (pubkey: Buffer) => Buffer;
   [key: string]: unknown;
 }
+

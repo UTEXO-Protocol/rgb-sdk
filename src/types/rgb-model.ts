@@ -1,3 +1,4 @@
+
 export interface Unspent {
   utxo: Utxo;
   rgbAllocations: RgbAllocation[];
@@ -18,6 +19,7 @@ export interface RgbAllocation {
   assignment: BindingAssignment;
   settled: boolean;
 }
+
 
 export interface DecodeRgbInvoiceResponse {
   recipientId: string;

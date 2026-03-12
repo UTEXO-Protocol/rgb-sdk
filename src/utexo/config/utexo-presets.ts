@@ -13,13 +13,7 @@ import type { UtxoNetworkPresetConfig } from '../utils/network';
 type NetworkConfig = {
   networkName: string;
   networkId: number;
-  assets: {
-    assetId: string;
-    tokenName: string;
-    longName: string;
-    precision: number;
-    tokenId: number;
-  }[];
+  assets: { assetId: string; tokenName: string; longName: string; precision: number; tokenId: number }[];
 };
 
 /**

@@ -1,16 +1,15 @@
 import { isBare, isNode } from './environment';
 import { convertToArrayBuffer } from './crypto-helpers';
-import * as noble from '@noble/hashes/legacy.js';
+import * as noble from "@noble/hashes/legacy.js";
 
 export async function sha256(data: Uint8Array | Buffer): Promise<Uint8Array> {
   if (isNode() || isBare()) {
     // String concatenation prevents bundlers from analyzing the import
     const nodeCrypto = 'node:' + 'crypto';
     const { createHash } = await import(nodeCrypto);
-    return createHash('sha256')
-      .update(data as any)
-      .digest();
-  } else {
+    return createHash('sha256').update(data as any).digest();
+  }
+  else {
     if (!data) {
       throw new Error('sha256: data is undefined or null');
     }
@@ -33,8 +32,7 @@ export async function ripemd160(data: Uint8Array): Promise<Uint8Array> {
     // @ts-ignore - ripemd160 doesn't have type definitions
     const ripemd160Module = await import('ripemd160');
     const RIPEMD160 = ripemd160Module.default || ripemd160Module;
-    const BufferPolyfill =
-      (globalThis as any).Buffer || (await import('buffer')).Buffer;
+    const BufferPolyfill = (globalThis as any).Buffer || (await import('buffer')).Buffer;
     const hasher = new (RIPEMD160 as any)();
     hasher.update(BufferPolyfill.from(data));
     return new Uint8Array(hasher.digest());
@@ -54,9 +52,7 @@ async function getNodeCrypto() {
   return nodeCrypto;
 }
 
-export async function sha256Sync(
-  data: Uint8Array | Buffer
-): Promise<Uint8Array> {
+export async function sha256Sync(data: Uint8Array | Buffer): Promise<Uint8Array> {
   if (!isNode()) {
     return sha256(data);
   }
@@ -67,17 +63,10 @@ export async function sha256Sync(
   if (!crypto) {
     throw new Error('Node.js crypto is not available');
   }
-  return crypto
-    .createHash('sha256')
-    .update(data as any)
-    .digest();
+  return crypto.createHash('sha256').update(data as any).digest();
 }
 
-export const ripemd160Sync: (
-  data: Uint8Array | Buffer
-) => Promise<Uint8Array> = async (
-  data: Uint8Array | Buffer
-): Promise<Uint8Array> => {
+export const ripemd160Sync: (data: Uint8Array | Buffer) => Promise<Uint8Array> = async (data: Uint8Array | Buffer): Promise<Uint8Array> => {
   if (!isNode()) {
     return ripemd160(data);
   }
@@ -88,8 +77,6 @@ export const ripemd160Sync: (
   if (!crypto) {
     throw new Error('Node.js crypto is not available');
   }
-  return crypto
-    .createHash('ripemd160')
-    .update(data as any)
-    .digest();
+  return crypto.createHash('ripemd160').update(data as any).digest();
 };
+
