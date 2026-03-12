@@ -1,6 +1,6 @@
 /**
  * Crypto module exports
- * 
+ *
  * This module contains RGB-specific cryptographic operations including:
  * - PSBT signing for RGB transfers (create_utxo_begin and send_begin PSBTs)
  * - RGB key generation and derivation (vanilla and colored keychains)
@@ -9,20 +9,33 @@
  */
 
 // Export signer functions
-export { signPsbt, signPsbtSync, signPsbtFromSeed, signMessage, verifyMessage, estimatePsbt } from './signer';
-export type { SignPsbtOptions, SignMessageParams, SignMessageResult, VerifyMessageParams, EstimateFeeResult } from './signer';
+export {
+  signPsbt,
+  signPsbtSync,
+  signPsbtFromSeed,
+  signMessage,
+  verifyMessage,
+  estimatePsbt,
+} from './signer';
+export type {
+  SignPsbtOptions,
+  SignMessageParams,
+  SignMessageResult,
+  VerifyMessageParams,
+  EstimateFeeResult,
+} from './signer';
 
 // Export key functions
-export { 
-  generateKeys, 
-  deriveKeysFromMnemonic, 
+export {
+  generateKeys,
+  deriveKeysFromMnemonic,
   deriveKeysFromSeed,
   deriveKeysFromMnemonicOrSeed,
-  restoreKeys, 
+  restoreKeys,
   accountXpubsFromMnemonic,
   getXprivFromMnemonic,
   getXpubFromXpriv,
-  deriveKeysFromXpriv
+  deriveKeysFromXpriv,
 } from './keys';
 export type { GeneratedKeys, AccountXpubs } from './keys';
 
@@ -30,4 +43,3 @@ export { deriveVssSigningKeyFromMnemonic } from './vss-keys';
 
 // Export types
 export type { Network, PsbtType, NetworkVersions, Descriptors } from './types';
-
