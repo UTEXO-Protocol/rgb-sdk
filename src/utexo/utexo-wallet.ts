@@ -595,7 +595,8 @@ export class UTEXOWallet
     const destinationAsset = getDestinationAsset(
       'mainnet',
       'utexo',
-      params.assetId ?? null
+      params.assetId ?? null,
+      this.networkIdMap
     );
     if (!destinationAsset) {
       throw new ValidationError(
@@ -718,7 +719,6 @@ export class UTEXOWallet
       invoice,
       this.networkIdMap.mainnet.networkId
     );
-    // console.log('bridgeTransfer', bridgeTransfer);
     if (!bridgeTransfer) {
       const withdrawTransfer = await this.bridge.getWithdrawTransfer(
         invoice,
@@ -731,8 +731,12 @@ export class UTEXOWallet
     }
     const { invoiceData, destinationAsset } =
       await this.extractInvoiceAndAsset(bridgeTransfer);
+    const assets = await this.utexoRGBWallet!.listAssets();
+    const walletAsset = assets.nia.find(
+      (a) => a.assetId === destinationAsset.assetId
+    );
     const transfers = await this.utexoRGBWallet!.listTransfers(
-      destinationAsset.assetId
+      walletAsset?.assetId
     );
     const transfer = transfers.find(
       (transfer) => transfer.recipientId === invoiceData.recipientId
@@ -771,7 +775,8 @@ export class UTEXOWallet
     const destinationAsset = getDestinationAsset(
       'mainnet',
       'utexo',
-      asset.assetId
+      asset.assetId,
+      this.networkIdMap
     );
     if (!destinationAsset) {
       throw new ValidationError(
@@ -944,7 +949,12 @@ export class UTEXOWallet
       );
     }
     const assetId = params.assetId ?? invoiceData.assetId;
-    const utexoAsset = getDestinationAsset('mainnet', 'utexo', assetId ?? null);
+    const utexoAsset = getDestinationAsset(
+      'mainnet',
+      'utexo',
+      assetId ?? null,
+      this.networkIdMap
+    );
     if (!utexoAsset) {
       throw new ValidationError('UTEXO asset is not supported', 'assetId');
     }
@@ -1033,7 +1043,12 @@ export class UTEXOWallet
       );
     }
     const assetId = params.assetId;
-    const utexoAsset = getDestinationAsset('mainnet', 'utexo', assetId ?? null);
+    const utexoAsset = getDestinationAsset(
+      'mainnet',
+      'utexo',
+      assetId ?? null,
+      this.networkIdMap
+    );
     const destinationAsset = this.networkIdMap.mainnet.getAssetById(
       utexoAsset?.tokenId ?? 0
     );

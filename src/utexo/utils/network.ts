@@ -96,15 +96,19 @@ export type UtxoNetworkId = keyof typeof utexoNetworkIdMap;
 /**
  * Resolves the destination network's asset object from sender network, destination network, and sender asset ID.
  * Uses tokenId as the cross-network identifier (same tokenId = same logical asset).
+ *
+ * @param networkIdMap - Optional. When provided (e.g. from wallet's preset), uses this config. Otherwise uses deprecated testnet preset.
  */
 export function getDestinationAsset(
   senderNetwork: UtxoNetworkId,
   destinationNetwork: UtxoNetworkId,
-  assetIdSender: string | null
+  assetIdSender: string | null,
+  networkIdMap?: UtxoNetworkIdMap
 ): NetworkAsset | undefined {
-  const destinationConfig = utexoNetworkIdMap[destinationNetwork];
+  const config = networkIdMap ?? utexoNetworkIdMap;
+  const destinationConfig = config[destinationNetwork];
   if (assetIdSender == null) return destinationConfig.assets[0];
-  const senderConfig = utexoNetworkIdMap[senderNetwork];
+  const senderConfig = config[senderNetwork];
   const senderAsset = senderConfig.assets.find(
     (a) => a.assetId === assetIdSender
   );
