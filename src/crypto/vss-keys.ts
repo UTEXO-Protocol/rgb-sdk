@@ -25,11 +25,11 @@ const VSS_SIGNING_KEY_DOMAIN = 'rgb-lib-vss-backup-encryption-v1';
  * @returns 32-byte signing key as hex string (same mnemonic always yields same key for backup/restore)
  */
 export function deriveVssSigningKeyFromMnemonic(mnemonic: string): string {
-  validateMnemonic(mnemonic, 'mnemonic');
-  const keyBytes = new TextEncoder().encode(VSS_SIGNING_KEY_DOMAIN);
-  const messageBytes = new TextEncoder().encode(mnemonic.trim());
-  const digest = hmac(sha256, keyBytes, messageBytes);
-  return Array.from(digest)
-    .map((b) => b.toString(16).padStart(2, '0'))
-    .join('');
+    validateMnemonic(mnemonic, 'mnemonic');
+    const keyBytes = new TextEncoder().encode(VSS_SIGNING_KEY_DOMAIN);
+    const messageBytes = new TextEncoder().encode(mnemonic.trim());
+    const digest = hmac(sha256, keyBytes, messageBytes);
+    return Array.from(digest)
+        .map((b) => b.toString(16).padStart(2, '0'))
+        .join('');
 }

@@ -9,7 +9,7 @@ module.exports = {
       /import\.meta\.url/g,
       `require('url').pathToFileURL(__filename).href`
     );
-
+    
     // Use ts-jest for actual transformation
     const tsJest = require('ts-jest');
     return tsJest.default.process(transformed, sourcePath, {
@@ -21,3 +21,4 @@ module.exports = {
     });
   },
 };
+

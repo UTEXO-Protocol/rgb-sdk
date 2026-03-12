@@ -15,3 +15,4 @@ export const DEFAULT_INDEXER_URLS: Record<Network, string> = {
   signet: 'https://esplora-api.utexo.com',
   regtest: 'tcp://regtest.thunderstack.org:50001',
 };
+

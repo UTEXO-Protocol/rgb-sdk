@@ -14,12 +14,6 @@ export function normalizeNetwork(network: string | number): Network {
 export function isNetwork(value: unknown): value is Network {
   if (typeof value !== 'string') return false;
   const normalized = NETWORK_MAP[value as keyof typeof NETWORK_MAP];
-  return (
-    !!normalized &&
-    (normalized === 'mainnet' ||
-      normalized === 'testnet' ||
-      normalized === 'testnet4' ||
-      normalized === 'signet' ||
-      normalized === 'regtest')
-  );
+  return !!normalized && (normalized === 'mainnet' || normalized === 'testnet' || normalized === 'testnet4' || normalized === 'signet' || normalized === 'regtest');
 }
+

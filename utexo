@@ -1,5 +1,10 @@
 #!/usr/bin/env node
 
+/**
+ * Wrapper so you can run:  utexo address sender   (or  ./utexo address sender  from repo root)
+ * For global command:  npm link   then  utexo address sender
+ */
+
 const path = require('path');
 const { spawnSync } = require('child_process');
 

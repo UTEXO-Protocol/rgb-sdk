@@ -1,6 +1,6 @@
 /**
  * Centralized constants for the RGB SDK
- *
+ * 
  * All constants are organized by domain for better maintainability
  */
 
@@ -12,3 +12,4 @@ export * from './network';
 
 // Default values
 export * from './defaults';
+
