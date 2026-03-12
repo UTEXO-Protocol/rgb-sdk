@@ -48,8 +48,8 @@ if (command === 'wm') {
     const wmSubcommand = args[1];
     walletName = args[2];
     flagArgs = args.slice(3);
-    if (!wmSubcommand || !['address', 'btcbalance', 'refresh', 'sync', 'createutxos', 'blindreceive', 'listassets', 'listtransfers', 'sendbatch'].includes(wmSubcommand)) {
-        console.error('Usage: utexo wm <address|btcbalance|refresh|sync|createutxos|blindreceive|listassets|listtransfers|sendbatch> <wallet_name> [options...]');
+    if (!wmSubcommand || !['address', 'btcbalance', 'refresh', 'sync', 'createutxos', 'blindreceive', 'listassets', 'listtransfers', 'sendbatch', 'sendbtc'].includes(wmSubcommand)) {
+        console.error('Usage: utexo wm <address|btcbalance|refresh|sync|createutxos|blindreceive|listassets|listtransfers|sendbatch|sendbtc> <wallet_name> [options...]');
         process.exit(1);
     }
     command = `wm_${wmSubcommand}`;
@@ -102,6 +102,7 @@ WalletManager (same keys file, standard RGB wallet):
   utexo wm listassets <wallet>   # list assets and BTC balance
   utexo wm listtransfers <wallet> [--assetId <id>]
   utexo wm sendbatch <wallet> --assetId <id> --amount <n> --invoices "<inv1>,<inv2>,..." [--feeRate <n>] [--minConfirmations <n>]
+  utexo wm sendbtc <wallet> --address <addr> --amount <sats> [--feeRate <n>]
 
   Or run script with hardcoded params: node cli/scripts/send-batch-wm.mjs`;
 
@@ -214,6 +215,21 @@ async function buildRecipientMap(wallet, assetId, amount, invoices) {
     return { [assetId]: recipients };
 }
 
+async function runWmSendbtc(walletName, flagArgs) {
+    const opts = parseFlags(flagArgs, {
+        required: ['address', 'amount'],
+        optional: ['feeRate', 'skipSync'],
+    }, { usage: USAGE });
+    const address = opts.address;
+    const amount = parseInt(opts.amount, 10);
+    const feeRate = opts.feeRate ? parseInt(opts.feeRate, 10) : 1;
+    const skipSync = opts.skipSync === 'true' || opts.skipSync === '1';
+    await runWithWalletManager(walletName, async (wallet) => {
+        const txid = await wallet.sendBtc({ address, amount, feeRate, ...(skipSync && { skipSync }) });
+        console.log(`✅ BTC sent. Txid: ${txid}`);
+    }, { quiet: true });
+}
+
 async function runWmSendbatch(walletName, flagArgs) {
     const opts = parseFlags(flagArgs, {
         required: ['assetId', 'amount', 'invoices'],
@@ -273,6 +289,7 @@ const commands = {
     wm_listassets: runWmListassets,
     wm_listtransfers: runWmListtransfers,
     wm_sendbatch: runWmSendbatch,
+    wm_sendbtc: runWmSendbtc,
 };
 
 async function main() {

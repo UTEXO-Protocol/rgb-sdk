@@ -15,17 +15,25 @@ import bip39 from 'bip39';
 
 describe('keys', () => {
   // Test data from user
-  const testMnemonic =
-    'poem twice question inch happy capital grain quality laptop dry chaos what';
-  const expectedKeys = {
-    mnemonic: testMnemonic,
-    xpub: 'tpubD6NzVbkrYhZ4XCaTDersU6277zvyyV6uCCeEgx1jfv7bUYMrbTt8Vem1MBt5Gmp7eMwjv4rB54s2kjqNNtTLYpwFsVX7H2H93pJ8SpZFRRi',
-    accountXpubVanilla:
-      'tpubDDMTD6EJKKLP6Gx9JUnMpjf9NYyePJszmqBnNqULNmcgEuU1yQ3JsHhWZdRFecszWETnNsmhEe9vnaNibfzZkDDHycbR2rGFbXdHWRgBfu7',
-    accountXpubColored:
-      'tpubDDPLJfdVbDoGtnn6hSto3oCnm6hpfHe9uk2MxcANanxk87EuquhSVfSLQv7e5UykgzaFn41DUXaikjjVGcUSUTGNaJ9LcozfRwatKp1vTfC',
-    masterFingerprint: 'a66bffef',
-  };
+  // const testMnemonic =
+  //   'poem twice question inch happy capital grain quality laptop dry chaos what';
+  // const expectedKeys = {
+  //   mnemonic: testMnemonic,
+  //   xpub: 'tpubD6NzVbkrYhZ4XCaTDersU6277zvyyV6uCCeEgx1jfv7bUYMrbTt8Vem1MBt5Gmp7eMwjv4rB54s2kjqNNtTLYpwFsVX7H2H93pJ8SpZFRRi',
+  //   accountXpubVanilla:
+  //     'tpubDDMTD6EJKKLP6Gx9JUnMpjf9NYyePJszmqBnNqULNmcgEuU1yQ3JsHhWZdRFecszWETnNsmhEe9vnaNibfzZkDDHycbR2rGFbXdHWRgBfu7',
+  //   accountXpubColored:
+  //     'tpubDDPLJfdVbDoGtnn6hSto3oCnm6hpfHe9uk2MxcANanxk87EuquhSVfSLQv7e5UykgzaFn41DUXaikjjVGcUSUTGNaJ9LcozfRwatKp1vTfC',
+  //   masterFingerprint: 'a66bffef',
+  // };
+  const testMnemonic ="flight seminar tray bulb level embody switch enhance august deny scene dismiss";
+   const expectedKeys = {
+  mnemonic: testMnemonic,
+  "xpub": "tpubD6NzVbkrYhZ4WLw9njYmLvMEWp5nqVmjfkgAZfj7uivNXCFS7Ls9DyDZM82P4cDpobCDGAZpNsR9Gs9wuvv5yYCNFsqxcbsDn6VU4nU3ZcW",
+  "accountXpubVanilla": "tpubDDTg3fRGqAvEvshRUUwuS8brXkewNsE6y6Jbb9xZcuzBbmxAWa3UCmwyQG4peM9RwjgY8BDwuRVRU5KGtvRby5kiv1dk13YHU8z39o18QJK",
+  "accountXpubColored": "tpubDDqoEexZxewBLjXmZ7kxSHgZgmdAtej6DrXLBMiSSuPCdGQqjkTvyETLLVY7qNpxNRGUivvxDj8sswHHihT5effNNDmsbMUX2Lrpy4zjRcS",
+  "masterFingerprint": "42424232"
+  }
 
   describe('generateKeys', () => {
     it('should generate valid keys for testnet', async () => {

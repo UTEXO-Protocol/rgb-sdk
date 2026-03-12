@@ -12,7 +12,9 @@
 import { UTEXOWallet } from '../dist/index.mjs';
 
 const NETWORK = 'testnet';
-const MNEMONIC = process.env.MNEMONIC || 'top reject between sugar rug pulse radar coffee kiss faculty pool vocal';
+const MNEMONIC = "drastic vacuum age family between general melody elbow ball very require pulp";
+// drastic vacuum age family between general melody elbow ball very require pulp
+// const MNEMONIC = process.env.MNEMONIC || 'apple deposit job second wear metal zebra target filter chunk pill dynamic';
 // const MNEMONIC = process.env.MNEMONIC || 'famous hurt miss favorite pitch rich rude cricket fault hammer split guilt';
 
 async function main() {
@@ -29,13 +31,13 @@ async function main() {
         await wallet.syncWallet();
         console.log('Created %d UTXO(s)', count);
 
-        // const asset = await wallet.issueAssetNia({
-        //     ticker: 'DEMO',
-        //     name: 'Demo NIA Asset',
-        //     amounts: [1000,1000,1000,1000,1000],
-        //     precision: 0,
-        // });
-        // console.log('Issued NIA asset:', asset.assetId, asset.ticker, asset.name);
+        const asset = await wallet.issueAssetNia({
+            ticker: 'DEMO',
+            name: 'Demo NIA Asset',
+            amounts: [1000,1000,1000,1000,1000,1000],
+            precision: 0,
+        });
+        console.log('Issued NIA asset:', asset.assetId, asset.ticker, asset.name);
     } finally {
         await wallet.dispose();
     }

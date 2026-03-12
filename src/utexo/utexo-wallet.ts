@@ -120,7 +120,7 @@ export class UTEXOWallet
     this.mnemonicOrSeed = mnemonicOrSeed;
     this.options = options;
 
-    const preset: UtxoNetworkPreset = options.network ?? 'testnet';
+    const preset: UtxoNetworkPreset = options.network ?? 'mainnet';
 
     const networkConfig = getUtxoNetworkConfig(preset);
     this.networkMap = networkConfig.networkMap;
@@ -145,7 +145,7 @@ export class UTEXOWallet
     });
     this.layer1RGBWallet = new WalletManager({
       xpubVan: this.layer1Keys.accountXpubVanilla,
-      xpubCol: this.layer1Keys.accountXpubVanilla,
+      xpubCol: this.layer1Keys.accountXpubColored,
       masterFingerprint: this.layer1Keys.masterFingerprint,
       network: this.networkMap.mainnet,
       mnemonic: this.mnemonicOrSeed as string,

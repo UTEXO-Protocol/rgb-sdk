@@ -190,7 +190,7 @@ export class RGBLibClient {
       accountXpubColored: this.xpubCol,
       masterFingerprint: this.masterFingerprint,
       maxAllocationsPerUtxo: '1',
-      vanillaKeychain: '1',
+      vanillaKeychain: '0',
       supportedSchemas: [
         rgblib.AssetSchema.Cfa,
         rgblib.AssetSchema.Nia,
