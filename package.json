@@ -5,15 +5,24 @@
     "utexo": "cli/run.mjs"
   },
   "devDependencies": {
+    "@eslint/js": "^9.35.0",
     "@types/jest": "^30.0.0",
     "@types/node": "^22.17.2",
+    "@typescript-eslint/eslint-plugin": "^8.0.0",
+    "@typescript-eslint/parser": "^8.0.0",
+    "eslint": "^9.35.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-prettier": "^5.5.4",
     "jest": "^30.2.0",
+    "prettier": "^3.0.0",
     "ts-jest": "^29.4.5",
     "tsup": "^8.5.0",
     "typescript": "^5.9.2"
   },
   "type": "commonjs",
   "scripts": {
+    "prettier": "prettier --write \"**/*.{js,ts,tsx}\"",
+    "lint": "eslint \"**/*.{js,ts,tsx}\"",
     "dev": "tsc -w",
     "build": "tsup",
     "test": "npm run build && NODE_OPTIONS='--experimental-vm-modules' jest",
@@ -60,13 +69,13 @@
     "bip39": "^3.1.0",
     "bitcoinjs-lib": "^6.1.7",
     "form-data": "^4.0.0",
-    "@utexo/rgb-lib": "0.3.0-beta.12.vss",
+    "@utexo/rgb-lib": "0.3.0-beta.13",
     "ripemd160": "^2.0.3"
   },
   "optionalDependencies": {
-    "@utexo/rgb-lib-linux-x64": "0.3.0-beta.12.vss",
-    "@utexo/rgb-lib-linux-arm64": "0.3.0-beta.12.vss",
-    "@utexo/rgb-lib-darwin-arm64": "0.3.0-beta.12.vss"
+    "@utexo/rgb-lib-linux-x64": "0.3.0-beta.13",
+    "@utexo/rgb-lib-linux-arm64": "0.3.0-beta.13",
+    "@utexo/rgb-lib-darwin-arm64": "0.3.0-beta.13"
   },
   "keywords": [
     "rgb",
@@ -79,5 +88,12 @@
     "assets",
     "blockchain"
   ],
-  "license": "MIT"
+  "license": "MIT",
+  "prettier": {
+    "quoteProps": "consistent",
+    "singleQuote": true,
+    "tabWidth": 2,
+    "trailingComma": "es5",
+    "useTabs": false
+  }
 }

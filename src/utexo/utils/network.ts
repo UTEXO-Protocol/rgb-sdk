@@ -25,16 +25,28 @@ export type UtxoNetworkMap = {
 type NetworkConfig = {
   networkName: string;
   networkId: number;
-  assets: { assetId: string; tokenName: string; longName: string; precision: number; tokenId: number }[];
+  assets: {
+    assetId: string;
+    tokenName: string;
+    longName: string;
+    precision: number;
+    tokenId: number;
+  }[];
 };
 
 /**
  * Network ID map configuration - contains all network configs with asset lookup
  */
 export type UtxoNetworkIdMap = {
-  mainnet: NetworkConfig & { getAssetById(tokenId: number): NetworkConfig['assets'][number] | undefined };
-  mainnetLightning: NetworkConfig & { getAssetById(tokenId: number): NetworkConfig['assets'][number] | undefined };
-  utexo: NetworkConfig & { getAssetById(tokenId: number): NetworkConfig['assets'][number] | undefined };
+  mainnet: NetworkConfig & {
+    getAssetById(tokenId: number): NetworkConfig['assets'][number] | undefined;
+  };
+  mainnetLightning: NetworkConfig & {
+    getAssetById(tokenId: number): NetworkConfig['assets'][number] | undefined;
+  };
+  utexo: NetworkConfig & {
+    getAssetById(tokenId: number): NetworkConfig['assets'][number] | undefined;
+  };
 };
 
 /**
@@ -58,7 +70,9 @@ const NETWORK_PRESETS: Record<UtxoNetworkPreset, UtxoNetworkPresetConfig> = {
  * @param preset - Network preset ('mainnet' or 'testnet')
  * @returns Network preset configuration bundle
  */
-export function getUtxoNetworkConfig(preset: UtxoNetworkPreset): UtxoNetworkPresetConfig {
+export function getUtxoNetworkConfig(
+  preset: UtxoNetworkPreset
+): UtxoNetworkPresetConfig {
   return NETWORK_PRESETS[preset];
 }
 
@@ -74,25 +88,32 @@ export const utexoNetworkMap: UtxoNetworkMap = testnetPreset.networkMap;
  */
 export const utexoNetworkIdMap: UtxoNetworkIdMap = testnetPreset.networkIdMap;
 
-const networkConfigs = utexoNetworkIdMap;
+export type NetworkAsset =
+  (typeof utexoNetworkIdMap)[keyof typeof utexoNetworkIdMap]['assets'][number];
 
-export type NetworkAsset = (typeof networkConfigs)[keyof typeof networkConfigs]['assets'][number];
-
-export type UtxoNetworkId = keyof typeof networkConfigs;
+export type UtxoNetworkId = keyof typeof utexoNetworkIdMap;
 
 /**
  * Resolves the destination network's asset object from sender network, destination network, and sender asset ID.
  * Uses tokenId as the cross-network identifier (same tokenId = same logical asset).
+ *
+ * @param networkIdMap - Optional. When provided (e.g. from wallet's preset), uses this config. Otherwise uses deprecated testnet preset.
  */
 export function getDestinationAsset(
   senderNetwork: UtxoNetworkId,
   destinationNetwork: UtxoNetworkId,
-  assetIdSender: string | null
+  assetIdSender: string | null,
+  networkIdMap?: UtxoNetworkIdMap
 ): NetworkAsset | undefined {
-  const destinationConfig = utexoNetworkIdMap[destinationNetwork];
+  const config = networkIdMap ?? utexoNetworkIdMap;
+  const destinationConfig = config[destinationNetwork];
   if (assetIdSender == null) return destinationConfig.assets[0];
-  const senderConfig = utexoNetworkIdMap[senderNetwork];
-  const senderAsset = senderConfig.assets.find((a) => a.assetId === assetIdSender);
+  const senderConfig = config[senderNetwork];
+  const senderAsset = senderConfig.assets.find(
+    (a) => a.assetId === assetIdSender
+  );
   if (!senderAsset) return undefined;
-  return destinationConfig.assets.find((a) => a.tokenId === senderAsset.tokenId);
+  return destinationConfig.assets.find(
+    (a) => a.tokenId === senderAsset.tokenId
+  );
 }

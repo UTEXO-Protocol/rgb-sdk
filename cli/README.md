@@ -323,7 +323,7 @@ utexo paylightninginvoice testwallet --lnInvoice "lnbc..."
 utexo send testwallet --invoice "<inv>" --assetId <id> --amount <n>
 ```
 
-**WalletManager (standard RGB, same keys):** `utexo wm address|btcbalance|refresh|sync|createutxos|blindreceive|listassets|listtransfers|sendbatch <wallet> [options]`
+**WalletManager (standard RGB, same keys):** `utexo wm address|btcbalance|refresh|sync|createutxos|blindreceive|listassets|listtransfers|sendbatch|sendbtc <wallet> [options]`
 
 ## Security Warning
 

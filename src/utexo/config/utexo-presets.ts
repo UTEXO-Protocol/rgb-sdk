@@ -13,7 +13,13 @@ import type { UtxoNetworkPresetConfig } from '../utils/network';
 type NetworkConfig = {
   networkName: string;
   networkId: number;
-  assets: { assetId: string; tokenName: string; longName: string; precision: number; tokenId: number }[];
+  assets: {
+    assetId: string;
+    tokenName: string;
+    longName: string;
+    precision: number;
+    tokenId: number;
+  }[];
 };
 
 /**
@@ -98,11 +104,11 @@ export const mainnetPreset: UtxoNetworkPresetConfig = {
       networkId: 36, // TODO: Update to production network ID
       assets: [
         {
-          assetId: 'rgb:WPRv95Nj-icdrgPp-zpQhIp_-2TyJ~Ge-k~FvuMZ-~vVnkA0', // TODO: Update to production asset ID
+          assetId: 'rgb:nkHbmy97-R4cjRCe-j~VvT~E-0UQ0OW8-jOCCW6O-EqeCq9M', // TODO: Update to production asset ID
           tokenName: 'tUSD',
           longName: 'USDT',
           precision: 6,
-          tokenId: 4,
+          tokenId: 3,
         },
       ],
     }),
@@ -111,11 +117,11 @@ export const mainnetPreset: UtxoNetworkPresetConfig = {
       networkId: 94, // TODO: Update to production network ID
       assets: [
         {
-          assetId: 'rgb:WPRv95Nj-icdrgPp-zpQhIp_-2TyJ~Ge-k~FvuMZ-~vVnkA0', // TODO: Update to production asset ID
+          assetId: 'rgb:nkHbmy97-R4cjRCe-j~VvT~E-0UQ0OW8-jOCCW6O-EqeCq9M', // TODO: Update to production asset ID
           tokenName: 'tUSD',
           longName: 'USDT',
           precision: 6,
-          tokenId: 4,
+          tokenId: 3,
         },
       ],
     }),
@@ -124,11 +130,11 @@ export const mainnetPreset: UtxoNetworkPresetConfig = {
       networkId: 96, // TODO: Update to production network ID
       assets: [
         {
-          assetId: 'rgb:yJW4k8si-~8JdNfl-nM91qFu-r5rH_HS-1hM7jpi-L~lBf90', // TODO: Update to production asset ID
+          assetId: 'rgb:0yyfySrb-TArdWKB-6Y0yhUX-dbqMpN3-NnjsV2F-2fMhOI4', // TODO: Update to production asset ID
           tokenName: 'tUSD',
           longName: 'USDT',
           precision: 6,
-          tokenId: 4,
+          tokenId: 3,
         },
       ],
     }),
