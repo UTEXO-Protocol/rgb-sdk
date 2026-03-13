@@ -26,6 +26,7 @@
     "dev": "tsc -w",
     "build": "tsup",
     "test": "npm run build && NODE_OPTIONS='--experimental-vm-modules' jest",
+    "test:signet:smoke": "NODE_OPTIONS='--experimental-vm-modules' jest --config jest.signet.config.js --runInBand --verbose",
     "test:watch": "npm run build && NODE_OPTIONS='--experimental-vm-modules' jest --watch",
     "test:coverage": "npm run build && NODE_OPTIONS='--experimental-vm-modules' jest --coverage",
     "version:patch": "npm version patch && git push && git push --tags && npm publish --access public",
@@ -88,6 +89,7 @@
     "assets",
     "blockchain"
   ],
+<<<<<<< HEAD
   "license": "MIT",
   "prettier": {
     "quoteProps": "consistent",
@@ -97,3 +99,7 @@
     "useTabs": false
   }
 }
+=======
+  "license": "MIT"
+}
+>>>>>>> f133671 (Add Signet offline receiver smoke test)
