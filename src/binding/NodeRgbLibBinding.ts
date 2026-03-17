@@ -185,6 +185,9 @@ export class NodeRgbLibBinding implements IRgbLibBinding {
         DEFAULT_INDEXER_URLS[this.network] || DEFAULT_INDEXER_URLS.signet;
     }
 
+    // console.log('dataDir', this.dataDir);
+    console.log("params", params);
+
     if (!fs.existsSync(this.dataDir)) {
       fs.mkdirSync(this.dataDir, { recursive: true });
     }
