@@ -8,11 +8,10 @@
 
 import path from 'path';
 import fs from 'fs';
-import { getUtxoNetworkConfig, type UtxoNetworkPreset } from './utils/index';
-import { restoreFromVss, restoreWallet } from '../binding/index';
+import { getUtxoNetworkConfig, type UtxoNetworkPreset, DEFAULT_VSS_SERVER_URL } from '@utexo/rgb-sdk-core';
+import { restoreFromVss, restoreWallet } from '../binding/NodeRgbLibBinding';
 import { ValidationError } from '@utexo/rgb-sdk-core';
 import type { VssBackupConfig } from '@utexo/rgb-sdk-core';
-import { DEFAULT_VSS_SERVER_URL } from './config/index';
 import {
   getBackupStoreId,
   buildVssConfigFromMnemonic,

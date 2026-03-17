@@ -1,9 +1,9 @@
-import { NodeRgbLibBinding, restoreWallet } from '../binding/index';
+import { NodeRgbLibBinding, restoreWallet } from '../binding/NodeRgbLibBinding';
 import * as IWalletModel from '@utexo/rgb-sdk-core';
 import { ValidationError, WalletError } from '@utexo/rgb-sdk-core';
 import { BaseWalletManager } from '@utexo/rgb-sdk-core';
 import type { WalletInitParams } from '@utexo/rgb-sdk-core';
-import { generateKeys } from '../crypto';
+import { generateKeys } from '@utexo/rgb-sdk-core';
 import { NodeSigner } from '../signer/NodeSigner';
 import path from 'path';
 

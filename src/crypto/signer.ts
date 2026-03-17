@@ -1,7 +1,8 @@
 // RGB PSBT Signer — BDK-based signing for rgb-lib PSBTs.
 // Handles both create_utxo_begin and send_begin PSBT types.
 
-import type { Psbt as BitcoinJsPsbt } from 'bitcoinjs-lib';
+import { Psbt } from 'bitcoinjs-lib';
+import * as bdkNode from '@bitcoindevkit/bdk-wallet-node';
 import {
   ValidationError,
   CryptoError,
@@ -25,10 +26,11 @@ import type {
   BIP32Interface,
 } from '@utexo/rgb-sdk-core';
 import type { BDKWallet, BDKPsbt, BDKNetwork, BDKSignOptions } from './types';
-import { ensureSignerDependencies } from './dependencies';
 import type { EstimateFeeResult } from '@utexo/rgb-sdk-core';
 
 export type { Network, PsbtType, NetworkVersions, Descriptors } from '@utexo/rgb-sdk-core';
+
+const bdk = bdkNode as unknown as import('./types').BDKModule;
 
 export interface SignPsbtOptions {
   signOptions?: BDKSignOptions;
@@ -39,10 +41,8 @@ async function signPsbtFromSeedInternal(
   psbtBase64: string,
   network: Network,
   options: SignPsbtOptions,
-  deps: Awaited<ReturnType<typeof ensureSignerDependencies>>
 ): Promise<string> {
   validatePsbt(psbtBase64, 'psbtBase64');
-  const { bdk } = deps;
 
   let rootNode: BIP32Interface;
   try {
@@ -102,8 +102,7 @@ export async function signPsbt(
       throw new ValidationError('Invalid mnemonic format', 'mnemonic');
     }
     const normalizedNetwork = normalizeNetwork(network);
-    const deps = await ensureSignerDependencies();
-    return await signPsbtFromSeedInternal(seed, psbtBase64, normalizedNetwork, options, deps);
+    return await signPsbtFromSeedInternal(seed, psbtBase64, normalizedNetwork, options);
   } catch (error) {
     if (error instanceof ValidationError || error instanceof CryptoError) throw error;
     throw new CryptoError('Unexpected error during PSBT signing', error as Error);
@@ -118,15 +117,13 @@ export async function signPsbtFromSeed(
 ): Promise<string> {
   const normalizedSeed = normalizeSeedInput(seed);
   const normalizedNetwork = normalizeNetwork(network);
-  const deps = await ensureSignerDependencies();
-  return signPsbtFromSeedInternal(normalizedSeed, psbtBase64, normalizedNetwork, options, deps);
+  return signPsbtFromSeedInternal(normalizedSeed, psbtBase64, normalizedNetwork, options);
 }
 
 export async function estimatePsbt(psbtBase64: string): Promise<EstimateFeeResult> {
   if (!psbtBase64) throw new ValidationError('psbt is required', 'psbt');
-  const { Psbt } = await ensureSignerDependencies();
   try {
-    const psbt = Psbt.fromBase64(psbtBase64.trim()) as BitcoinJsPsbt;
+    const psbt = Psbt.fromBase64(psbtBase64.trim());
     return {
       fee: psbt.getFee(),
       feeRate: psbt.getFeeRate(),

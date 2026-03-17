@@ -36,4 +36,3 @@ export interface BDKModule {
   Network?: { [key: string]: BDKNetwork };
 }
 
-export type BDKInit = unknown;
