@@ -1,4 +1,4 @@
-import { InvoiceRequest, SendResult } from './wallet-model';
+import { InvoiceRequest, SendResult } from '@utexo/rgb-sdk-core';
 
 /**
  * UTEXO Protocol Types

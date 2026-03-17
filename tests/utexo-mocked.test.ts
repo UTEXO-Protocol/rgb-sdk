@@ -7,11 +7,11 @@ import path from 'path';
 import fs from 'fs';
 import os from 'os';
 
-await jest.unstable_mockModule('../src/client/rgb-lib-client', () => ({
+await jest.unstable_mockModule('../src/binding/NodeRgbLibBinding', () => ({
   restoreWallet: () => undefined,
   restoreFromVss: () => {},
   generateKeys: () => {},
-  RGBLibClient: () => {},
+  NodeRgbLibBinding: () => {},
 }));
 
 const {

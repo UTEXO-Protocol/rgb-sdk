@@ -26,7 +26,7 @@ export type {
 } from './utexo';
 
 // VSS backup exports (single-wallet restore; use restoreUtxoWalletFromVss for UTEXOWallet)
-export { restoreFromVss } from './client/rgb-lib-client';
+export { restoreFromVss } from './binding/index';
 
 // Type exports
 export * from './types/rgb-model';
@@ -34,7 +34,7 @@ export type {
   TransferStatus,
   BridgeTransferStatus,
   OnchainSendStatus,
-} from './types/wallet-model';
+} from '@utexo/rgb-sdk-core';
 export type {
   Network,
   PsbtType,
@@ -47,7 +47,6 @@ export type { GeneratedKeys, AccountXpubs } from './crypto';
 // Function exports
 export {
   signPsbt,
-  signPsbtSync,
   signPsbtFromSeed,
   signMessage,
   verifyMessage,
@@ -63,6 +62,7 @@ export {
   getXpubFromXpriv,
   deriveKeysFromXpriv,
   deriveVssSigningKeyFromMnemonic,
+  bip39,
 } from './crypto';
 
 // Error exports
@@ -77,10 +77,10 @@ export {
   NotFoundError,
   ConflictError,
   RgbNodeError,
-} from './errors';
+} from '@utexo/rgb-sdk-core';
 
 // Utility exports
-export { logger, configureLogging, LogLevel } from './utils/logger';
+export { logger, configureLogging, LogLevel } from '@utexo/rgb-sdk-core';
 export { isNode, isBrowser, getEnvironment } from './utils/environment';
 export type { Environment } from './utils/environment';
 export {
@@ -92,9 +92,8 @@ export {
   validateHex,
   validateRequired,
   validateString,
-} from './utils/validation';
-// normalizeNetwork is exported from validation.ts above
-// network.ts is kept for backward compatibility but normalizeNetwork from validation.ts is preferred
+  isNetwork,
+} from '@utexo/rgb-sdk-core';
 
 // Constants exports
 export * from './constants';

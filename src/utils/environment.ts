@@ -6,10 +6,6 @@ export function isNode(): boolean {
   );
 }
 
-export function isBare(): boolean {
-  return typeof globalThis !== 'undefined' && (globalThis as any).Bare;
-}
-
 export function isBrowser(): boolean {
   return (
     typeof window !== 'undefined' && typeof window.document !== 'undefined'

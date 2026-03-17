@@ -1,8 +1,8 @@
-/**
- * UTEXO config: network presets, wallet options, gateway URLs, and VSS defaults.
- */
-
-export { testnetPreset, mainnetPreset } from './utexo-presets';
-export { DEFAULT_GATEWAY_BASE_URLS } from './gateway';
-export { DEFAULT_VSS_SERVER_URL } from './vss';
-export type { ConfigOptions } from './options';
+export {
+  DEFAULT_GATEWAY_BASE_URLS,
+  DEFAULT_VSS_SERVER_URL,
+  getVssConfigs,
+  testnetPreset,
+  mainnetPreset,
+} from '@utexo/rgb-sdk-core';
+export type { ConfigOptions } from '@utexo/rgb-sdk-core';

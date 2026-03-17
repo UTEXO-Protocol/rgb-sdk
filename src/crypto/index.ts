@@ -1,31 +1,13 @@
 /**
  * Crypto module exports
- *
- * This module contains RGB-specific cryptographic operations including:
- * - PSBT signing for RGB transfers (create_utxo_begin and send_begin PSBTs)
- * - RGB key generation and derivation (vanilla and colored keychains)
- * - Network-related cryptographic operations for RGB protocol
- * - BIP86 Taproot key derivation for RGB wallets
  */
 
-// Export signer functions
-export {
-  signPsbt,
-  signPsbtSync,
-  signPsbtFromSeed,
-  signMessage,
-  verifyMessage,
-  estimatePsbt,
-} from './signer';
-export type {
-  SignPsbtOptions,
-  SignMessageParams,
-  SignMessageResult,
-  VerifyMessageParams,
-  EstimateFeeResult,
-} from './signer';
+export { signPsbt, signPsbtFromSeed, estimatePsbt } from './signer';
+export type { SignPsbtOptions } from './signer';
 
-// Export key functions
+export { signMessage, verifyMessage } from '@utexo/rgb-sdk-core';
+export type { SignMessageParams, VerifyMessageParams } from '@utexo/rgb-sdk-core';
+
 export {
   generateKeys,
   deriveKeysFromMnemonic,
@@ -36,10 +18,9 @@ export {
   getXprivFromMnemonic,
   getXpubFromXpriv,
   deriveKeysFromXpriv,
-} from './keys';
-export type { GeneratedKeys, AccountXpubs } from './keys';
+  deriveVssSigningKeyFromMnemonic,
+  bip39,
+} from '@utexo/rgb-sdk-core';
+export type { GeneratedKeys, AccountXpubs } from '@utexo/rgb-sdk-core';
 
-export { deriveVssSigningKeyFromMnemonic } from './vss-keys';
-
-// Export types
-export type { Network, PsbtType, NetworkVersions, Descriptors } from './types';
+export type { Network, PsbtType, NetworkVersions, Descriptors } from '@utexo/rgb-sdk-core';

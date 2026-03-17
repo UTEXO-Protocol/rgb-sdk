@@ -1,14 +1,28 @@
-/**
- * Centralized constants for the RGB SDK
- *
- * All constants are organized by domain for better maintainability
- */
-
-// Derivation constants
-export * from './derivation';
-
-// Network constants
-export * from './network';
-
-// Default values
-export * from './defaults';
+export {
+  DEFAULT_NETWORK,
+  DEFAULT_API_TIMEOUT,
+  DEFAULT_MAX_RETRIES,
+  DEFAULT_LOG_LEVEL,
+  DERIVATION_PURPOSE,
+  DERIVATION_ACCOUNT,
+  KEYCHAIN_RGB,
+  KEYCHAIN_BTC,
+  COIN_RGB_MAINNET,
+  COIN_RGB_TESTNET,
+  COIN_BITCOIN_MAINNET,
+  COIN_BITCOIN_TESTNET,
+  NETWORK_MAP,
+  BIP32_VERSIONS,
+  utexoNetworkMap,
+  utexoNetworkIdMap,
+  getDestinationAsset,
+  getUtxoNetworkConfig,
+} from '@utexo/rgb-sdk-core';
+export type {
+  NetworkAsset,
+  UtxoNetworkId,
+  UtxoNetworkPreset,
+  UtxoNetworkMap,
+  UtxoNetworkIdMap,
+  UtxoNetworkPresetConfig,
+} from '@utexo/rgb-sdk-core';

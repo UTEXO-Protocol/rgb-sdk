@@ -28,10 +28,11 @@ module.exports = {
   },
   // Don't transform ESM modules - let Node.js handle them with experimental flags
   transformIgnorePatterns: [
-    'node_modules/(?!(@metamask|bitcoindevkit|@types)/)',
+    'node_modules/(?!(@metamask|bitcoindevkit|@types|@noble)/)',
   ],
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
+    '^@noble/hashes/sha2$': '<rootDir>/node_modules/@noble/hashes/sha2.js',
   },
   collectCoverageFrom: ['src/**/*.ts', '!src/**/*.d.ts', '!src/**/index.ts'],
   testTimeout: 30000, // Increased timeout for crypto operations

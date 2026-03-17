@@ -1,8 +1,9 @@
 /**
- * RGB Lib Client - Local client using rgb-lib directly instead of HTTP server
+ * NodeRgbLibBinding — Node SDK implementation of IRgbLibBinding.
  *
- * This client provides the same interface as RGBClient but uses rgb-lib locally
- * without requiring an RGB Node server.
+ * Wraps the @utexo/rgb-lib napi binding, translates raw rgb-lib types to
+ * canonical wallet-model.ts types, and satisfies IRgbLibBinding so it can
+ * be injected directly into BaseWalletManager.
  */
 import * as path from 'path';
 
@@ -11,12 +12,12 @@ import {
   DEFAULT_TRANSPORT_ENDPOINTS,
   DEFAULT_INDEXER_URLS,
 } from './network-config';
-import { Unspent, DecodeRgbInvoiceResponse } from '../types/rgb-model';
-import { ValidationError, WalletError } from '../errors';
-import { normalizeNetwork } from '../utils/validation';
+import { Unspent as RawUnspent, DecodeRgbInvoiceResponse } from '../types/rgb-model';
+import { ValidationError, WalletError, normalizeNetwork, logger } from '@utexo/rgb-sdk-core';
 import type { Network } from '../crypto/types';
 // Use default import for CommonJS compatibility in ESM
 import rgblib from '@utexo/rgb-lib';
+import type { IRgbLibBinding } from '@utexo/rgb-sdk-core';
 import {
   Transfer,
   Transaction,
@@ -25,6 +26,8 @@ import {
   AssetIfa,
   AssetNIA,
   BtcBalance,
+  Unspent,
+  InvoiceData,
   CreateUtxosEndRequestModel,
   SendAssetBeginRequestModel,
   CreateUtxosBeginRequestModel,
@@ -46,7 +49,11 @@ import {
   RecipientMap,
   VssBackupConfig,
   VssBackupInfo,
-} from '../types/wallet-model';
+  AssignmentType,
+  Assignment,
+  AssetSchema,
+  BitcoinNetwork,
+} from '@utexo/rgb-sdk-core';
 /**
  * Map network from client format to rgb-lib format
  */
@@ -138,7 +145,7 @@ export const restoreFromVss = (params: {
 /**
  * RGB Lib Client class - Local implementation using rgb-lib
  */
-export class RGBLibClient {
+export class NodeRgbLibBinding implements IRgbLibBinding {
   private wallet: any;
   private online: any | null = null;
   private readonly xpubVan: string;
@@ -201,7 +208,6 @@ export class RGBLibClient {
     try {
       this.wallet = new rgblib.Wallet(new rgblib.WalletData(walletData));
     } catch (error) {
-      console.log('error', error);
       throw new WalletError(
         'Failed to initialize rgb-lib wallet',
         undefined,
@@ -247,21 +253,48 @@ export class RGBLibClient {
     };
   }
 
-  getBtcBalance(): BtcBalance {
+  async getBtcBalance(): Promise<BtcBalance> {
     const online = this.getOnline();
     return this.wallet.getBtcBalance(online, false);
   }
 
-  getAddress(): string {
+  async getAddress(): Promise<string> {
     return this.wallet.getAddress();
   }
 
-  listUnspents(): Unspent[] {
+  listUnspents(): Promise<Unspent[]> {
     const online = this.getOnline();
-    return this.wallet.listUnspents(online, false, false);
+    const raw: RawUnspent[] = this.wallet.listUnspents(online, false, false);
+    return Promise.resolve(
+      raw.map((unspent) => ({
+        utxo: {
+          ...unspent.utxo,
+          exists: (unspent.utxo as any).exists ?? true,
+        },
+        rgbAllocations: unspent.rgbAllocations.map((allocation) => {
+          const assignmentKeys = Object.keys(allocation.assignment);
+          const assignmentType = assignmentKeys[0] as
+            | AssignmentType
+            | undefined;
+          const assignment: Assignment = {
+            type: assignmentType ?? 'Any',
+            amount:
+              assignmentType && allocation.assignment[assignmentType]
+                ? Number(allocation.assignment[assignmentType])
+                : undefined,
+          };
+          return {
+            assetId: allocation.assetId,
+            assignment,
+            settled: allocation.settled,
+          };
+        }),
+        pendingBlinded: (unspent as any).pendingBlinded ?? 0,
+      }))
+    );
   }
 
-  createUtxosBegin(params: CreateUtxosBeginRequestModel): string {
+  async createUtxosBegin(params: CreateUtxosBeginRequestModel): Promise<string> {
     const online = this.getOnline();
     const upTo = params.upTo ?? false;
     const num = params.num !== undefined ? String(params.num) : null;
@@ -279,7 +312,7 @@ export class RGBLibClient {
     );
   }
 
-  createUtxosEnd(params: CreateUtxosEndRequestModel): number {
+  async createUtxosEnd(params: CreateUtxosEndRequestModel): Promise<number> {
     const online = this.getOnline();
     const signedPsbt = params.signedPsbt;
     const skipSync = params.skipSync ?? false;
@@ -287,7 +320,7 @@ export class RGBLibClient {
     return this.wallet.createUtxosEnd(online, signedPsbt, skipSync);
   }
 
-  sendBegin(params: SendAssetBeginRequestModel): string {
+  async sendBegin(params: SendAssetBeginRequestModel): Promise<string> {
     const online = this.getOnline();
     const feeRate = String(params.feeRate ?? 1);
     const minConfirmations = String(params.minConfirmations ?? 1);
@@ -308,8 +341,7 @@ export class RGBLibClient {
       };
     }
     if (params.invoice) {
-      const invoiceStr = params.invoice;
-      const invoiceData = this.decodeRGBInvoice({ invoice: invoiceStr });
+      const invoiceData = this.decodeRGBInvoiceRaw({ invoice: params.invoice });
       recipientId = invoiceData.recipientId;
       transportEndpoints = invoiceData.transportEndpoints;
     }
@@ -364,12 +396,12 @@ export class RGBLibClient {
   /**
    * Batch send: accepts an already-built recipientMap and calls sendBegin.
    */
-  sendBeginBatch(params: {
+  async sendBeginBatch(params: {
     recipientMap: RecipientMap;
     feeRate?: number;
     minConfirmations?: number;
     donation?: boolean;
-  }): string {
+  }): Promise<string> {
     const online = this.getOnline();
     const feeRate = String(params.feeRate ?? 1);
     const minConfirmations = String(params.minConfirmations ?? 1);
@@ -410,7 +442,7 @@ export class RGBLibClient {
     return psbt;
   }
 
-  sendEnd(params: SendAssetEndRequestModel): SendResult {
+  async sendEnd(params: SendAssetEndRequestModel): Promise<SendResult> {
     const online = this.getOnline();
     const signedPsbt = params.signedPsbt;
     const skipSync = params.skipSync ?? false;
@@ -418,7 +450,7 @@ export class RGBLibClient {
     return this.wallet.sendEnd(online, signedPsbt, skipSync);
   }
 
-  sendBtcBegin(params: SendBtcBeginRequestModel): string {
+  async sendBtcBegin(params: SendBtcBeginRequestModel): Promise<string> {
     const online = this.getOnline();
     const address = params.address;
     const amount = String(params.amount);
@@ -428,7 +460,7 @@ export class RGBLibClient {
     return this.wallet.sendBtcBegin(online, address, amount, feeRate, skipSync);
   }
 
-  sendBtcEnd(params: SendBtcEndRequestModel): string {
+  async sendBtcEnd(params: SendBtcEndRequestModel): Promise<string> {
     const online = this.getOnline();
     const signedPsbt = params.signedPsbt;
     const skipSync = params.skipSync ?? false;
@@ -436,9 +468,9 @@ export class RGBLibClient {
     return this.wallet.sendBtcEnd(online, signedPsbt, skipSync);
   }
 
-  getFeeEstimation(
+  async getFeeEstimation(
     params: GetFeeEstimationRequestModel
-  ): GetFeeEstimationResponse {
+  ): Promise<GetFeeEstimationResponse> {
     const online = this.getOnline();
     const blocks = String(params.blocks);
     try {
@@ -452,55 +484,72 @@ export class RGBLibClient {
       }
       return result;
     } catch (_error) {
-      console.warn(
-        'rgb-lib estimation fee are not available, using default fee rate 2'
-      );
-      return 2 as GetFeeEstimationResponse; // return default fee rate 4 when lib estimation fee error
+      logger.warn('rgb-lib estimation fee are not available, using default fee rate 2');
+      return 2 as GetFeeEstimationResponse;
     }
   }
 
-  blindReceive(params: InvoiceRequest): InvoiceReceiveData {
+  async blindReceive(params: InvoiceRequest): Promise<InvoiceReceiveData> {
     const assetId = params.assetId || null;
     const assignment = `{"Fungible":${params.amount}}`;
     const durationSeconds = String(params.durationSeconds ?? 2000);
     const transportEndpoints: string[] = [this.transportEndpoint];
     const minConfirmations = String(params.minConfirmations ?? 3);
 
-    return this.wallet.blindReceive(
+    const raw = this.wallet.blindReceive(
       assetId,
       assignment,
       durationSeconds,
       transportEndpoints,
       minConfirmations
     );
+    return {
+      invoice: raw.invoice,
+      recipientId: raw.recipientId,
+      expirationTimestamp: raw.expirationTimestamp ?? null,
+      batchTransferIdx: raw.batchTransferIdx,
+    };
   }
 
-  witnessReceive(params: InvoiceRequest): InvoiceReceiveData {
+  async witnessReceive(params: InvoiceRequest): Promise<InvoiceReceiveData> {
     const assetId = params.assetId || null;
     const assignment = `{"Fungible":${params.amount}}`;
     const durationSeconds = String(params.durationSeconds ?? 2000);
     const transportEndpoints: string[] = [this.transportEndpoint];
     const minConfirmations = String(params.minConfirmations ?? 3);
 
-    return this.wallet.witnessReceive(
+    const raw = this.wallet.witnessReceive(
       assetId,
       assignment,
       durationSeconds,
       transportEndpoints,
       minConfirmations
     );
+    return {
+      invoice: raw.invoice,
+      recipientId: raw.recipientId,
+      expirationTimestamp: raw.expirationTimestamp ?? null,
+      batchTransferIdx: raw.batchTransferIdx,
+    };
   }
 
-  getAssetBalance(asset_id: string): AssetBalance {
-    return this.wallet.getAssetBalance(asset_id);
+  async getAssetBalance(asset_id: string): Promise<AssetBalance> {
+    const balance = this.wallet.getAssetBalance(asset_id);
+    return {
+      settled: balance.settled ?? 0,
+      future: balance.future ?? 0,
+      spendable: balance.spendable ?? 0,
+      offchainOutbound: balance.offchainOutbound ?? 0,
+      offchainInbound: balance.offchainInbound ?? 0,
+    };
   }
 
-  issueAssetNia(params: {
+  async issueAssetNia(params: {
     ticker: string;
     name: string;
     amounts: number[];
     precision: number;
-  }): AssetNIA {
+  }): Promise<AssetNIA> {
     const ticker = params.ticker;
     const name = params.name;
     const precision = String(params.precision);
@@ -508,46 +557,63 @@ export class RGBLibClient {
 
     return this.wallet.issueAssetNIA(ticker, name, precision, amounts);
   }
-  // @ts-ignore
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  issueAssetIfa(params: IssueAssetIfaRequestModel): AssetIfa {
+  async issueAssetIfa(_params: IssueAssetIfaRequestModel): Promise<AssetIfa> {
     throw new ValidationError(
       'issueAssetIfa is not fully supported in rgb-lib. Use RGB Node server for IFA assets.',
       'asset'
     );
   }
-  // @ts-ignore
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  inflateBegin(params: InflateAssetIfaRequestModel): string {
+
+  async inflateBegin(_params: InflateAssetIfaRequestModel): Promise<string> {
     throw new ValidationError(
       'inflateBegin is not fully supported in rgb-lib. Use RGB Node server for inflation operations.',
       'asset'
     );
   }
-  // @ts-ignore
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  inflateEnd(params: InflateEndRequestModel): OperationResult {
+
+  async inflateEnd(_params: InflateEndRequestModel): Promise<OperationResult> {
     throw new ValidationError(
       'inflateEnd is not fully supported in rgb-lib. Use RGB Node server for inflation operations.',
       'asset'
     );
   }
 
-  listAssets(): ListAssets {
+  async listAssets(): Promise<ListAssets> {
     const filterAssetSchemas: string[] = [];
     return this.wallet.listAssets(filterAssetSchemas);
   }
 
-  decodeRGBInvoice(params: { invoice: string }): DecodeRgbInvoiceResponse {
-    const invoiceString = params.invoice;
-
-    const invoice = new rgblib.Invoice(invoiceString);
-
+  decodeRGBInvoiceRaw(params: { invoice: string }): DecodeRgbInvoiceResponse {
+    const invoice = new rgblib.Invoice(params.invoice);
     try {
       return invoice.invoiceData();
     } finally {
       invoice.drop();
     }
+  }
+
+  async decodeRGBInvoice(params: { invoice: string }): Promise<InvoiceData> {
+    const raw = this.decodeRGBInvoiceRaw(params);
+    const assignmentKeys = Object.keys(raw.assignment);
+    const assignmentType = assignmentKeys[0] as AssignmentType | undefined;
+    const assignment: Assignment = {
+      type: assignmentType ?? 'Any',
+      amount:
+        assignmentType && raw.assignment[assignmentType]
+          ? Number(raw.assignment[assignmentType])
+          : undefined,
+    };
+    return {
+      invoice: params.invoice,
+      recipientId: raw.recipientId,
+      assetSchema: raw.assetSchema as AssetSchema | undefined,
+      assetId: raw.assetId,
+      network: raw.network as BitcoinNetwork,
+      assignment,
+      assignmentName: raw.assignmentName,
+      expirationTimestamp: raw.expirationTimestamp ?? null,
+      transportEndpoints: raw.transportEndpoints,
+    };
   }
 
   refreshWallet(): void {
@@ -557,7 +623,6 @@ export class RGBLibClient {
     const skipSync = false;
 
     const result = this.wallet.refresh(online, assetId, filter, skipSync);
-    console.log('refresh state:', JSON.stringify(result, null, 2));
   }
 
   dropWallet(): void {
@@ -571,17 +636,17 @@ export class RGBLibClient {
     }
   }
 
-  listTransactions(): Transaction[] {
+  async listTransactions(): Promise<Transaction[]> {
     const online = this.getOnline();
     const skipSync = false;
     return this.wallet.listTransactions(online, skipSync);
   }
 
-  listTransfers(asset_id?: string): Transfer[] {
+  async listTransfers(asset_id?: string): Promise<Transfer[]> {
     return this.wallet.listTransfers(asset_id ? asset_id : null);
   }
 
-  failTransfers(params: FailTransfersRequest): boolean {
+  async failTransfers(params: FailTransfersRequest): Promise<boolean> {
     const online = this.getOnline();
     const batchTransferIdx =
       params.batchTransferIdx !== undefined ? params.batchTransferIdx : null;
@@ -612,10 +677,10 @@ export class RGBLibClient {
     this.wallet.sync(online);
   }
 
-  createBackup(params: {
+  async createBackup(params: {
     backupPath: string;
     password: string;
-  }): WalletBackupResponse {
+  }): Promise<WalletBackupResponse> {
     if (!params.backupPath) {
       throw new ValidationError('backupPath is required', 'backupPath');
     }
@@ -708,7 +773,7 @@ export class RGBLibClient {
    * Trigger a VSS backup immediately using a one-off client created from config.
    * Returns the server version of the stored backup.
    */
-  vssBackup(config: VssBackupConfig): number {
+  async vssBackup(config: VssBackupConfig): Promise<number> {
     const { walletAny, anyLib } = this.getVssBindingsOrThrow('vssBackup');
 
     const client = new anyLib.VssBackupClient({
@@ -730,7 +795,7 @@ export class RGBLibClient {
   /**
    * Get VSS backup status information for this wallet using a one-off client.
    */
-  vssBackupInfo(config: VssBackupConfig): VssBackupInfo {
+  async vssBackupInfo(config: VssBackupConfig): Promise<VssBackupInfo> {
     const { walletAny, anyLib } = this.getVssBindingsOrThrow('vssBackupInfo');
 
     const client = new anyLib.VssBackupClient({

@@ -10,8 +10,8 @@ import {
   deriveKeysFromXpriv,
   ValidationError,
   CryptoError,
+  bip39,
 } from '../dist/index.mjs';
-import bip39 from 'bip39';
 
 describe('keys', () => {
   // Test data from user
