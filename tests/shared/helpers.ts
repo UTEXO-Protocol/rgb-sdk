@@ -1,33 +1,19 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-import type { Transfer } from '../../src/types/wallet-model';
-
 export type JsonRpcSuccess<T> = {
   jsonrpc: string;
   id: string | number;
   result: T;
 };
 
-export type SmokeReport = {
-  timestamp: string;
-  durationMs: number;
-  assetId: string;
-  senderAddress: string;
-  receiverAddress: string;
-  invoice: string;
-  recipientId: string;
-  txid?: string;
-  ack?: boolean | null;
-  validated?: boolean | null;
-  finalStatus?: string;
-  senderSpendableBefore?: number;
-  receiverSettledBefore?: number;
-  receiverSettledAfter?: number;
-  note?: string;
+export type TransferLike = {
+  recipientId?: string;
+  status?: string;
+  txid?: string | null;
 };
 
-function sleep(ms: number): Promise<void> {
+export function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
@@ -122,34 +108,67 @@ export async function pollValidated(
   throw new Error(`Timed out waiting for validated flag on recipient_id=${recipientId}`);
 }
 
-export async function pollTransferSettled(
-  refreshWallet: () => Promise<void>,
-  listTransfers: (assetId?: string) => Promise<Transfer[]>,
-  assetId: string,
-  recipientId: string,
+export async function pollSettledBalanceDelta(
+  getAssetBalance: () => Promise<{ settled?: number | string }>,
+  beforeSettled: number,
+  expectedDelta: number,
   timeoutMs = 180_000,
   intervalMs = 5_000,
-): Promise<Transfer> {
+): Promise<number> {
   const startedAt = Date.now();
 
   while (Date.now() - startedAt < timeoutMs) {
-    await refreshWallet();
-    const transfers = await listTransfers(assetId);
-    const transfer = transfers.find((item) => item.recipientId === recipientId);
-    if (transfer?.status === 'Settled') {
-      return transfer;
+    const balance = await getAssetBalance();
+    const settled = Number(balance.settled ?? 0);
+    if (settled >= beforeSettled + expectedDelta) {
+      return settled;
     }
     await sleep(intervalMs);
   }
 
-  throw new Error(`Timed out waiting for Settled transfer on recipient_id=${recipientId}`);
+  throw new Error(
+    `Timed out waiting for settled balance delta >= ${expectedDelta} (before=${beforeSettled})`,
+  );
 }
 
-export function writeSmokeReport(report: SmokeReport): string {
+export async function pollTransferByRecipientId<T extends TransferLike>(
+  listTransfers: () => Promise<T[]>,
+  recipientId: string,
+  sendTxid?: string,
+  timeoutMs = 120_000,
+  intervalMs = 5_000,
+): Promise<T> {
+  let lastStatus: string | undefined;
+
+  const transfers = await pollCondition(
+    async () => listTransfers(),
+    (items) => {
+      const transfer = items.find((item) => item.recipientId === recipientId);
+      lastStatus = transfer?.status;
+      return transfer?.status === 'Settled';
+    },
+    timeoutMs,
+    intervalMs,
+    `Transfer for recipientId ${recipientId} did not reach Settled within ${timeoutMs}ms (lastStatus=${lastStatus ?? 'missing'})`,
+  );
+
+  const transfer = transfers.find((item) => item.recipientId === recipientId);
+  if (!transfer) {
+    throw new Error(`Transfer for recipientId ${recipientId} not found after polling`);
+  }
+
+  if (sendTxid && transfer.txid && transfer.txid !== sendTxid) {
+    console.warn(`txid mismatch for recipientId ${recipientId}: expected ${sendTxid}, got ${transfer.txid}`);
+  }
+
+  return transfer;
+}
+
+export function writeSmokeReport(report: unknown, fileName = 'smoke-report.json'): string {
   const artifactsDir = path.join(process.cwd(), 'artifacts');
   fs.mkdirSync(artifactsDir, { recursive: true });
 
-  const reportPath = path.join(artifactsDir, 'signet-offline-receiver-smoke.json');
+  const reportPath = path.join(artifactsDir, fileName);
   fs.writeFileSync(reportPath, JSON.stringify(report, null, 2));
   return reportPath;
 }

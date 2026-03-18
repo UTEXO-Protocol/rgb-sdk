@@ -3,7 +3,7 @@ module.exports = {
   preset: 'ts-jest',
   testEnvironment: 'node',
   roots: ['<rootDir>/tests'],
-  testMatch: ['**/signet/**/*.test.ts'],
+  testMatch: ['**/regtest/**/*.test.ts'],
   extensionsToTreatAsEsm: ['.ts'],
   transform: {
     '^.+\\.ts$': ['ts-jest', {
@@ -27,6 +27,6 @@ module.exports = {
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
   },
-  testTimeout: 600000,
+  testTimeout: 120000,
   setupFilesAfterEnv: ['<rootDir>/tests/setup.ts'],
 };

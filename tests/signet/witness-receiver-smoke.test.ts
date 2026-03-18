@@ -17,14 +17,18 @@ afterAll(async () => {
   await disposeSignetPreflight(state);
 });
 
-describe('Signet offline receiver smoke', () => {
-  it('auto-ACKs offline receive, settles, and refresh is idempotent', async () => {
+describe('Signet witness receiver smoke', () => {
+  it('auto-ACKs witness receive, settles, and refresh is idempotent', async () => {
     await runSignetReceiveSmoke({
       state,
-      reportFileName: 'signet-offline-receiver-smoke.json',
+      reportFileName: 'signet-witness-receiver-smoke.json',
+      phase1Metadata: {
+        invoiceType: 'witness',
+        witnessAmountSat: 1000,
+      },
       receiveInvoice: async (receiver) => {
         try {
-          return await receiver.blindReceive({
+          return await receiver.witnessReceive({
             amount: TRANSFER_AMOUNT,
             minConfirmations: 1,
           });
@@ -32,7 +36,7 @@ describe('Signet offline receiver smoke', () => {
           const message = error instanceof Error ? error.message : String(error);
           if (message.includes('InsufficientAllocationSlots')) {
             throw new Error(
-              'Receiver has no free allocation slots for blindReceive. Run `node cli/run.mjs createutxos stage2-receiver --num 5 --size 2000 --feeRate 2` and then `node cli/run.mjs refresh stage2-receiver` before rerunning this smoke.',
+              'Receiver has no free allocation slots for witnessReceive. Run `node cli/run.mjs createutxos stage2-receiver --num 5 --size 2000 --feeRate 2` and then `node cli/run.mjs refresh stage2-receiver` before rerunning this smoke.',
             );
           }
           throw error;
@@ -45,6 +49,7 @@ describe('Signet offline receiver smoke', () => {
         donation: true,
         feeRate: SMOKE_FEE_RATE,
         minConfirmations: 1,
+        witnessData: { amountSat: 1000 },
       }),
     });
   });

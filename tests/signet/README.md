@@ -27,7 +27,6 @@ cp cli/data/stage2-receiver.example.json cli/data/stage2-receiver.json
 ```
 
 Then replace placeholder values with your real wallet data (or regenerate files with `node cli/generate_keys.mjs <wallet_name> signet`).
-
 ## Run
 
 ```bash
