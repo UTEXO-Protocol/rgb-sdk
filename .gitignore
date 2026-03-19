@@ -8,4 +8,6 @@ dist/
 scripts/
 package.docs.json
 cli/data/*
+!cli/data/*.example.json
 .rgb-wallet/
+artifacts/

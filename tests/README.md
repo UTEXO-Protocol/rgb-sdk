@@ -8,6 +8,13 @@ This directory contains unit tests for the SDK. Run from repo root after `npm ru
 npm test
 ```
 
+Integration suites:
+
+```bash
+npm run test:signet
+npm run test:regtest
+```
+
 Or with watch mode:
 
 ```bash
@@ -82,3 +89,8 @@ MNEMONIC_A="..." MNEMONIC_B="..." ASSET_ID="rgb:..." AMOUNT=10 node examples/lig
 ```
 
 See [examples/README.md](../examples/README.md) for full documentation.
+
+## Integration Test Suites
+
+- `tests/signet/README.md` — current Signet manual/integration baseline
+- `tests/regtest/README.md` — current regtest e2e baseline
