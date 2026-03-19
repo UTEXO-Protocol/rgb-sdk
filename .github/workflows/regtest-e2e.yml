@@ -61,16 +61,16 @@ jobs:
           echo "## Regtest E2E Results" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           if grep -q "Tests:.*passed" /tmp/test-output.txt 2>/dev/null; then
-            TESTS_LINE=$(grep "Tests:" /tmp/test-output.txt | tail -1)
-            SUITES_LINE=$(grep "Test Suites:" /tmp/test-output.txt | tail -1)
-            TIME_LINE=$(grep "Time:" /tmp/test-output.txt | tail -1)
-            echo "| Metric | Result |" >> $GITHUB_STEP_SUMMARY
-            echo "|--------|--------|" >> $GITHUB_STEP_SUMMARY
-            echo "| $SUITES_LINE |" >> $GITHUB_STEP_SUMMARY
-            echo "| $TESTS_LINE |" >> $GITHUB_STEP_SUMMARY
-            echo "| $TIME_LINE |" >> $GITHUB_STEP_SUMMARY
+            SUITES=$(grep "Test Suites:" /tmp/test-output.txt | tail -1 | sed 's/Test Suites: //')
+            TESTS=$(grep "Tests:" /tmp/test-output.txt | tail -1 | sed 's/Tests: *//')
+            TIME=$(grep "Time:" /tmp/test-output.txt | tail -1 | sed 's/Time: *//')
+            echo "| | |" >> $GITHUB_STEP_SUMMARY
+            echo "|---|---|" >> $GITHUB_STEP_SUMMARY
+            echo "| **Test Suites** | $SUITES |" >> $GITHUB_STEP_SUMMARY
+            echo "| **Tests** | $TESTS |" >> $GITHUB_STEP_SUMMARY
+            echo "| **Time** | $TIME |" >> $GITHUB_STEP_SUMMARY
           else
-            echo "⚠️ Could not parse test results. Check logs." >> $GITHUB_STEP_SUMMARY
+            echo "> Could not parse test results. Check logs." >> $GITHUB_STEP_SUMMARY
           fi
 
       - name: Upload smoke reports on failure
