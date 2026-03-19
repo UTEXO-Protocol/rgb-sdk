@@ -8,10 +8,7 @@
 import * as path from 'path';
 
 import * as fs from 'fs';
-import {
-  DEFAULT_TRANSPORT_ENDPOINTS,
-  DEFAULT_INDEXER_URLS,
-} from './network-config';
+import { DEFAULT_TRANSPORT_ENDPOINTS, DEFAULT_INDEXER_URLS } from '@utexo/rgb-sdk-core';
 import { Unspent as RawUnspent, DecodeRgbInvoiceResponse } from '../types/rgb-model';
 import { ValidationError, WalletError, normalizeNetwork, logger } from '@utexo/rgb-sdk-core';
 import type { Network } from '../crypto/types';
