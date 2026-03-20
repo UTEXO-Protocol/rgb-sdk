@@ -5,28 +5,30 @@ export {
   WalletManager,
   createWalletManager,
   restoreFromBackup,
-} from './wallet/index';
-export type { WalletInitParams } from './wallet/index';
+} from './wallet/wallet-manager';
+export type { WalletInitParams } from './wallet/wallet-manager';
 
 // UTEXO wallet exports
+export { UTEXOWallet } from './utexo/utexo-wallet';
 export {
-  UTEXOWallet,
+  restoreUtxoWalletFromVss,
+  restoreUtxoWalletFromBackup,
+} from './utexo/restore';
+export {
   UTEXOProtocol,
   LightningProtocol,
   OnchainProtocol,
-  restoreUtxoWalletFromVss,
-  restoreUtxoWalletFromBackup,
   DEFAULT_VSS_SERVER_URL,
-} from './utexo';
+} from '@utexo/rgb-sdk-core';
 export type {
   ConfigOptions,
   IUTEXOProtocol,
   ILightningProtocol,
   IOnchainProtocol,
-} from './utexo';
+} from '@utexo/rgb-sdk-core';
 
 // VSS backup exports (single-wallet restore; use restoreUtxoWalletFromVss for UTEXOWallet)
-export { restoreFromVss } from './client/rgb-lib-client';
+export { restoreFromVss } from './binding/NodeRgbLibBinding';
 
 // Type exports
 export * from './types/rgb-model';
@@ -34,25 +36,21 @@ export type {
   TransferStatus,
   BridgeTransferStatus,
   OnchainSendStatus,
-} from './types/wallet-model';
+} from '@utexo/rgb-sdk-core';
 export type {
   Network,
   PsbtType,
   SignPsbtOptions,
   NetworkVersions,
   Descriptors,
-} from './crypto';
-export type { GeneratedKeys, AccountXpubs } from './crypto';
+} from './crypto/signer';
+export type { GeneratedKeys, AccountXpubs } from '@utexo/rgb-sdk-core';
 
 // Function exports
+export { signPsbt, signPsbtFromSeed, estimatePsbt } from './crypto/signer';
 export {
-  signPsbt,
-  signPsbtSync,
-  signPsbtFromSeed,
   signMessage,
   verifyMessage,
-} from './crypto';
-export {
   generateKeys,
   deriveKeysFromMnemonic,
   deriveKeysFromSeed,
@@ -63,7 +61,8 @@ export {
   getXpubFromXpriv,
   deriveKeysFromXpriv,
   deriveVssSigningKeyFromMnemonic,
-} from './crypto';
+  bip39,
+} from '@utexo/rgb-sdk-core';
 
 // Error exports
 export {
@@ -77,12 +76,11 @@ export {
   NotFoundError,
   ConflictError,
   RgbNodeError,
-} from './errors';
+} from '@utexo/rgb-sdk-core';
 
 // Utility exports
-export { logger, configureLogging, LogLevel } from './utils/logger';
-export { isNode, isBrowser, getEnvironment } from './utils/environment';
-export type { Environment } from './utils/environment';
+export { logger, configureLogging, LogLevel } from '@utexo/rgb-sdk-core';
+export { isNode } from './utils/environment';
 export {
   validateNetwork,
   normalizeNetwork,
@@ -92,9 +90,35 @@ export {
   validateHex,
   validateRequired,
   validateString,
-} from './utils/validation';
-// normalizeNetwork is exported from validation.ts above
-// network.ts is kept for backward compatibility but normalizeNetwork from validation.ts is preferred
+  isNetwork,
+} from '@utexo/rgb-sdk-core';
 
-// Constants exports
-export * from './constants';
+// Constants
+export {
+  DEFAULT_NETWORK,
+  DEFAULT_API_TIMEOUT,
+  DEFAULT_MAX_RETRIES,
+  DEFAULT_LOG_LEVEL,
+  DERIVATION_PURPOSE,
+  DERIVATION_ACCOUNT,
+  KEYCHAIN_RGB,
+  KEYCHAIN_BTC,
+  COIN_RGB_MAINNET,
+  COIN_RGB_TESTNET,
+  COIN_BITCOIN_MAINNET,
+  COIN_BITCOIN_TESTNET,
+  NETWORK_MAP,
+  BIP32_VERSIONS,
+  utexoNetworkMap,
+  utexoNetworkIdMap,
+  getDestinationAsset,
+  getUtxoNetworkConfig,
+} from '@utexo/rgb-sdk-core';
+export type {
+  NetworkAsset,
+  UtxoNetworkId,
+  UtxoNetworkPreset,
+  UtxoNetworkMap,
+  UtxoNetworkIdMap,
+  UtxoNetworkPresetConfig,
+} from '@utexo/rgb-sdk-core';

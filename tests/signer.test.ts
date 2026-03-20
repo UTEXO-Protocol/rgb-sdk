@@ -6,9 +6,9 @@ import {
   signMessage,
   verifyMessage,
   ValidationError,
+  bip39,
 } from '../dist/index.mjs';
 import { estimatePsbt } from '../src/crypto/signer';
-import bip39 from 'bip39';
 const expectedKeys = {
   xpub: 'tpubD6NzVbkrYhZ4XCaTDersU6277zvyyV6uCCeEgx1jfv7bUYMrbTt8Vem1MBt5Gmp7eMwjv4rB54s2kjqNNtTLYpwFsVX7H2H93pJ8SpZFRRi',
   accountXpubVanilla:
@@ -60,7 +60,6 @@ describe('signer', () => {
       expect(signed).toBeTruthy();
       expect(typeof signed).toBe('string');
       expect(signed).toMatch(/^cHNidP8/); // PSBT base64 prefix
-
       // Compare with expected signed PSBT
       expect(signed).toBe(sendSignedPsbt);
     });

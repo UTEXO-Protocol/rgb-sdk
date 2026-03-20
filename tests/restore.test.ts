@@ -12,7 +12,7 @@ import {
   LAYER1_BACKUP_SUFFIX,
   UTEXO_BACKUP_SUFFIX,
 } from '../src/utexo/restore';
-import { ValidationError } from '../src/errors';
+import { ValidationError } from '@utexo/rgb-sdk-core';
 
 describe('restore utilities', () => {
   describe('getBackupStoreId', () => {
