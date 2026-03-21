@@ -4,7 +4,6 @@ node_modules/
 package-lock.json
 package-lock.docs.json
 .env
-dist/
 scripts/
 package.docs.json
 cli/data/*
