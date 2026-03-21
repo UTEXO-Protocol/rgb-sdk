@@ -35,11 +35,13 @@ import type {
   PsbtType,
   NetworkVersions,
   Descriptors,
-  BDKWallet,
-  BDKPsbt,
-  BDKNetwork,
-  BDKSignOptions,
 } from './types';
+
+// Global augmentation for cached Node.js crypto module
+declare global {
+  // eslint-disable-next-line no-var
+  var __nodeCrypto: typeof import('node:crypto') | undefined;
+}
 import { calculateMasterFingerprint } from '../utils/fingerprint';
 import {
   getNetworkVersions as getBIP32NetworkVersions,
@@ -57,7 +59,6 @@ import {
 export type { Network, PsbtType, NetworkVersions, Descriptors } from './types';
 
 export interface SignPsbtOptions {
-  signOptions?: BDKSignOptions;
   preprocess?: boolean;
 }
 
@@ -295,6 +296,50 @@ async function getMasterFingerprint(rootNode: BIP32Interface): Promise<string> {
   return calculateMasterFingerprint(rootNode);
 }
 
+/**
+ * Compute BIP340 tagged hash for TapTweak: SHA256(SHA256("TapTweak") || SHA256("TapTweak") || msg)
+ * Uses synchronous Node.js crypto (available in Node.js & bare runtime)
+ */
+function tapTweakHash(pubkey: Buffer): Buffer {
+  // Use dynamic import workaround for Node.js crypto to avoid ESM issues
+  const nodeCrypto = globalThis.__nodeCrypto as typeof import('node:crypto') | undefined;
+  if (!nodeCrypto) {
+    throw new CryptoError('Node.js crypto not initialized for tapTweakHash');
+  }
+  const tagBuf = Buffer.from('TapTweak', 'utf8');
+  const tagHash = nodeCrypto.createHash('sha256').update(tagBuf).digest();
+  return nodeCrypto.createHash('sha256')
+    .update(Buffer.concat([tagHash, tagHash, pubkey]))
+    .digest();
+}
+
+/**
+ * Tweak a private key for BIP341 Taproot key-path spending.
+ * If the corresponding public key has odd Y, negate first.
+ * Then add tweak = tagged_hash("TapTweak", xOnlyPubkey).
+ */
+function tweakPrivateKey(
+  ecc: any,  // ECCModule
+  privKey: Buffer,
+  xOnlyPubkey: Buffer
+): Buffer {
+  const fullPub = ecc.pointFromScalar(privKey) as Uint8Array | null;
+  if (!fullPub) throw new CryptoError('Invalid private key for taproot tweaking');
+
+  let effectivePriv: Buffer = privKey;
+  // Negate if Y is odd (0x03 prefix on compressed pubkey)
+  if (fullPub.length === 33 && fullPub[0] === 0x03) {
+    if (typeof ecc.privateNegate === 'function') {
+      effectivePriv = Buffer.from(ecc.privateNegate(privKey));
+    }
+  }
+
+  const tweak = tapTweakHash(xOnlyPubkey);
+  const tweaked = ecc.privateAdd(effectivePriv, tweak);
+  if (!tweaked) throw new CryptoError('Tweaked private key is invalid (zero)');
+  return Buffer.from(tweaked);
+}
+
 async function signPsbtFromSeedInternal(
   seed: Buffer | Uint8Array,
   psbtBase64: string,
@@ -303,7 +348,7 @@ async function signPsbtFromSeedInternal(
   deps: SignerDependencies
 ): Promise<string> {
   validatePsbt(psbtBase64, 'psbtBase64');
-  const { ecc, factory, bdk } = deps;
+  const { ecc, factory, Psbt, networks, toXOnly } = deps;
   const bip32 = factory(ecc);
   const seedBuffer = normalizeSeedBuffer(seed);
   const versions = getNetworkVersions(network);
@@ -318,22 +363,19 @@ async function signPsbtFromSeedInternal(
     );
   }
 
+  // Ensure Node.js crypto is available for tapTweakHash
+  if (!globalThis.__nodeCrypto) {
+    try {
+      const nodeCryptoPath = 'node:' + 'crypto';
+      globalThis.__nodeCrypto = await import(nodeCryptoPath);
+    } catch {
+      // Will fail later in tapTweakHash if needed
+    }
+  }
+
   const fp = await getMasterFingerprint(rootNode);
   const psbtType = detectPsbtType(psbtBase64, deps);
   const needsPreprocessing = psbtType === 'send';
-  const { external, internal } = deriveDescriptors(
-    rootNode,
-    fp,
-    network,
-    psbtType
-  );
-
-  let wallet: BDKWallet;
-  try {
-    wallet = bdk.Wallet.create(network as BDKNetwork, external, internal);
-  } catch (error) {
-    throw new CryptoError('Failed to create BDK wallet', error as Error);
-  }
 
   let processedPsbt = psbtBase64.trim();
   if (needsPreprocessing || options.preprocess) {
@@ -350,21 +392,128 @@ async function signPsbtFromSeedInternal(
     }
   }
 
-  let pstb: BDKPsbt;
+  if (!Psbt || !networks) {
+    throw new CryptoError('BitcoinJS modules not loaded');
+  }
+
+  const bjsNet =
+    network === 'mainnet' ? networks.bitcoin : networks.testnet;
+
+  let psbt: BitcoinJsPsbt;
   try {
-    pstb = bdk.Psbt.from_string(processedPsbt);
+    psbt = Psbt.fromBase64(processedPsbt, { network: bjsNet }) as BitcoinJsPsbt;
   } catch (error) {
     throw new CryptoError('Failed to parse PSBT', error as Error);
   }
 
-  const signOptions = options.signOptions || new bdk.SignOptions();
+  // Sign each Taproot input using derivation paths
+  const fingerprintBuf = Buffer.from(fp, 'hex');
+  const auxRand = Buffer.alloc(32, 0); // deterministic nonce (matches libsecp256k1/BDK)
+  let signed = false;
+
   try {
-    wallet.sign(pstb, signOptions);
+    for (let i = 0; i < psbt.inputCount; i++) {
+      const input = psbt.data.inputs[i];
+
+      if (input.tapBip32Derivation && input.tapBip32Derivation.length > 0) {
+        for (const deriv of input.tapBip32Derivation) {
+          const derivFp = Buffer.from(deriv.masterFingerprint);
+          if (!derivFp.equals(fingerprintBuf)) continue;
+
+          let pathStr = pathToString(normalizePath(deriv.path as DerivationPath));
+          if (!pathStr.startsWith('m/')) pathStr = 'm/' + pathStr;
+
+          try {
+            const derivedNode = rootNode.derivePath(pathStr);
+            const privKey = derivedNode.privateKey;
+            if (!privKey) continue;
+
+            const privKeyBuf =
+              privKey instanceof Buffer ? privKey : Buffer.from(privKey);
+            const pubkeyBuf =
+              derivedNode.publicKey instanceof Buffer
+                ? derivedNode.publicKey
+                : Buffer.from(derivedNode.publicKey);
+            const xOnlyPubkey = toXOnly(pubkeyBuf);
+
+            // Tweak private key for BIP341 key-path spend
+            const tweakedPrivKey = tweakPrivateKey(ecc, privKeyBuf, xOnlyPubkey);
+
+            // Get tweaked x-only public key (output key)
+            const tweakedPub = (ecc as any).pointFromScalar(tweakedPrivKey) as Uint8Array;
+            const tweakedXOnly = tweakedPub.length === 33
+              ? Buffer.from(tweakedPub.slice(1))
+              : Buffer.from(tweakedPub);
+
+            // Create Schnorr signer with the tweaked (output) key
+            const signer = {
+              publicKey: tweakedXOnly,
+              signSchnorr: (hash: Buffer): Buffer => {
+                return Buffer.from(
+                  (ecc as any).signSchnorr(hash, tweakedPrivKey, auxRand)
+                );
+              },
+            };
+
+            psbt.signTaprootInput(i, signer as any);
+            signed = true;
+          } catch (_e) {
+            // Input may already be signed or path doesn't match — skip
+          }
+          break; // Only need one successful signing per input
+        }
+      }
+    }
+
+    if (!signed) {
+      // If no inputs could be signed, the PSBT may already be finalized.
+      // Check if any input has finalScriptWitness — if so, return as-is.
+      const alreadyFinalized = Array.from({ length: psbt.inputCount }, (_, i) =>
+        psbt.data.inputs[i]
+      ).some((inp: any) => inp.finalScriptWitness);
+
+      if (alreadyFinalized) {
+        return psbt.toBase64().trim();
+      }
+      throw new Error('No inputs were signed — derivation paths did not match');
+    }
+
+    // Finalize all inputs (creates finalScriptWitness)
+    psbt.finalizeAllInputs();
+
+    // Post-signing cleanup (matching BDK behavior):
+    // 1. Strip tapBip32Derivation from all outputs
+    // 2. Update OPRET proprietary key values in OP_RETURN outputs
+    for (let oi = 0; oi < psbt.data.outputs.length; oi++) {
+      const output = psbt.data.outputs[oi];
+
+      if (output.tapBip32Derivation) {
+        delete output.tapBip32Derivation;
+      }
+
+      // Fix OPRET proprietary key: set value to OP_RETURN data from tx output
+      if (output.unknownKeyVals) {
+        const txOutput = psbt.txOutputs[oi];
+        const script = txOutput?.script;
+        // OP_RETURN: 0x6a <push_byte> <data>
+        if (script && script[0] === 0x6a && script.length >= 34) {
+          const opReturnData = script.subarray(2, 34);
+          for (const kv of output.unknownKeyVals) {
+            const keyHex = Buffer.from(kv.key).toString('hex');
+            // OPRET proprietary key prefix: fc054f505245 (OPRET)
+            if (keyHex.startsWith('fc054f505245')) {
+              kv.value = opReturnData;
+            }
+          }
+        }
+      }
+    }
   } catch (error) {
+    if (error instanceof CryptoError) throw error;
     throw new CryptoError('Failed to sign PSBT', error as Error);
   }
 
-  return pstb.toString().trim();
+  return psbt.toBase64().trim();
 }
 
 /**

@@ -15,8 +15,32 @@ import { Unspent, DecodeRgbInvoiceResponse } from '../types/rgb-model';
 import { ValidationError, WalletError } from '../errors';
 import { normalizeNetwork } from '../utils/validation';
 import type { Network } from '../crypto/types';
-// Use default import for CommonJS compatibility in ESM
-import rgblib from '@utexo/rgb-lib';
+// Dynamic rgb-lib loader: uses @utexo/rgb-lib-bare in bare worklet, @utexo/rgb-lib in Node.js
+import { isBare } from '../utils/environment';
+
+let _rgblib: any = null;
+
+async function ensureRgbLib(): Promise<any> {
+  if (_rgblib) return _rgblib;
+  if (isBare()) {
+    // @ts-ignore — bare addon, no type declarations
+    const mod = await import('@utexo/rgb-lib-bare');
+    _rgblib = mod.default || mod;
+  } else {
+    // @ts-ignore — SWIG binding, resolved at runtime
+    const mod = await import('@utexo/rgb-lib');
+    _rgblib = mod.default || mod;
+  }
+  return _rgblib;
+}
+
+// Synchronous accessor — only works after ensureRgbLib() has been called
+const rgblib: any = new Proxy({}, {
+  get(_target, prop) {
+    if (!_rgblib) throw new Error('rgb-lib not loaded — call ensureRgbLib() first');
+    return _rgblib[prop];
+  }
+});
 import {
   Transfer,
   Transaction,
@@ -70,17 +94,19 @@ export interface RgbLibGeneratedKeys {
   masterFingerprint: string;
 }
 
-export const generateKeys = (
+export const generateKeys = async (
   network: string = 'regtest'
-): RgbLibGeneratedKeys => {
+): Promise<RgbLibGeneratedKeys> => {
+  await ensureRgbLib();
   return rgblib.generateKeys(mapNetworkToRgbLib(network));
 };
 
-export const restoreWallet = (params: {
+export const restoreWallet = async (params: {
   backupFilePath: string;
   password: string;
   dataDir: string;
-}): WalletRestoreResponse => {
+}): Promise<WalletRestoreResponse> => {
+  await ensureRgbLib();
   const { backupFilePath, password, dataDir } = params;
 
   if (!fs.existsSync(backupFilePath)) {
@@ -105,10 +131,11 @@ export const restoreWallet = (params: {
  * Restore a wallet from a VSS backup into a target directory.
  * Returns a message indicating the restored wallet path.
  */
-export const restoreFromVss = (params: {
+export const restoreFromVss = async (params: {
   config: VssBackupConfig;
   targetDir: string;
-}): WalletRestoreResponse & { walletPath: string } => {
+}): Promise<WalletRestoreResponse & { walletPath: string }> => {
+  await ensureRgbLib();
   const anyLib: any = rgblib as any;
   if (typeof anyLib.restoreFromVss !== 'function') {
     throw new WalletError(
@@ -149,6 +176,22 @@ export class RGBLibClient {
   private readonly dataDir: string;
   private readonly transportEndpoint: string;
   private readonly indexerUrl: string;
+
+  /**
+   * Async factory — loads rgb-lib (native addon in bare, SWIG in Node.js) before constructing
+   */
+  static async create(params: {
+    xpubVan: string;
+    xpubCol: string;
+    masterFingerprint: string;
+    dataDir: string;
+    network: string;
+    transportEndpoint?: string;
+    indexerUrl?: string;
+  }): Promise<RGBLibClient> {
+    await ensureRgbLib();
+    return new RGBLibClient(params);
+  }
 
   constructor(params: {
     xpubVan: string;

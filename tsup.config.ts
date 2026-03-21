@@ -10,6 +10,7 @@ export default defineConfig({
   clean: true,
   splitting: false,
   treeshake: true,
+  external: ['@utexo/rgb-lib', '@utexo/rgb-lib-bare'],
   outExtension: ({ format }) => ({
     js: format === 'cjs' ? '.cjs' : '.mjs',
   }),

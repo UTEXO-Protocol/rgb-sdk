@@ -161,11 +161,11 @@ export async function restoreUtxoWalletFromVss(params: {
     ...config,
     storeId: `${config.storeId}_utexo`,
   };
-  const { walletPath: layer1Path } = restoreFromVss({
+  const { walletPath: layer1Path } = await restoreFromVss({
     config: layer1Config,
     targetDir: path.join(targetDir, layer1Network, masterFingerprint),
   });
-  const { walletPath: utexoPath } = restoreFromVss({
+  const { walletPath: utexoPath } = await restoreFromVss({
     config: utexoConfig,
     targetDir: path.join(targetDir, utexoNetwork, masterFingerprint),
   });

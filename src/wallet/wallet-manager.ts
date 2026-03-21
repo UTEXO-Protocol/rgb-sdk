@@ -19,9 +19,9 @@ import type { IWalletManager } from './IWalletManager';
  * @param params - Restore parameters including backup file path, password, and restore directory
  * @returns Wallet restore response
  */
-export const restoreFromBackup = (
+export const restoreFromBackup = async (
   params: IWalletModel.RestoreWalletRequestModel
-): IWalletModel.WalletRestoreResponse => {
+): Promise<IWalletModel.WalletRestoreResponse> => {
   const { backupFilePath, password, dataDir } = params;
 
   if (!backupFilePath) {
@@ -34,7 +34,7 @@ export const restoreFromBackup = (
     throw new ValidationError('restore directory is required', 'restoreDir');
   }
 
-  return restoreWallet({
+  return await restoreWallet({
     backupFilePath,
     password,
     dataDir,
@@ -89,7 +89,7 @@ export type WalletInitParams = {
  * ```
  */
 export class WalletManager implements IWalletManager {
-  private readonly client: RGBLibClient;
+  private client!: RGBLibClient;
   private readonly xpub: string | null;
   private readonly xpubVan: string;
   private readonly xpubCol: string;
@@ -130,7 +130,16 @@ export class WalletManager implements IWalletManager {
         this.masterFingerprint
       );
 
-    this.client = new RGBLibClient({
+    // Store params for lazy initialization
+    this._initParams = params;
+  }
+
+  private _initParams: any;
+
+  public async initialize(): Promise<void> {
+    if (this.client) return; // already initialized
+    const params = this._initParams;
+    this.client = await RGBLibClient.create({
       xpubVan: params.xpubVan,
       xpubCol: params.xpubCol,
       masterFingerprint: params.masterFingerprint,
@@ -139,10 +148,6 @@ export class WalletManager implements IWalletManager {
       indexerUrl: params.indexerUrl,
       dataDir: params.dataDir ?? this.dataDir,
     });
-  }
-
-  public async initialize(): Promise<void> {
-    console.log('initializing is not reqire');
   }
 
   public async goOnline(): Promise<void> {

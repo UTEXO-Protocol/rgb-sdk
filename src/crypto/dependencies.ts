@@ -6,8 +6,6 @@ import type {
   BitcoinJsPayments,
   BitcoinJsNetworks,
   BIP341Module,
-  BDKModule,
-  BDKInit,
 } from './types';
 
 type BaseDependencies = {
@@ -21,8 +19,6 @@ export type SignerDependencies = BaseDependencies & {
   payments: BitcoinJsPayments;
   networks: BitcoinJsNetworks;
   toXOnly: (pubkey: Buffer) => Buffer;
-  bdk: BDKModule;
-  init: BDKInit;
 };
 
 let baseDeps: BaseDependencies | null = null;
@@ -100,13 +96,6 @@ async function loadSignerDependencies(): Promise<SignerDependencies> {
   const base = await ensureBaseDependencies();
 
   if (isNode()) {
-    const bdkNode = await import('@bitcoindevkit/bdk-wallet-node');
-    const init =
-      ((bdkNode as { default?: unknown }).default as BDKInit) ||
-      ((bdkNode as { init?: unknown }).init as BDKInit) ||
-      (bdkNode as unknown as BDKInit);
-    const bdk = bdkNode as unknown as BDKModule;
-
     const nodeModule = 'node:' + 'module';
     const { createRequire } = await import(nodeModule);
     // @ts-ignore - import.meta.url not available in CJS build context
@@ -116,7 +105,12 @@ async function loadSignerDependencies(): Promise<SignerDependencies> {
       Psbt: typeof import('bitcoinjs-lib').Psbt;
       payments: BitcoinJsPayments;
       networks: BitcoinJsNetworks;
+      initEccLib: (ecc: any) => void;
     };
+
+    // Initialize bitcoinjs-lib ECC (required for Taproot operations)
+    bitcoinjs.initEccLib(base.ecc);
+
     const Psbt = bitcoinjs.Psbt;
     const payments = bitcoinjs.payments;
     const networks = bitcoinjs.networks;
@@ -133,23 +127,19 @@ async function loadSignerDependencies(): Promise<SignerDependencies> {
       payments,
       networks,
       toXOnly,
-      bdk,
-      init,
     };
   }
-
-  const bdkWeb = await import('@bitcoindevkit/bdk-wallet-web');
-  const init =
-    ((bdkWeb as { default?: unknown }).default as BDKInit) ||
-    ((bdkWeb as { init?: unknown }).init as BDKInit) ||
-    (bdkWeb as unknown as BDKInit);
-  const bdk = bdkWeb as unknown as BDKModule;
 
   const bitcoinModule = (await import('bitcoinjs-lib')) as unknown as {
     Psbt: typeof import('bitcoinjs-lib').Psbt;
     payments: BitcoinJsPayments;
     networks: BitcoinJsNetworks;
+    initEccLib: (ecc: any) => void;
   };
+
+  // Initialize bitcoinjs-lib ECC (required for Taproot operations)
+  bitcoinModule.initEccLib(base.ecc);
+
   const Psbt = bitcoinModule.Psbt;
   const payments = bitcoinModule.payments;
   const networks = bitcoinModule.networks;
@@ -165,8 +155,6 @@ async function loadSignerDependencies(): Promise<SignerDependencies> {
     payments,
     networks,
     toXOnly,
-    bdk,
-    init,
   };
 }
 
