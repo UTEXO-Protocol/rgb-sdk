@@ -51,13 +51,6 @@ type ParallelSendsReport = {
       ack?: boolean;
       validated?: boolean;
       status?: string;
-      retryRecipientId?: string;
-      retryAttemptCount?: number;
-      retryTxid?: string;
-      retryError?: string;
-      retryAck?: boolean;
-      retryValidated?: boolean;
-      retryStatus?: string;
     }>;
   };
   phase2: {
@@ -138,7 +131,7 @@ afterAll(async () => {
 });
 
 describe('Regtest parallel sends to same receiver', () => {
-  it('keeps consistent state under concurrent sends and reaches the expected final delta', async () => {
+  it('settles two concurrent sends without hiding conflicts behind recovery logic', async () => {
     const sender = state.sender!;
     const receiver = state.receiver!;
     const startedAt = Date.now();
@@ -224,103 +217,16 @@ describe('Regtest parallel sends to same receiver', () => {
           continue;
         }
 
-        const serializedError = [String(sendResult.reason), (sendResult.reason as Error)?.message ?? '']
+        const serializedError = [
+          String(sendResult.reason),
+          (sendResult.reason as Error)?.message ?? '',
+        ]
           .filter(Boolean)
           .join('\n');
         item.error = serializedError;
-        expect(
-          /FailedBroadcast|insufficient fee|rejecting replacement|mempool|conflict/i.test(
-            serializedError,
-          ),
-        ).toBe(true);
-
-        await pollCondition(
-          async () => {
-            await sender.refreshWallet();
-            return sender.getAssetBalance(state.assetId);
-          },
-          (balance) => Number(balance.spendable ?? 0) >= TRANSFER_AMOUNT,
-          30_000,
-          1_000,
-          `Sender did not recover spendable balance for retry after concurrent conflict (${attempt.label})`,
+        throw new Error(
+          `Concurrent send ${attempt.label} failed instead of settling independently. This indicates a parallel-send conflict or sender state bug.\n${serializedError}`,
         );
-
-        const retryInvoice = await receiver.blindReceive({
-          amount: TRANSFER_AMOUNT,
-          minConfirmations: 1,
-        });
-        item.retryRecipientId = retryInvoice.recipientId;
-
-        let retrySend:
-          | {
-              txid: string;
-            }
-          | undefined;
-        const retryErrors: string[] = [];
-        for (let retryAttempt = 1; retryAttempt <= 3; retryAttempt += 1) {
-          item.retryAttemptCount = retryAttempt;
-          try {
-            retrySend = await sender.send({
-              invoice: retryInvoice.invoice,
-              assetId: state.assetId,
-              amount: TRANSFER_AMOUNT,
-              donation: true,
-              feeRate: SEND_FEE_RATE,
-              minConfirmations: 1,
-            });
-            break;
-          } catch (retryError) {
-            const serializedRetryError = [String(retryError), (retryError as Error)?.message ?? '']
-              .filter(Boolean)
-              .join('\n');
-            retryErrors.push(serializedRetryError);
-            if (!/InsufficientAssignments/i.test(serializedRetryError) || retryAttempt === 3) {
-              item.retryError = retryErrors.join('\n---\n');
-              throw new Error(
-                `Retry send failed for concurrent conflict (${attempt.label}): ${item.retryError}`,
-              );
-            }
-
-            await mine(1);
-            await pollCondition(
-              async () => {
-                await sender.refreshWallet();
-                return sender.getAssetBalance(state.assetId);
-              },
-              (balance) => Number(balance.spendable ?? 0) >= TRANSFER_AMOUNT,
-              30_000,
-              1_000,
-              `Sender spendable balance did not recover between retry attempts (${attempt.label})`,
-            );
-          }
-        }
-        if (!retrySend) {
-          throw new Error(`Retry send produced no txid for concurrent conflict (${attempt.label})`);
-        }
-        item.retryTxid = retrySend.txid;
-        await mine(1);
-
-        item.retryAck = await pollAck(PROXY_HTTP_URL, retryInvoice.recipientId, 30_000, 1_000);
-        item.retryValidated = await pollValidated(
-          PROXY_HTTP_URL,
-          retryInvoice.recipientId,
-          30_000,
-          1_000,
-        );
-        const retryTransfer = await pollTransferByRecipientId(
-          async () => {
-            await receiver.refreshWallet();
-            return receiver.listTransfers(state.assetId);
-          },
-          retryInvoice.recipientId,
-          retrySend.txid,
-          30_000,
-          1_000,
-        );
-        item.retryStatus = retryTransfer.status;
-        expect(item.retryAck).toBe(true);
-        expect(item.retryValidated).toBe(true);
-        expect(item.retryStatus).toBe('Settled');
       }
 
       expect(report.phase1.concurrentResults.length).toBe(2);
@@ -331,7 +237,7 @@ describe('Regtest parallel sends to same receiver', () => {
       report.phase2.receiverSettledAfter = receiverSettledAfter;
       report.phase2.receiverDelta = receiverDelta;
 
-      expect(receiverDelta).toBeGreaterThanOrEqual(TRANSFER_AMOUNT * 2);
+      expect(receiverDelta).toBe(TRANSFER_AMOUNT * 2);
     } finally {
       report.durationMs = Date.now() - startedAt;
       const reportPath = writeSmokeReport(report, 'regtest-parallel-sends-same-receiver.json');
