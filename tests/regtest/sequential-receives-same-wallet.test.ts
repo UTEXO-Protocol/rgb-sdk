@@ -46,7 +46,7 @@ type SequentialReceivesReport = {
     recipientId: string;
     senderSpendableBeforeSend?: number;
     sendAttempts?: number;
-    sendRetryErrors?: string[];
+    sendError?: string;
     txid?: string;
     ack?: boolean;
     validated?: boolean;
@@ -203,52 +203,28 @@ describe('Regtest multiple sequential receives on same wallet state', () => {
         cycleReport.invoice = invoiceData.invoice;
         cycleReport.recipientId = invoiceData.recipientId;
 
-        let sendResult:
-          | {
-              txid: string;
-            }
-          | undefined;
-        const sendRetryErrors: string[] = [];
-        for (let attempt = 1; attempt <= 3; attempt += 1) {
-          cycleReport.sendAttempts = attempt;
-          try {
-            sendResult = await sender.send({
-              invoice: invoiceData.invoice,
-              assetId: state.assetId,
-              amount: TRANSFER_AMOUNT,
-              donation: true,
-              feeRate: SEND_FEE_RATE,
-              minConfirmations: 1,
-            });
-            break;
-          } catch (error) {
-            const serialized = [String(error), (error as Error)?.message ?? '']
-              .filter(Boolean)
-              .join('\n');
-            sendRetryErrors.push(serialized);
-            if (!/InsufficientAssignments/i.test(serialized) || attempt === 3) {
-              cycleReport.sendRetryErrors = sendRetryErrors;
-              throw error;
-            }
-            await mine(1);
-            await pollCondition(
-              async () => {
-                await sender.refreshWallet();
-                return sender
-                  .getAssetBalance(state.assetId)
-                  .catch(() => ({ spendable: 0 }));
-              },
-              (balance) => Number(balance.spendable ?? 0) >= TRANSFER_AMOUNT,
-              30_000,
-              1_000,
-              `Sender did not recover spendable balance for retry at cycle=${cycle} attempt=${attempt}`
+        cycleReport.sendAttempts = 1;
+        let sendResult: { txid: string };
+        try {
+          sendResult = await sender.send({
+            invoice: invoiceData.invoice,
+            assetId: state.assetId,
+            amount: TRANSFER_AMOUNT,
+            donation: true,
+            feeRate: SEND_FEE_RATE,
+            minConfirmations: 1,
+          });
+        } catch (error) {
+          const serialized = [String(error), (error as Error)?.message ?? '']
+            .filter(Boolean)
+            .join('\n');
+          cycleReport.sendError = serialized;
+          if (/InsufficientAssignments/i.test(serialized)) {
+            throw new Error(
+              `Sequential receive failed at cycle=${cycle} with InsufficientAssignments. This indicates slot leakage or state drift in the sender path.\n${serialized}`
             );
           }
-        }
-        cycleReport.sendRetryErrors =
-          sendRetryErrors.length > 0 ? sendRetryErrors : undefined;
-        if (!sendResult) {
-          throw new Error(`Missing sendResult for cycle=${cycle}`);
+          throw error;
         }
         cycleReport.txid = sendResult.txid;
 
@@ -288,9 +264,7 @@ describe('Regtest multiple sequential receives on same wallet state', () => {
         const receiverSettledAfterCycle = Number(balance.settled ?? 0);
         cycleReport.receiverSettledAfterCycle = receiverSettledAfterCycle;
         expectedSettledLowerBound += TRANSFER_AMOUNT;
-        expect(receiverSettledAfterCycle).toBeGreaterThanOrEqual(
-          expectedSettledLowerBound
-        );
+        expect(receiverSettledAfterCycle).toBe(expectedSettledLowerBound);
 
         // Last cycle: no next send depends on spendable recovery; capture observed value as-is.
         const senderBalanceAfterCycle = await pollCondition(
@@ -317,9 +291,7 @@ describe('Regtest multiple sequential receives on same wallet state', () => {
       const totalDelta = finalSettled - state.receiverSettledBefore;
       report.phase2.finalSettled = finalSettled;
       report.phase2.totalDelta = totalDelta;
-      expect(totalDelta).toBeGreaterThanOrEqual(
-        SEQUENTIAL_ITERATIONS * TRANSFER_AMOUNT
-      );
+      expect(totalDelta).toBe(SEQUENTIAL_ITERATIONS * TRANSFER_AMOUNT);
 
       const postRefreshSettled: number[] = [];
       for (let refreshCycle = 1; refreshCycle <= 2; refreshCycle += 1) {

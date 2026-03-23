@@ -228,7 +228,7 @@ describe('Regtest offline receiver', () => {
       report.phase1.receiverSettledAfter = receiverSettledAfter;
 
       expect(currentTransfer.status).toBe('Settled');
-      expect(receiverSettledAfter - state.receiverSettledBefore).toBeGreaterThanOrEqual(
+      expect(receiverSettledAfter - state.receiverSettledBefore).toBe(
         TRANSFER_AMOUNT,
       );
 

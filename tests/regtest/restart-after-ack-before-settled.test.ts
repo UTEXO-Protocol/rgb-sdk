@@ -229,7 +229,7 @@ describe('Regtest receiver restart after ACK before Settled', () => {
 
       expect(currentTransfer.status).toBe('Settled');
       expect(currentTransfer.txid).toBe(sendResult.txid);
-      expect(receiverSettledAfter - state.receiverSettledBefore).toBeGreaterThanOrEqual(
+      expect(receiverSettledAfter - state.receiverSettledBefore).toBe(
         TRANSFER_AMOUNT,
       );
     } finally {

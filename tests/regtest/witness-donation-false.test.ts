@@ -48,6 +48,7 @@ type WitnessDonationFalseReport = {
     ackBeforeRefresh?: boolean | null;
     txKnownBeforeRefresh?: boolean;
     transferStatusAfterRefresh?: string;
+    receiverSettledAfterRefresh?: number;
     ackAfterRefresh?: boolean | null;
     lateManualAckPosted?: boolean;
     txKnownAfterReceiverRefresh?: boolean;
@@ -203,8 +204,11 @@ describe('Regtest witness donation=false flow', () => {
         (item) => item.recipientId === invoiceData.recipientId,
       );
       report.phase1.transferStatusAfterRefresh = transferAfterRefresh?.status;
-      expect(transferAfterRefresh?.status).toBeDefined();
-      expect(transferAfterRefresh?.status).not.toBe('Settled');
+      const receiverBalanceAfterRefresh = await receiver.getAssetBalance(state.assetId);
+      const receiverSettledAfterRefresh = Number(receiverBalanceAfterRefresh.settled ?? 0);
+      report.phase1.receiverSettledAfterRefresh = receiverSettledAfterRefresh;
+      expect(transferAfterRefresh?.status).toBe('WaitingConfirmations');
+      expect(receiverSettledAfterRefresh).toBe(state.receiverSettledBefore);
 
       const ackAfterRefresh = await pollCondition(
         async () =>
@@ -265,7 +269,7 @@ describe('Regtest witness donation=false flow', () => {
 
       expect(currentTransfer.status).toBe('Settled');
       expect(currentTransfer.txid).toBe(sendResult.txid);
-      expect(receiverSettledAfter - state.receiverSettledBefore).toBeGreaterThanOrEqual(
+      expect(receiverSettledAfter - state.receiverSettledBefore).toBe(
         TRANSFER_AMOUNT,
       );
     } finally {

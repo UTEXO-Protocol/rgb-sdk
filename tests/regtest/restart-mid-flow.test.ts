@@ -28,6 +28,14 @@ const PROXY_HTTP_URL = getRegtestProxyHttpUrl();
 const TRANSFER_AMOUNT = 1;
 const SEND_FEE_RATE = 2;
 
+type TransferViewSnapshot = {
+  unfilteredStatus?: string;
+  filteredStatus?: string;
+  filteredError?: string | null;
+  unfilteredCount: number;
+  filteredCount?: number;
+};
+
 type RestartMidFlowReport = {
   timestamp: string;
   durationMs: number;
@@ -44,11 +52,18 @@ type RestartMidFlowReport = {
     invoice: string;
     recipientId: string;
     txid?: string;
-    ack?: boolean;
-    validated?: boolean;
+    ackBeforeRestart?: boolean | null;
+    transferStatusBeforeRestart?: string;
   };
   phase2: {
     receiverRecreated?: boolean;
+    transferStatusAfterRestartBeforeRefresh?: string;
+    ackAfterRefresh?: boolean;
+    validatedAfterRefresh?: boolean;
+    transferStatusAfterRefresh?: string;
+    filteredTransferStatusAfterRefresh?: string;
+    filteredTransferErrorAfterRefresh?: string | null;
+    postRefreshSnapshots?: TransferViewSnapshot[];
     currentTransferStatus?: string;
     currentTransferTxid?: string | null;
     txidMatch?: boolean;
@@ -90,6 +105,38 @@ async function restartReceiver(): Promise<RegtestWallet> {
   );
   state.receiver = receiver;
   return receiver;
+}
+
+async function snapshotTransferViews(
+  wallet: RegtestWallet,
+  recipientId: string,
+  assetId: string,
+): Promise<TransferViewSnapshot> {
+  const unfilteredTransfers = await wallet.listTransfers();
+  const unfilteredTransfer = unfilteredTransfers.find(
+    (item) => item.recipientId === recipientId,
+  );
+
+  try {
+    const filteredTransfers = await wallet.listTransfers(assetId);
+    const filteredTransfer = filteredTransfers.find(
+      (item) => item.recipientId === recipientId,
+    );
+    return {
+      unfilteredStatus: unfilteredTransfer?.status,
+      filteredStatus: filteredTransfer?.status,
+      filteredError: null,
+      unfilteredCount: unfilteredTransfers.length,
+      filteredCount: filteredTransfers.length,
+    };
+  } catch (error) {
+    return {
+      unfilteredStatus: unfilteredTransfer?.status,
+      filteredStatus: undefined,
+      filteredError: String(error),
+      unfilteredCount: unfilteredTransfers.length,
+    };
+  }
 }
 
 beforeAll(async () => {
@@ -152,7 +199,7 @@ afterAll(async () => {
 });
 
 describe('Regtest receiver restart mid-flow', () => {
-  it('recreates receiver in same dataDir and still converges to Settled', async () => {
+  it('recreates receiver before the first refresh and still converges from WaitingCounterparty to Settled', async () => {
     const sender = state.sender!;
     const receiver = state.receiver!;
     const startedAt = Date.now();
@@ -193,17 +240,88 @@ describe('Regtest receiver restart mid-flow', () => {
       });
       report.phase1.txid = sendResult.txid;
 
-      await mine(1);
+      const ackBeforeRestart = await proxyRpc<boolean | null>(PROXY_HTTP_URL, 'ack.get', {
+        recipient_id: invoiceData.recipientId,
+      });
+      report.phase1.ackBeforeRestart = ackBeforeRestart;
 
-      const ack = await pollAck(PROXY_HTTP_URL, invoiceData.recipientId, 30_000, 1_000);
-      const validated = await pollValidated(PROXY_HTTP_URL, invoiceData.recipientId, 30_000, 1_000);
-      report.phase1.ack = ack;
-      report.phase1.validated = validated;
-      expect(ack).toBe(true);
-      expect(validated).toBe(true);
+      const transferBeforeRestart = (await receiver.listTransfers()).find(
+        (item) => item.recipientId === invoiceData.recipientId,
+      );
+      report.phase1.transferStatusBeforeRestart = transferBeforeRestart?.status;
+      expect(transferBeforeRestart?.status).toBe('WaitingCounterparty');
 
       const restartedReceiver = await restartReceiver();
       report.phase2.receiverRecreated = true;
+
+      const transferAfterRestartBeforeRefresh = (
+        await restartedReceiver.listTransfers()
+      ).find((item) => item.recipientId === invoiceData.recipientId);
+      report.phase2.transferStatusAfterRestartBeforeRefresh =
+        transferAfterRestartBeforeRefresh?.status;
+      expect(transferAfterRestartBeforeRefresh?.status).toBe('WaitingCounterparty');
+
+      await restartedReceiver.refreshWallet();
+
+      const ackAfterRefresh = await pollAck(
+        PROXY_HTTP_URL,
+        invoiceData.recipientId,
+        30_000,
+        1_000
+      );
+      const validatedAfterRefresh = await pollValidated(
+        PROXY_HTTP_URL,
+        invoiceData.recipientId,
+        30_000,
+        1_000
+      );
+      report.phase2.ackAfterRefresh = ackAfterRefresh;
+      report.phase2.validatedAfterRefresh = validatedAfterRefresh;
+      expect(ackAfterRefresh).toBe(true);
+      expect(validatedAfterRefresh).toBe(true);
+
+      const postRefreshSnapshots: TransferViewSnapshot[] = [];
+      let transferAfterRefresh: TransferViewSnapshot;
+      try {
+        transferAfterRefresh = await pollCondition(
+          async () => {
+            const snapshot = await snapshotTransferViews(
+              restartedReceiver,
+              invoiceData.recipientId,
+              state.assetId,
+            );
+            postRefreshSnapshots.push(snapshot);
+            if (postRefreshSnapshots.length > 12) {
+              postRefreshSnapshots.shift();
+            }
+            return snapshot;
+          },
+          (snapshot) =>
+            snapshot.unfilteredStatus === 'WaitingConfirmations' ||
+            snapshot.filteredStatus === 'WaitingConfirmations',
+          10_000,
+          250,
+          `Transfer for recipient_id=${invoiceData.recipientId} did not become visible in WaitingConfirmations after recreate+refresh`,
+        );
+      } catch (error) {
+        report.phase2.postRefreshSnapshots = postRefreshSnapshots;
+        throw new Error(
+          `After recreate+refresh, transfer for recipient_id=${invoiceData.recipientId} was not visible in WaitingConfirmations.\nSnapshots=${JSON.stringify(
+            postRefreshSnapshots,
+            null,
+            2,
+          )}\nOriginal error=${String(error)}`
+        );
+      }
+
+      report.phase2.postRefreshSnapshots = postRefreshSnapshots;
+      report.phase2.transferStatusAfterRefresh = transferAfterRefresh.unfilteredStatus;
+      report.phase2.filteredTransferStatusAfterRefresh = transferAfterRefresh.filteredStatus;
+      report.phase2.filteredTransferErrorAfterRefresh = transferAfterRefresh.filteredError;
+      expect(transferAfterRefresh.unfilteredStatus).toBe('WaitingConfirmations');
+      expect(transferAfterRefresh.filteredStatus).toBe('WaitingConfirmations');
+
+      await mine(1);
 
       const currentTransfer = await pollTransferByRecipientId(
         async () => {
@@ -225,7 +343,7 @@ describe('Regtest receiver restart mid-flow', () => {
 
       expect(currentTransfer.status).toBe('Settled');
       expect(currentTransfer.txid).toBe(sendResult.txid);
-      expect(receiverSettledAfter - state.receiverSettledBefore).toBeGreaterThanOrEqual(
+      expect(receiverSettledAfter - state.receiverSettledBefore).toBe(
         TRANSFER_AMOUNT,
       );
     } finally {
