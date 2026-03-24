@@ -51,6 +51,10 @@ describe('Signet witness receiver smoke', () => {
         minConfirmations: 1,
         witnessData: { amountSat: 1000 },
       }),
+      strictMode: {
+        exactDelta: true,
+        strictTransferCheck: true,
+      },
     });
   });
 });

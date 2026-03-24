@@ -46,6 +46,10 @@ describe('Signet offline receiver smoke', () => {
         feeRate: SMOKE_FEE_RATE,
         minConfirmations: 1,
       }),
+      strictMode: {
+        exactDelta: true,
+        strictTransferCheck: true,
+      },
     });
   });
 });
