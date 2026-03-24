@@ -37,6 +37,7 @@ type ParallelSendsReport = {
     receiverAddress: string;
     assetId: string;
     receiverSettledBefore: number;
+    senderAssetAllocationUtxos?: string[];
   };
   phase1: {
     invoiceA: string;
@@ -102,7 +103,7 @@ beforeAll(async () => {
   const issuedAsset = await sender.issueAssetNia({
     ticker: `PS${Date.now().toString().slice(-4)}`,
     name: `ParallelSend${Date.now().toString().slice(-6)}`,
-    amounts: [20],
+    amounts: [10, 10],
     precision: 0,
   });
   state.assetId = issuedAsset.assetId;
@@ -146,6 +147,7 @@ describe('Regtest parallel sends to same receiver', () => {
         receiverAddress: state.receiverAddress,
         assetId: state.assetId,
         receiverSettledBefore: state.receiverSettledBefore,
+        senderAssetAllocationUtxos: undefined,
       },
       phase1: {
         invoiceA: '',
@@ -167,6 +169,17 @@ describe('Regtest parallel sends to same receiver', () => {
       report.phase1.invoiceB = invoiceB.invoice;
       report.phase1.recipientIdB = invoiceB.recipientId;
       expect(invoiceA.recipientId).not.toBe(invoiceB.recipientId);
+
+      const senderUnspents = await sender.listUnspents();
+      const senderAssetAllocationUtxos = senderUnspents
+        .filter((unspent) =>
+          unspent.rgbAllocations.some(
+            (allocation) => allocation.assetId === state.assetId && allocation.settled,
+          ),
+        )
+        .map((unspent) => `${unspent.utxo.outpoint.txid}:${unspent.utxo.outpoint.vout}`);
+      report.preconditions.senderAssetAllocationUtxos = senderAssetAllocationUtxos;
+      expect(new Set(senderAssetAllocationUtxos).size).toBeGreaterThanOrEqual(2);
 
       const attemptPlan = [
         { label: 'A' as const, invoice: invoiceA.invoice, recipientId: invoiceA.recipientId },

@@ -63,6 +63,13 @@ export type RegtestWallet = {
   signPsbt(psbt: string): Promise<string>;
   sendEnd(params: { signedPsbt: string }): Promise<{ txid: string }>;
   listTransfers(assetId?: string): Promise<Array<{ recipientId?: string; status?: string; txid?: string | null }>>;
+  listUnspents(): Promise<
+    Array<{
+      utxo: { outpoint: { txid: string; vout: number } };
+      rgbAllocations: Array<{ assetId?: string; settled: boolean }>;
+      pendingBlinded: number;
+    }>
+  >;
 };
 
 export type JsonRpcLikeResponse<T = unknown> = {
