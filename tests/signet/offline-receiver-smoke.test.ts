@@ -49,6 +49,7 @@ describe('Signet offline receiver smoke', () => {
       strictMode: {
         exactDelta: true,
         strictTransferCheck: true,
+        senderSettlesBeforeReceiverRefresh: true,
       },
     });
   });

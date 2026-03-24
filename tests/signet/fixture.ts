@@ -225,6 +225,7 @@ export function createBaseReport(state: PreflightState) {
       txid: undefined as string | undefined,
       ack: undefined as boolean | null | undefined,
       validated: undefined as boolean | null | undefined,
+      senderTransferStatusBeforeReceiverRefresh: undefined as string | undefined,
       receiverSettledWhileOffline: undefined as number | undefined,
       receiverSettledAfter: undefined as number | undefined,
       currentTransferStatus: undefined as string | undefined,
@@ -284,6 +285,7 @@ export async function runSignetReceiveSmoke(params: {
   strictMode?: {
     exactDelta?: boolean;
     strictTransferCheck?: boolean;
+    senderSettlesBeforeReceiverRefresh?: boolean;
   };
   phase1Metadata?: {
     invoiceType?: 'witness' | 'blind';
@@ -344,6 +346,22 @@ export async function runSignetReceiveSmoke(params: {
 
     expect(ack).toBe(true);
     expect(validated).toBe(true);
+
+    if (strictMode?.senderSettlesBeforeReceiverRefresh) {
+      const senderTransfer = await pollCondition(
+        async () => {
+          await sender.refreshWallet();
+          const transfers = await sender.listTransfers(assetId);
+          return transfers.find((item) => item.txid === sendResult.txid);
+        },
+        (transfer) => transfer?.status === 'Settled',
+        120_000,
+        5_000,
+        `Sender transfer txid=${sendResult.txid} did not reach Settled before receiver refresh`,
+      );
+      report.phase1.senderTransferStatusBeforeReceiverRefresh = senderTransfer?.status;
+      expect(senderTransfer?.status).toBe('Settled');
+    }
 
     const offlineBalance = await receiver.getAssetBalance(assetId).catch((error) => {
       const message = error instanceof Error ? error.message : String(error);

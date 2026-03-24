@@ -54,6 +54,7 @@
     "generate_keys": "node cli/generate_keys.mjs",
     "test:signet:witness": "npm run build && NODE_OPTIONS='--experimental-vm-modules' jest --config jest.signet.config.js --runInBand --verbose --runTestsByPath tests/signet/witness-receiver-smoke.test.ts",
     "test:signet:convergence": "npm run build && NODE_OPTIONS='--experimental-vm-modules' jest --config jest.signet.config.js --runInBand --verbose --runTestsByPath tests/signet/offline-receiver-refresh-convergence.test.ts",
+    "test:signet:two-refresh": "npm run build && NODE_OPTIONS='--experimental-vm-modules' jest --config jest.signet.config.js --runInBand --verbose --runTestsByPath tests/signet/offline-receiver-two-refresh-convergence.test.ts",
     "test:signet:sequential": "npm run build && NODE_OPTIONS='--experimental-vm-modules' jest --config jest.signet.config.js --runInBand --verbose --runTestsByPath tests/signet/sequential-receives-smoke.test.ts",
     "test:regtest:preconfirm": "npm run build && NODE_OPTIONS='--experimental-vm-modules' jest --config jest.regtest.config.js --runInBand --verbose --runTestsByPath tests/regtest/pre-confirmation-gating.test.ts",
     "test:regtest:relay-witness": "npm run build && NODE_OPTIONS='--experimental-vm-modules' jest --config jest.regtest.config.js --runInBand --verbose --runTestsByPath tests/regtest/relay-only-witness-mode.test.ts",
