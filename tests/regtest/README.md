@@ -18,10 +18,15 @@ The current regtest baseline covers:
   - receiver is disposed/recreated in the same `dataDir` during an active transfer
   - persisted state still converges to `Settled` after restart
 
-- `parallel-sends-same-receiver.test.ts`
-  - two blind invoices are sent concurrently to one receiver wallet
-  - test tolerates mempool replacement race on concurrent broadcast and verifies recovery path
-  - final receiver settled delta still includes both amounts
+- `sequential-sends-same-receiver.test.ts`
+  - two blind invoices are sent sequentially to one receiver wallet
+  - each send must ACK, validate, and reach `Settled`
+  - final receiver settled delta includes both amounts
+
+- `send-batch-same-receiver.test.ts`
+  - two blind invoices are paid in a single `sendBatch`
+  - both recipients must ACK, validate, and reach `Settled`
+  - final receiver settled delta includes both amounts
 
 - `restart-after-ack-before-settled.test.ts`
   - transfer is ACKed first, receiver observes pre-settled status, then restarts
@@ -236,7 +241,17 @@ REGTEST_BITCOIND_USER="user" \
 REGTEST_BITCOIND_PASS="password" \
 REGTEST_INDEXER_URL="tcp://localhost:50001" \
 REGTEST_DATA_DIR="/tmp/rgb-e2e" \
-npm run test:regtest:parallel-sends
+npm run test:regtest:sequential-sends
+
+cd /path/to/rgb-sdk
+REGTEST_PROXY_HTTP_URL="http://localhost:3000/json-rpc" \
+REGTEST_PROXY_RPC_URL="rpc://localhost:3000/json-rpc" \
+REGTEST_BITCOIND_CONTAINER="bitcoind" \
+REGTEST_BITCOIND_USER="user" \
+REGTEST_BITCOIND_PASS="password" \
+REGTEST_INDEXER_URL="tcp://localhost:50001" \
+REGTEST_DATA_DIR="/tmp/rgb-e2e" \
+npm run test:regtest:send-batch
 
 cd /path/to/rgb-sdk
 REGTEST_PROXY_HTTP_URL="http://localhost:3000/json-rpc" \

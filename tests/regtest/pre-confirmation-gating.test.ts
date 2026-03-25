@@ -173,16 +173,15 @@ describe('Regtest pre-confirmation gating', () => {
       );
       report.phase1.ackBeforeMine = ackBeforeMine;
       report.phase1.validatedBeforeMine = consignmentBeforeMine.validated;
-      expect(typeof ackBeforeMine).toBe('boolean');
-      expect(typeof consignmentBeforeMine.validated).toBe('boolean');
+      expect(ackBeforeMine).toBe(true);
+      expect(consignmentBeforeMine.validated).toBe(true);
 
       await receiver.refreshWallet();
       const transferBeforeMine = (await receiver.listTransfers(state.assetId)).find(
         (item) => item.recipientId === invoiceData.recipientId,
       );
       report.phase1.transferStatusBeforeMine = transferBeforeMine?.status;
-      expect(transferBeforeMine?.status).toBeDefined();
-      expect(transferBeforeMine?.status).not.toBe('Settled');
+      expect(transferBeforeMine?.status).toBe('WaitingConfirmations');
 
       const balanceBeforeMine = await receiver.getAssetBalance(state.assetId).catch(() => ({ settled: 0 }));
       const receiverSettledBeforeMine = Number(balanceBeforeMine.settled ?? 0);
@@ -219,12 +218,10 @@ describe('Regtest pre-confirmation gating', () => {
       const receiverSettledAfterMine = Number(balanceAfterMine.settled ?? 0);
       report.phase2.receiverSettledAfterMine = receiverSettledAfterMine;
 
-      expect(ackBeforeMine).toBe(true);
-      expect(consignmentBeforeMine.validated).toBe(true);
       expect(ackAfterMine).toBe(true);
       expect(validatedAfterMine).toBe(true);
       expect(currentTransfer.status).toBe('Settled');
-      expect(receiverSettledAfterMine - state.receiverSettledBefore).toBeGreaterThanOrEqual(
+      expect(receiverSettledAfterMine - state.receiverSettledBefore).toBe(
         TRANSFER_AMOUNT,
       );
     } finally {

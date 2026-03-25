@@ -201,8 +201,7 @@ describe('Regtest receiver restart after ACK before Settled', () => {
         (item) => item.recipientId === invoiceData.recipientId,
       );
       report.phase1.transferStatusBeforeRestart = transferBeforeRestart?.status;
-      expect(transferBeforeRestart?.status).toBeDefined();
-      expect(transferBeforeRestart?.status).not.toBe('Settled');
+      expect(transferBeforeRestart?.status).toBe('WaitingConfirmations');
 
       const restartedReceiver = await restartReceiver();
       report.phase2.receiverRecreated = true;
@@ -229,7 +228,7 @@ describe('Regtest receiver restart after ACK before Settled', () => {
 
       expect(currentTransfer.status).toBe('Settled');
       expect(currentTransfer.txid).toBe(sendResult.txid);
-      expect(receiverSettledAfter - state.receiverSettledBefore).toBeGreaterThanOrEqual(
+      expect(receiverSettledAfter - state.receiverSettledBefore).toBe(
         TRANSFER_AMOUNT,
       );
     } finally {

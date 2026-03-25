@@ -24,21 +24,37 @@ export type RegtestWallet = {
   initialize(): Promise<void>;
   dispose(): Promise<void>;
   getAddress(): Promise<string>;
-  getBtcBalance(): Promise<{ vanilla: { settled: number | string; spendable: number | string } }>;
-  createUtxos(params: { num?: number; size?: number; feeRate?: number }): Promise<number>;
+  getBtcBalance(): Promise<{
+    vanilla: { settled: number | string; spendable: number | string };
+  }>;
+  createUtxos(params: {
+    num?: number;
+    size?: number;
+    feeRate?: number;
+  }): Promise<number>;
   issueAssetNia(params: {
     ticker: string;
     name: string;
     amounts: number[];
     precision: number;
   }): Promise<{ assetId: string }>;
-  getAssetBalance(assetId: string): Promise<{ settled?: number | string; spendable?: number | string }>;
+  getAssetBalance(
+    assetId: string
+  ): Promise<{ settled?: number | string; spendable?: number | string }>;
   refreshWallet(): Promise<void>;
-  blindReceive(params: { amount: number; minConfirmations: number; durationSeconds?: number }): Promise<{
+  blindReceive(params: {
+    amount: number;
+    minConfirmations: number;
+    durationSeconds?: number;
+  }): Promise<{
     invoice: string;
     recipientId: string;
   }>;
-  witnessReceive(params: { amount: number; minConfirmations: number; durationSeconds?: number }): Promise<{
+  witnessReceive(params: {
+    amount: number;
+    minConfirmations: number;
+    durationSeconds?: number;
+  }): Promise<{
     invoice: string;
     recipientId: string;
   }>;
@@ -51,6 +67,20 @@ export type RegtestWallet = {
     minConfirmations: number;
     witnessData?: { amountSat: number; blinding?: number | null };
   }): Promise<{ txid: string }>;
+  sendBatch(params: {
+    recipientMap: Record<
+      string,
+      Array<{
+        recipientId: string;
+        witnessData?: { amountSat: string; blinding?: number | null } | null;
+        assignment: { Fungible: number };
+        transportEndpoints: string[];
+      }>
+    >;
+    donation: boolean;
+    feeRate: number;
+    minConfirmations: number;
+  }): Promise<{ txid: string }>;
   sendBegin(params: {
     invoice: string;
     assetId: string;
@@ -62,7 +92,18 @@ export type RegtestWallet = {
   }): Promise<string>;
   signPsbt(psbt: string): Promise<string>;
   sendEnd(params: { signedPsbt: string }): Promise<{ txid: string }>;
-  listTransfers(assetId?: string): Promise<Array<{ recipientId?: string; status?: string; txid?: string | null }>>;
+  listTransfers(
+    assetId?: string
+  ): Promise<
+    Array<{ recipientId?: string; status?: string; txid?: string | null }>
+  >;
+  listUnspents(): Promise<
+    Array<{
+      utxo: { outpoint: { txid: string; vout: number } };
+      rgbAllocations: Array<{ assetId?: string; settled: boolean }>;
+      pendingBlinded: number;
+    }>
+  >;
 };
 
 export type JsonRpcLikeResponse<T = unknown> = {
@@ -87,7 +128,9 @@ export type WalletManagerCtor = new (params: {
   dataDir: string;
 }) => RegtestWallet;
 
-export type GenerateKeysFn = (network: string) => Promise<RegtestKeys> | RegtestKeys;
+export type GenerateKeysFn = (
+  network: string
+) => Promise<RegtestKeys> | RegtestKeys;
 
 export function env(name: string): string {
   const value = process.env[name];
@@ -125,29 +168,43 @@ export function ensureBitcoindAccess(): void {
     return;
   }
   throw new Error(
-    'Missing bitcoind access: set REGTEST_BITCOIND_URL or REGTEST_BITCOIND_CONTAINER',
+    'Missing bitcoind access: set REGTEST_BITCOIND_URL or REGTEST_BITCOIND_CONTAINER'
   );
 }
 
 export function ensureSafeBaseDir(baseDir = getRegtestBaseDir()): string {
   if (!baseDir || !path.isAbsolute(baseDir) || !baseDir.startsWith('/tmp/')) {
-    throw new Error(`REGTEST_DATA_DIR must be an absolute path under /tmp/, got: ${baseDir}`);
+    throw new Error(
+      `REGTEST_DATA_DIR must be an absolute path under /tmp/, got: ${baseDir}`
+    );
   }
   fs.mkdirSync(baseDir, { recursive: true });
   return baseDir;
 }
 
-export function getWalletDataDir(name: 'sender' | 'receiver', baseDir = getRegtestBaseDir()): string {
+export function getWalletDataDir(
+  name: 'sender' | 'receiver',
+  baseDir = getRegtestBaseDir()
+): string {
   return path.join(baseDir, name);
 }
 
 export function resetWalletDataDirs(baseDir = getRegtestBaseDir()): void {
   ensureSafeBaseDir(baseDir);
-  fs.rmSync(getWalletDataDir('sender', baseDir), { recursive: true, force: true });
-  fs.rmSync(getWalletDataDir('receiver', baseDir), { recursive: true, force: true });
+  fs.rmSync(getWalletDataDir('sender', baseDir), {
+    recursive: true,
+    force: true,
+  });
+  fs.rmSync(getWalletDataDir('receiver', baseDir), {
+    recursive: true,
+    force: true,
+  });
 }
 
-export async function bitcoindRpc<T>(method: string, params: unknown[] = []): Promise<T> {
+export async function bitcoindRpc<T>(
+  method: string,
+  params: unknown[] = []
+): Promise<T> {
   const bitcoindUser = env('REGTEST_BITCOIND_USER');
   const bitcoindPass = env('REGTEST_BITCOIND_PASS');
   const bitcoindUrl = process.env.REGTEST_BITCOIND_URL;
@@ -179,7 +236,7 @@ export async function bitcoindRpc<T>(method: string, params: unknown[] = []): Pr
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      Authorization: `Basic ${Buffer.from(`${bitcoindUser}:${bitcoindPass}`).toString('base64')}`,
+      'Authorization': `Basic ${Buffer.from(`${bitcoindUser}:${bitcoindPass}`).toString('base64')}`,
     },
     body: JSON.stringify({
       jsonrpc: '1.0',
@@ -206,8 +263,10 @@ export async function waitForBtcBalance(
   wallet: RegtestWallet,
   minSats = MIN_WALLET_BTC_SAT,
   timeoutMs = 15_000,
-  intervalMs = 250,
-): Promise<{ vanilla: { settled: number | string; spendable: number | string } }> {
+  intervalMs = 250
+): Promise<{
+  vanilla: { settled: number | string; spendable: number | string };
+}> {
   return pollCondition(
     async () => {
       await wallet.refreshWallet();
@@ -216,11 +275,13 @@ export async function waitForBtcBalance(
     (balance) => Number(balance.vanilla.settled) >= minSats,
     timeoutMs,
     intervalMs,
-    `Timed out waiting for BTC balance >= ${minSats}`,
+    `Timed out waiting for BTC balance >= ${minSats}`
   );
 }
 
-export async function fundWallet(wallet: RegtestWallet): Promise<{ address: string; createdUtxos: number }> {
+export async function fundWallet(
+  wallet: RegtestWallet
+): Promise<{ address: string; createdUtxos: number }> {
   const address = await wallet.getAddress();
   await bitcoindRpc('sendtoaddress', [address, BTC_FUNDING_AMOUNT]);
   await mine(1);
@@ -238,7 +299,7 @@ export async function createRegtestWallet(
   ctor: WalletManagerCtor,
   generateKeys: GenerateKeysFn,
   name: 'sender' | 'receiver',
-  baseDir = getRegtestBaseDir(),
+  baseDir = getRegtestBaseDir()
 ): Promise<{ wallet: RegtestWallet; keys: RegtestKeys }> {
   const keys = await generateKeys(REGTEST_NETWORK);
   const wallet = new ctor({
@@ -261,7 +322,7 @@ export async function createRegtestWalletFromKeys(
   ctor: WalletManagerCtor,
   keys: RegtestKeys,
   name: 'sender' | 'receiver',
-  baseDir = getRegtestBaseDir(),
+  baseDir = getRegtestBaseDir()
 ): Promise<RegtestWallet> {
   const wallet = new ctor({
     xpubVan: keys.accountXpubVanilla,
@@ -292,19 +353,29 @@ export async function postConsignmentRaw<T = boolean>(params: {
   form.append('id', '1');
   form.append('method', 'consignment.post');
   form.append('params[recipient_id]', params.recipientId);
-  form.append('params[txid]', params.txid ?? '0000000000000000000000000000000000000000000000000000000000000000');
+  form.append(
+    'params[txid]',
+    params.txid ??
+      '0000000000000000000000000000000000000000000000000000000000000000'
+  );
   form.append(
     'file',
-    new Blob([params.contentBytes ?? params.content ?? 'fake consignment payload'], {
-      type: 'application/octet-stream',
-    }),
-    params.fileName ?? 'bad.rgb',
+    new Blob(
+      [params.contentBytes ?? params.content ?? 'fake consignment payload'],
+      {
+        type: 'application/octet-stream',
+      }
+    ),
+    params.fileName ?? 'bad.rgb'
   );
 
-  const response = await fetch(params.proxyHttpUrl ?? getRegtestProxyHttpUrl(), {
-    method: 'POST',
-    body: form,
-  });
+  const response = await fetch(
+    params.proxyHttpUrl ?? getRegtestProxyHttpUrl(),
+    {
+      method: 'POST',
+      body: form,
+    }
+  );
 
   return response.json();
 }

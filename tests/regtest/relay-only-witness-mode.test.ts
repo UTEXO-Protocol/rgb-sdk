@@ -42,6 +42,7 @@ type RelayOnlyWitnessReport = {
     assetId: string;
     senderAddress: string;
     receiverAddress: string;
+    receiverSettledBefore: number;
   };
   phase1: {
     invoiceType: 'witness';
@@ -69,6 +70,7 @@ type State = {
   receiverAddress: string;
   assetId: string;
   composeFile: string;
+  receiverSettledBefore: number;
 };
 
 const state: State = {
@@ -78,6 +80,7 @@ const state: State = {
   receiverAddress: '',
   assetId: '',
   composeFile: '',
+  receiverSettledBefore: 0,
 };
 
 beforeAll(async () => {
@@ -124,6 +127,9 @@ beforeAll(async () => {
   );
 
   state.receiverAddress = (await fundWallet(receiver)).address;
+  await receiver.refreshWallet();
+  const receiverBalance = await receiver.getAssetBalance(state.assetId).catch(() => ({ settled: 0 }));
+  state.receiverSettledBefore = Number(receiverBalance.settled ?? 0);
 });
 
 afterAll(async () => {
@@ -148,6 +154,7 @@ describe('Regtest relay-only witness mode', () => {
         assetId: state.assetId,
         senderAddress: state.senderAddress,
         receiverAddress: state.receiverAddress,
+        receiverSettledBefore: state.receiverSettledBefore,
       },
       phase1: {
         invoiceType: 'witness',
@@ -259,7 +266,9 @@ describe('Regtest relay-only witness mode', () => {
 
       expect(currentTransfer.status).toBe('Settled');
       expect(currentTransfer.txid).toBe(sendResult.txid);
-      expect(report.phase1.receiverSettledAfter).toBeGreaterThanOrEqual(TRANSFER_AMOUNT);
+      expect(report.phase1.receiverSettledAfter).toBe(
+        state.receiverSettledBefore + TRANSFER_AMOUNT,
+      );
     } finally {
       report.durationMs = Date.now() - startedAt;
       const reportPath = writeSmokeReport(report, 'regtest-relay-only-witness-mode.json');

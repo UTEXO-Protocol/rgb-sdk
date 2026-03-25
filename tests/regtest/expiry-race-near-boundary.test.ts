@@ -212,11 +212,10 @@ describe('Regtest expiry race near boundary', () => {
         },
         (transfer) =>
           transfer?.status === 'Settled' ||
-          transfer?.status === 'Failed' ||
-          transfer?.status === 'WaitingCounterparty',
+          transfer?.status === 'Failed',
         30_000,
         1_000,
-        `Transfer for recipient_id=${invoiceData.recipientId} did not reach a terminal/diagnostic status`,
+        `Transfer for recipient_id=${invoiceData.recipientId} did not reach a terminal status`,
       );
       report.phase1.transferStatusAfterSend = currentTransfer?.status;
       expect(currentTransfer).toBeDefined();

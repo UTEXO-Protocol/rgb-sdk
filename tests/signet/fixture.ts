@@ -225,6 +225,7 @@ export function createBaseReport(state: PreflightState) {
       txid: undefined as string | undefined,
       ack: undefined as boolean | null | undefined,
       validated: undefined as boolean | null | undefined,
+      senderTransferStatusBeforeReceiverRefresh: undefined as string | undefined,
       receiverSettledWhileOffline: undefined as number | undefined,
       receiverSettledAfter: undefined as number | undefined,
       currentTransferStatus: undefined as string | undefined,
@@ -281,6 +282,11 @@ export async function runSignetReceiveSmoke(params: {
   reportFileName: string;
   receiveInvoice: (receiver: UTEXOWalletType) => Promise<InvoiceData>;
   buildSendParams: (args: { invoice: string; assetId: string }) => SendParams;
+  strictMode?: {
+    exactDelta?: boolean;
+    strictTransferCheck?: boolean;
+    senderSettlesBeforeReceiverRefresh?: boolean;
+  };
   phase1Metadata?: {
     invoiceType?: 'witness' | 'blind';
     witnessAmountSat?: number;
@@ -291,6 +297,7 @@ export async function runSignetReceiveSmoke(params: {
     reportFileName,
     receiveInvoice,
     buildSendParams,
+    strictMode,
     phase1Metadata,
   } = params;
 
@@ -340,6 +347,22 @@ export async function runSignetReceiveSmoke(params: {
     expect(ack).toBe(true);
     expect(validated).toBe(true);
 
+    if (strictMode?.senderSettlesBeforeReceiverRefresh) {
+      const senderTransfer = await pollCondition(
+        async () => {
+          await sender.refreshWallet();
+          const transfers = await sender.listTransfers(assetId);
+          return transfers.find((item) => item.txid === sendResult.txid);
+        },
+        (transfer) => transfer?.status === 'Settled',
+        120_000,
+        5_000,
+        `Sender transfer txid=${sendResult.txid} did not reach Settled before receiver refresh`,
+      );
+      report.phase1.senderTransferStatusBeforeReceiverRefresh = senderTransfer?.status;
+      expect(senderTransfer?.status).toBe('Settled');
+    }
+
     const offlineBalance = await receiver.getAssetBalance(assetId).catch((error) => {
       const message = error instanceof Error ? error.message : String(error);
       if (message.includes('AssetNotFound')) {
@@ -363,16 +386,20 @@ export async function runSignetReceiveSmoke(params: {
     report.phase1.pollSettledMs = Date.now() - settledStartedAt;
     report.phase1.receiverSettledAfter = receiverSettledAfter;
 
-    expect(receiverSettledAfter - receiverSettledBefore).toBeGreaterThanOrEqual(
-      TRANSFER_AMOUNT,
-    );
+    if (strictMode?.exactDelta) {
+      expect(receiverSettledAfter - receiverSettledBefore).toBe(TRANSFER_AMOUNT);
+    } else {
+      expect(receiverSettledAfter - receiverSettledBefore).toBeGreaterThanOrEqual(
+        TRANSFER_AMOUNT,
+      );
+    }
 
     const transferStartedAt = Date.now();
     try {
       const currentTransfer = await pollTransferByRecipientId(
         async () => {
           await receiver.refreshWallet();
-          return receiver.listTransfers();
+          return receiver.listTransfers(strictMode?.strictTransferCheck ? assetId : undefined);
         },
         invoiceData.recipientId,
         sendResult.txid,
@@ -386,11 +413,17 @@ export async function runSignetReceiveSmoke(params: {
         currentTransfer.txid && currentTransfer.txid === sendResult.txid,
       );
 
-      if (currentTransfer.txid && currentTransfer.txid !== sendResult.txid) {
+      if (strictMode?.strictTransferCheck) {
+        expect(currentTransfer.status).toBe('Settled');
+        expect(currentTransfer.txid).toBe(sendResult.txid);
+      } else if (currentTransfer.txid && currentTransfer.txid !== sendResult.txid) {
         report.phase1.warning = `Balance delta was observed, but current transfer txid mismatched: expected ${sendResult.txid}, got ${currentTransfer.txid}`;
       }
     } catch (error) {
       report.phase1.pollTransferMs = Date.now() - transferStartedAt;
+      if (strictMode?.strictTransferCheck) {
+        throw error;
+      }
       report.phase1.warning = error instanceof Error ? error.message : String(error);
     }
 

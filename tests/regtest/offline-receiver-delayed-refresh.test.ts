@@ -1,9 +1,7 @@
 import {
-  pollCondition,
   pollAck,
-  pollTransferByRecipientId,
+  pollCondition,
   pollValidated,
-  proxyRpc,
   writeSmokeReport,
 } from '../shared/helpers';
 import {
@@ -12,8 +10,8 @@ import {
   ensureBitcoindAccess,
   fundWallet,
   getRegtestBaseDir,
-  getRegtestProxyHttpUrl,
   getRegtestIndexerUrl,
+  getRegtestProxyHttpUrl,
   getRegtestProxyRpcUrl,
   mine,
   resetWalletDataDirs,
@@ -24,10 +22,10 @@ import {
 
 const PROXY_HTTP_URL = getRegtestProxyHttpUrl();
 const TRANSFER_AMOUNT = 1;
-const IDEMPOTENT_REFRESH_COUNT = 3;
 const SEND_FEE_RATE = 2;
+const RECEIVER_REFRESH_COUNT = 2;
 
-type OfflineReceiverReport = {
+type DelayedRefreshReport = {
   timestamp: string;
   durationMs: number;
   preconditions: {
@@ -46,14 +44,20 @@ type OfflineReceiverReport = {
     txid?: string;
     ack?: boolean;
     validated?: boolean;
-    currentTransferStatus?: string;
-    currentTransferTxid?: string | null;
-    txidMatch?: boolean;
-    receiverSettledAfter?: number;
+    senderTransferStatusBeforeReceiverRefresh?: string;
+    receiverSettledWhileOffline?: number;
   };
   phase2: {
-    refreshChecks: Array<{ cycle: number; settled: number }>;
-    receiverSettledFinal?: number;
+    receiverRefreshChecks: Array<{
+      cycle: number;
+      settled: number;
+      currentTransferStatus?: string;
+      currentTransferTxid?: string | null;
+    }>;
+    receiverSettledAfter?: number;
+    finalTransferStatus?: string;
+    finalTransferTxid?: string | null;
+    txidMatch?: boolean;
   };
 };
 
@@ -87,11 +91,6 @@ beforeAll(async () => {
 
   resetWalletDataDirs(getRegtestBaseDir());
 
-  await proxyRpc<{ protocol_version: string; version: string }>(
-    PROXY_HTTP_URL,
-    'server.info',
-  );
-
   const { WalletManager, generateKeys } = (await import('../../dist/index.mjs')) as {
     WalletManager: WalletManagerCtor;
     generateKeys: GenerateKeysFn;
@@ -110,9 +109,10 @@ beforeAll(async () => {
   const senderFunding = await fundWallet(sender);
   state.senderAddress = senderFunding.address;
 
+  const assetSuffix = Date.now().toString().slice(-6);
   const issuedAsset = await sender.issueAssetNia({
-    ticker: `R${Date.now().toString().slice(-5)}`,
-    name: `Regtest Asset ${Date.now()}`,
+    ticker: `R${assetSuffix.slice(-5)}`,
+    name: `Delayed ${assetSuffix}`,
     amounts: [10],
     precision: 0,
   });
@@ -131,8 +131,6 @@ beforeAll(async () => {
   );
   state.senderSpendableBefore = Number(senderBalance.spendable ?? 0);
 
-  // fundWallet() mines internally; funding receiver here also gives sender-side
-  // issuance/createUtxos transactions one more confirmation before the test flow.
   const receiverFunding = await fundWallet(receiver);
   state.receiverAddress = receiverFunding.address;
   await receiver.refreshWallet();
@@ -147,12 +145,12 @@ afterAll(async () => {
   await state.receiver?.dispose();
 });
 
-describe('Regtest offline receiver', () => {
-  it('R-01+R-02: blind receive offline -> auto-ACK -> Settled, refresh is idempotent', async () => {
+describe('Regtest offline receiver delayed refresh', () => {
+  it('keeps receiver offline until sender settles, then reaches Settled after two receiver refreshes', async () => {
     const sender = state.sender!;
     const receiver = state.receiver!;
     const startedAt = Date.now();
-    const report: OfflineReceiverReport = {
+    const report: DelayedRefreshReport = {
       timestamp: new Date().toISOString(),
       durationMs: 0,
       preconditions: {
@@ -170,7 +168,7 @@ describe('Regtest offline receiver', () => {
         recipientId: '',
       },
       phase2: {
-        refreshChecks: [],
+        receiverRefreshChecks: [],
       },
     };
 
@@ -201,53 +199,77 @@ describe('Regtest offline receiver', () => {
         30_000,
         1_000,
       );
-
       report.phase1.ack = ack;
       report.phase1.validated = validated;
       expect(ack).toBe(true);
       expect(validated).toBe(true);
 
-      const currentTransfer = await pollTransferByRecipientId(
+      const senderTransfer = await pollCondition(
         async () => {
-          await receiver.refreshWallet();
-          return receiver.listTransfers(state.assetId);
+          await sender.refreshWallet();
+          const transfers = await sender.listTransfers(state.assetId);
+          return transfers.find((item) => item.txid === sendResult.txid);
         },
-        invoiceData.recipientId,
-        sendResult.txid,
+        (transfer) => transfer?.status === 'Settled',
         30_000,
         1_000,
+        `Sender transfer txid=${sendResult.txid} did not reach Settled before receiver refresh`,
       );
-      report.phase1.currentTransferStatus = currentTransfer.status;
-      report.phase1.currentTransferTxid = currentTransfer.txid;
-      report.phase1.txidMatch = Boolean(
-        currentTransfer.txid && currentTransfer.txid === sendResult.txid,
+      report.phase1.senderTransferStatusBeforeReceiverRefresh = senderTransfer?.status;
+
+      const receiverBalanceWhileOffline = await receiver.getAssetBalance(state.assetId).catch(() => ({
+        settled: 0,
+      }));
+      report.phase1.receiverSettledWhileOffline = Number(
+        receiverBalanceWhileOffline.settled ?? 0,
       );
+      expect(report.phase1.receiverSettledWhileOffline).toBe(state.receiverSettledBefore);
 
-      const balance = await receiver.getAssetBalance(state.assetId);
-      const receiverSettledAfter = Number(balance.settled ?? 0);
-      report.phase1.receiverSettledAfter = receiverSettledAfter;
-
-      expect(currentTransfer.status).toBe('Settled');
-      expect(receiverSettledAfter - state.receiverSettledBefore).toBe(
-        TRANSFER_AMOUNT,
-      );
-
-      for (let cycle = 1; cycle <= IDEMPOTENT_REFRESH_COUNT; cycle += 1) {
+      for (let cycle = 1; cycle <= RECEIVER_REFRESH_COUNT; cycle += 1) {
         await receiver.refreshWallet();
         const balance = await receiver.getAssetBalance(state.assetId);
-        report.phase2.refreshChecks.push({
+        const transfers = await receiver.listTransfers(state.assetId);
+        const currentTransfer = transfers.find(
+          (item) => item.recipientId === invoiceData.recipientId,
+        );
+
+        report.phase2.receiverRefreshChecks.push({
           cycle,
           settled: Number(balance.settled ?? 0),
+          currentTransferStatus: currentTransfer?.status,
+          currentTransferTxid: currentTransfer?.txid,
         });
       }
 
-      const allSettled = report.phase2.refreshChecks.map((item) => item.settled);
-      expect(new Set(allSettled).size).toBe(1);
-      report.phase2.receiverSettledFinal = report.phase2.refreshChecks.at(-1)?.settled;
-      expect(report.phase2.receiverSettledFinal).toBe(receiverSettledAfter);
+      const finalTransfer = await pollCondition(
+        async () => {
+          const transfers = await receiver.listTransfers(state.assetId);
+          return transfers.find((item) => item.recipientId === invoiceData.recipientId);
+        },
+        (transfer) => transfer?.status === 'Settled',
+        10_000,
+        500,
+        `Receiver transfer recipientId=${invoiceData.recipientId} did not reach Settled after ${RECEIVER_REFRESH_COUNT} refreshes`,
+      );
+
+      const finalBalance = await receiver.getAssetBalance(state.assetId);
+      const receiverSettledAfter = Number(finalBalance.settled ?? 0);
+      report.phase2.receiverSettledAfter = receiverSettledAfter;
+      report.phase2.finalTransferStatus = finalTransfer?.status;
+      report.phase2.finalTransferTxid = finalTransfer?.txid;
+      report.phase2.txidMatch = Boolean(
+        finalTransfer?.txid && finalTransfer.txid === sendResult.txid,
+      );
+
+      expect(finalTransfer?.status).toBe('Settled');
+      expect(finalTransfer?.txid).toBe(sendResult.txid);
+      expect(receiverSettledAfter - state.receiverSettledBefore).toBe(TRANSFER_AMOUNT);
     } finally {
       report.durationMs = Date.now() - startedAt;
-      const reportPath = writeSmokeReport(report, 'regtest-offline-receiver.json');
+      const reportPath = writeSmokeReport(
+        report,
+        'regtest-offline-receiver-delayed-refresh.json',
+      );
       console.log(`smoke report: ${reportPath}`);
       console.log(JSON.stringify(report, null, 2));
     }
