@@ -18,17 +18,16 @@ import {
   detectPsbtType,
   deriveDescriptors,
 } from '@utexo/rgb-sdk-core';
-import type {
+import type { Network, PsbtType, BIP32Interface } from '@utexo/rgb-sdk-core';
+import type { BDKWallet, BDKPsbt, BDKNetwork, BDKSignOptions } from './types';
+import type { EstimateFeeResult } from '@utexo/rgb-sdk-core';
+
+export type {
   Network,
   PsbtType,
   NetworkVersions,
   Descriptors,
-  BIP32Interface,
 } from '@utexo/rgb-sdk-core';
-import type { BDKWallet, BDKPsbt, BDKNetwork, BDKSignOptions } from './types';
-import type { EstimateFeeResult } from '@utexo/rgb-sdk-core';
-
-export type { Network, PsbtType, NetworkVersions, Descriptors } from '@utexo/rgb-sdk-core';
 
 const bdk = bdkNode as unknown as import('./types').BDKModule;
 
@@ -40,15 +39,21 @@ async function signPsbtFromSeedInternal(
   seed: Buffer | Uint8Array,
   psbtBase64: string,
   network: Network,
-  options: SignPsbtOptions,
+  options: SignPsbtOptions
 ): Promise<string> {
   validatePsbt(psbtBase64, 'psbtBase64');
 
   let rootNode: BIP32Interface;
   try {
-    rootNode = bip32Factory().fromSeed(normalizeSeedBuffer(seed), getNetworkVersions(network));
+    rootNode = bip32Factory().fromSeed(
+      normalizeSeedBuffer(seed),
+      getNetworkVersions(network)
+    );
   } catch (error) {
-    throw new CryptoError('Failed to derive root node from seed', error as Error);
+    throw new CryptoError(
+      'Failed to derive root node from seed',
+      error as Error
+    );
   }
 
   const fp = await calculateMasterFingerprint(rootNode);
@@ -57,7 +62,12 @@ async function signPsbtFromSeedInternal(
   // Try signing with the detected descriptor type; fall back to the other if it fails.
   // No PSBT preprocessing needed — rgb-lib PSBTs already carry correct metadata.
   const trySign = (type: PsbtType): BDKPsbt => {
-    const { external, internal } = deriveDescriptors(rootNode, fp, network, type);
+    const { external, internal } = deriveDescriptors(
+      rootNode,
+      fp,
+      network,
+      type
+    );
     let wallet: BDKWallet;
     try {
       wallet = bdk.Wallet.create(network as BDKNetwork, external, internal);
@@ -73,7 +83,8 @@ async function signPsbtFromSeedInternal(
   try {
     pstb = trySign(psbtType);
   } catch {
-    const fallback: PsbtType = psbtType === 'create_utxo' ? 'send' : 'create_utxo';
+    const fallback: PsbtType =
+      psbtType === 'create_utxo' ? 'send' : 'create_utxo';
     try {
       pstb = trySign(fallback);
     } catch (error) {
@@ -102,10 +113,19 @@ export async function signPsbt(
       throw new ValidationError('Invalid mnemonic format', 'mnemonic');
     }
     const normalizedNetwork = normalizeNetwork(network);
-    return await signPsbtFromSeedInternal(seed, psbtBase64, normalizedNetwork, options);
+    return await signPsbtFromSeedInternal(
+      seed,
+      psbtBase64,
+      normalizedNetwork,
+      options
+    );
   } catch (error) {
-    if (error instanceof ValidationError || error instanceof CryptoError) throw error;
-    throw new CryptoError('Unexpected error during PSBT signing', error as Error);
+    if (error instanceof ValidationError || error instanceof CryptoError)
+      throw error;
+    throw new CryptoError(
+      'Unexpected error during PSBT signing',
+      error as Error
+    );
   }
 }
 
@@ -117,10 +137,17 @@ export async function signPsbtFromSeed(
 ): Promise<string> {
   const normalizedSeed = normalizeSeedInput(seed);
   const normalizedNetwork = normalizeNetwork(network);
-  return signPsbtFromSeedInternal(normalizedSeed, psbtBase64, normalizedNetwork, options);
+  return signPsbtFromSeedInternal(
+    normalizedSeed,
+    psbtBase64,
+    normalizedNetwork,
+    options
+  );
 }
 
-export async function estimatePsbt(psbtBase64: string): Promise<EstimateFeeResult> {
+export async function estimatePsbt(
+  psbtBase64: string
+): Promise<EstimateFeeResult> {
   if (!psbtBase64) throw new ValidationError('psbt is required', 'psbt');
   try {
     const psbt = Psbt.fromBase64(psbtBase64.trim());

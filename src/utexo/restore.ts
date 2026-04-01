@@ -8,7 +8,11 @@
 
 import path from 'path';
 import fs from 'fs';
-import { getUtxoNetworkConfig, type UtxoNetworkPreset, DEFAULT_VSS_SERVER_URL } from '@utexo/rgb-sdk-core';
+import {
+  getUtxoNetworkConfig,
+  type UtxoNetworkPreset,
+  DEFAULT_VSS_SERVER_URL,
+} from '@utexo/rgb-sdk-core';
 import { restoreFromVss, restoreWallet } from '../binding/NodeRgbLibBinding';
 import { ValidationError } from '@utexo/rgb-sdk-core';
 import type { VssBackupConfig } from '@utexo/rgb-sdk-core';
@@ -117,7 +121,11 @@ export async function restoreUtxoWalletFromVss(params: {
   const serverUrl = vssServerUrl ?? DEFAULT_VSS_SERVER_URL;
   const config =
     providedConfig ??
-    (await buildVssConfigFromMnemonic(mnemonic.trim(), serverUrl, networkPreset));
+    (await buildVssConfigFromMnemonic(
+      mnemonic.trim(),
+      serverUrl,
+      networkPreset
+    ));
   const presetConfig = getUtxoNetworkConfig(networkPreset);
   const layer1Network = String(presetConfig.networkMap.mainnet);
   const utexoNetwork = String(presetConfig.networkMap.utexo);

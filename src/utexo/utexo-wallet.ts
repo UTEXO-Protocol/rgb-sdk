@@ -57,7 +57,9 @@ export class UTEXOWallet extends UTEXOWalletCore {
   override async createBackup(params: {
     backupPath: string;
     password: string;
-  }): Promise<WalletBackupResponse & { layer1BackupPath: string; utexoBackupPath: string }> {
+  }): Promise<
+    WalletBackupResponse & { layer1BackupPath: string; utexoBackupPath: string }
+  > {
     this.ensureInitialized();
     const { backupPath, password } = params;
     if (!backupPath || !password) {

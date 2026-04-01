@@ -27,7 +27,11 @@ export interface BDKSignOptions {}
 
 export interface BDKModule {
   Wallet: {
-    create: (network: BDKNetwork, external: string, internal: string) => BDKWallet;
+    create: (
+      network: BDKNetwork,
+      external: string,
+      internal: string
+    ) => BDKWallet;
   };
   Psbt: {
     from_string: (psbt: string) => BDKPsbt;
@@ -35,4 +39,3 @@ export interface BDKModule {
   SignOptions: new () => BDKSignOptions;
   Network?: { [key: string]: BDKNetwork };
 }
-

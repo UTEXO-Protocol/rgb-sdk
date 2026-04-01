@@ -8,9 +8,20 @@
 import * as path from 'path';
 
 import * as fs from 'fs';
-import { DEFAULT_TRANSPORT_ENDPOINTS, DEFAULT_INDEXER_URLS } from '@utexo/rgb-sdk-core';
-import { Unspent as RawUnspent, DecodeRgbInvoiceResponse } from '../types/rgb-model';
-import { ValidationError, WalletError, normalizeNetwork, logger } from '@utexo/rgb-sdk-core';
+import {
+  DEFAULT_TRANSPORT_ENDPOINTS,
+  DEFAULT_INDEXER_URLS,
+} from '@utexo/rgb-sdk-core';
+import {
+  Unspent as RawUnspent,
+  DecodeRgbInvoiceResponse,
+} from '../types/rgb-model';
+import {
+  ValidationError,
+  WalletError,
+  normalizeNetwork,
+  logger,
+} from '@utexo/rgb-sdk-core';
 import type { Network } from '../crypto/types';
 // Use default import for CommonJS compatibility in ESM
 import rgblib from '@utexo/rgb-lib';
@@ -291,7 +302,9 @@ export class NodeRgbLibBinding implements IRgbLibBinding {
     );
   }
 
-  async createUtxosBegin(params: CreateUtxosBeginRequestModel): Promise<string> {
+  async createUtxosBegin(
+    params: CreateUtxosBeginRequestModel
+  ): Promise<string> {
     const online = this.getOnline();
     const upTo = params.upTo ?? false;
     const num = params.num !== undefined ? String(params.num) : null;
@@ -481,7 +494,9 @@ export class NodeRgbLibBinding implements IRgbLibBinding {
       }
       return result;
     } catch (_error) {
-      logger.warn('rgb-lib estimation fee are not available, using default fee rate 2');
+      logger.warn(
+        'rgb-lib estimation fee are not available, using default fee rate 2'
+      );
       return 2 as GetFeeEstimationResponse;
     }
   }
@@ -619,7 +634,7 @@ export class NodeRgbLibBinding implements IRgbLibBinding {
     const filter: string[] = [];
     const skipSync = false;
 
-    const result = this.wallet.refresh(online, assetId, filter, skipSync);
+    return this.wallet.refresh(online, assetId, filter, skipSync);
   }
 
   dropWallet(): void {
