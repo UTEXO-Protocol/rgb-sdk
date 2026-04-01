@@ -21,7 +21,6 @@ module.exports = {
         diagnostics: {
           ignoreCodes: [1343, 2351, 6059, 7016], // Ignore missing declaration file errors
         },
-        isolatedModules: true,
         useESM: true,
       },
     ],
