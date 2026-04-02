@@ -176,27 +176,6 @@ console.log('BTC balance:', balance);
 await wallet.dispose();
 ```
 
-### UTEXO Offline Receiver Smoke
-
-There is a dedicated UTEXO smoke test for the offline receiver flow.
-
-Required environment variables:
-
-- `MNEMONIC_A` - funded sender wallet mnemonic
-- `MNEMONIC_B` - funded receiver wallet mnemonic
-- `ASSET_ID` - sender asset id with spendable balance
-- `SIGNET_PROXY_HTTP_URL` - optional override for proxy HTTP JSON-RPC endpoint
-
-Run:
-
-```bash
-MNEMONIC_A="..." MNEMONIC_B="..." ASSET_ID="rgb:..." npm run test:signet:smoke
-```
-
-The test writes a JSON report to `artifacts/utexo-offline-receiver-smoke.json`.
-
----
-
 ## Core Workflows
 
 ### Wallet Initialization
