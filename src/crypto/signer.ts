@@ -58,6 +58,8 @@ async function signPsbtFromSeedInternal(
 
   const fp = await calculateMasterFingerprint(rootNode);
   const psbtType = detectPsbtType(psbtBase64);
+  // utexo is a UTEXO-specific network that shares BDK's signet parameters
+  const bdkNetwork: Network = network === 'utexo' ? 'signet' : network;
 
   // Try signing with the detected descriptor type; fall back to the other if it fails.
   // No PSBT preprocessing needed — rgb-lib PSBTs already carry correct metadata.
@@ -65,12 +67,12 @@ async function signPsbtFromSeedInternal(
     const { external, internal } = deriveDescriptors(
       rootNode,
       fp,
-      network,
+      bdkNetwork,
       type
     );
     let wallet: BDKWallet;
     try {
-      wallet = bdk.Wallet.create(network as BDKNetwork, external, internal);
+      wallet = bdk.Wallet.create(bdkNetwork as BDKNetwork, external, internal);
     } catch (error) {
       throw new CryptoError('Failed to create BDK wallet', error as Error);
     }

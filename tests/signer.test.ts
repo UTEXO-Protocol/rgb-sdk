@@ -277,7 +277,7 @@ describe('signer', () => {
 
     it('should handle different network types', async () => {
       // Test with valid network values (string names)
-      const validNetworks = ['testnet', 'mainnet', 'regtest', 'signet'];
+      const validNetworks = ['testnet', 'mainnet', 'regtest', 'signet', 'utexo'];
 
       for (const network of validNetworks) {
         await expect(

@@ -71,6 +71,7 @@ function mapNetworkToRgbLib(network: string): string {
     testnet: 'Testnet',
     testnet4: 'Testnet4',
     signet: 'Signet',
+    utexo: 'Signet',
     regtest: 'Regtest',
   };
   const networkStr = String(network).toLowerCase();

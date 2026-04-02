@@ -71,7 +71,7 @@ describe('restoreUtxoWalletFromBackup with mocked restoreWallet', () => {
       networkPreset: 'testnet',
     });
 
-    // testnet preset: layer1=testnet, utexo=signet
+    // testnet preset: layer1=testnet, utexo=utexo
     expect(result.layer1Path).toContain(fp);
     expect(result.utexoPath).toContain(fp);
     expect(result.layer1Path).not.toBe(result.utexoPath);

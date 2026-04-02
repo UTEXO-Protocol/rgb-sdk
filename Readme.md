@@ -126,18 +126,20 @@ The SDK uses default endpoints for RGB transport and Bitcoin indexing. These are
 
 **Transport Endpoints** (RGB protocol communication):
 
+- **UTEXO**: `rpcs://rgb-proxy-utexo.utexo.com/json-rpc`
 - **Mainnet**: `rpcs://rgb-proxy-mainnet.utexo.com/json-rpc`
 - **Testnet**: `rpcs://rgb-proxy-testnet3.utexo.com/json-rpc`
 - **Testnet4**: `rpcs://proxy.iriswallet.com/0.2/json-rpc`
-- **Signet**: `rpcs://rgb-proxy-utexo.utexo.com/json-rpc`
+- **Signet**: `rpcs://proxy.iriswallet.com/0.2/json-rpc`
 - **Regtest**: `rpcs://proxy.iriswallet.com/0.2/json-rpc`
 
 **Indexer URLs** (Bitcoin blockchain data):
 
+- **UTEXO**: `https://esplora-api.utexo.com`
 - **Mainnet**: `ssl://electrum.iriswallet.com:50003`
 - **Testnet**: `ssl://electrum.iriswallet.com:50013`
 - **Testnet4**: `ssl://electrum.iriswallet.com:50053`
-- **Signet**: `https://esplora-api.utexo.com`
+- **Signet**: `ssl://electrum.iriswallet.com:50033`
 - **Regtest**: `tcp://regtest.thunderstack.org:50001`
 
 UTEXOWallet uses network (`testnet` / `mainnet`) that define indexer and transport endpoints internally.
@@ -174,9 +176,9 @@ console.log('BTC balance:', balance);
 await wallet.dispose();
 ```
 
-### Signet Offline Receiver Smoke
+### UTEXO Offline Receiver Smoke
 
-There is a dedicated Signet smoke test for the offline receiver flow.
+There is a dedicated UTEXO smoke test for the offline receiver flow.
 
 Required environment variables:
 
@@ -191,7 +193,7 @@ Run:
 MNEMONIC_A="..." MNEMONIC_B="..." ASSET_ID="rgb:..." npm run test:signet:smoke
 ```
 
-The test writes a JSON report to `artifacts/signet-offline-receiver-smoke.json`.
+The test writes a JSON report to `artifacts/utexo-offline-receiver-smoke.json`.
 
 ---
 
