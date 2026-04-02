@@ -1,6 +1,5 @@
 import {
   pollCondition,
-  pollAck,
   proxyRpc,
   sleep,
   writeSmokeReport,
@@ -61,18 +60,19 @@ beforeAll(async () => {
 
   await proxyRpc<{ protocol_version: string; version: string }>(
     PROXY_HTTP_URL,
-    'server.info',
+    'server.info'
   );
 
-  const { WalletManager, generateKeys } = (await import('../../dist/index.mjs')) as {
-    WalletManager: WalletManagerCtor;
-    generateKeys: GenerateKeysFn;
-  };
+  const { WalletManager, generateKeys } =
+    (await import('../../dist/index.mjs')) as {
+      WalletManager: WalletManagerCtor;
+      generateKeys: GenerateKeysFn;
+    };
 
   const { wallet: receiver } = await createRegtestWallet(
     WalletManager,
     generateKeys,
-    'receiver',
+    'receiver'
   );
 
   state.receiver = receiver;
@@ -127,7 +127,7 @@ describe('Regtest invalid consignment', () => {
         'consignment.get',
         {
           recipient_id: invoiceData.recipientId,
-        },
+        }
       );
       const validated = consignment.validated;
       report.phase1.ack = ack;
@@ -135,13 +135,13 @@ describe('Regtest invalid consignment', () => {
 
       expect(
         (ack === false && validated === false) ||
-          (ack === null && validated === undefined),
+          (ack === null && validated === undefined)
       ).toBe(true);
 
       await receiver.refreshWallet();
       const transfers = await receiver.listTransfers();
       const currentTransfer = transfers.find(
-        (item) => item.recipientId === invoiceData.recipientId,
+        (item) => item.recipientId === invoiceData.recipientId
       );
 
       report.phase1.transferStatusAfterRefresh = currentTransfer?.status;
@@ -149,7 +149,10 @@ describe('Regtest invalid consignment', () => {
       expect(currentTransfer?.status).not.toBe('Settled');
     } finally {
       report.durationMs = Date.now() - startedAt;
-      const reportPath = writeSmokeReport(report, 'regtest-invalid-consignment.json');
+      const reportPath = writeSmokeReport(
+        report,
+        'regtest-invalid-consignment.json'
+      );
       console.log(`smoke report: ${reportPath}`);
       console.log(JSON.stringify(report, null, 2));
     }
@@ -186,13 +189,13 @@ describe('Regtest invalid consignment', () => {
       (ack) => ack === true,
       5_000,
       500,
-      `Manual ACK was not preserved for recipient_id=${recipientId}`,
+      `Manual ACK was not preserved for recipient_id=${recipientId}`
     );
 
     expect(finalAck).toBe(true);
 
     const currentTransfer = (await receiver.listTransfers()).find(
-      (item) => item.recipientId === recipientId,
+      (item) => item.recipientId === recipientId
     );
     expect(currentTransfer?.status).not.toBe('Settled');
   });

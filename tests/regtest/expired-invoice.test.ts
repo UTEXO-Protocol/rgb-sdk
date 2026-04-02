@@ -1,9 +1,4 @@
-import {
-  pollTransferByRecipientId,
-  proxyRpc,
-  sleep,
-  writeSmokeReport,
-} from '../shared/helpers';
+import { proxyRpc, sleep, writeSmokeReport } from '../shared/helpers';
 import {
   createRegtestWallet,
   env,
@@ -77,15 +72,27 @@ beforeAll(async () => {
   ensureBitcoindAccess();
 
   resetWalletDataDirs(getRegtestBaseDir());
-  await proxyRpc<{ protocol_version: string; version: string }>(PROXY_HTTP_URL, 'server.info');
+  await proxyRpc<{ protocol_version: string; version: string }>(
+    PROXY_HTTP_URL,
+    'server.info'
+  );
 
-  const { WalletManager, generateKeys } = (await import('../../dist/index.mjs')) as {
-    WalletManager: WalletManagerCtor;
-    generateKeys: GenerateKeysFn;
-  };
+  const { WalletManager, generateKeys } =
+    (await import('../../dist/index.mjs')) as {
+      WalletManager: WalletManagerCtor;
+      generateKeys: GenerateKeysFn;
+    };
 
-  const { wallet: sender } = await createRegtestWallet(WalletManager, generateKeys, 'sender');
-  const { wallet: receiver } = await createRegtestWallet(WalletManager, generateKeys, 'receiver');
+  const { wallet: sender } = await createRegtestWallet(
+    WalletManager,
+    generateKeys,
+    'sender'
+  );
+  const { wallet: receiver } = await createRegtestWallet(
+    WalletManager,
+    generateKeys,
+    'receiver'
+  );
   state.sender = sender;
   state.receiver = receiver;
 
@@ -103,7 +110,9 @@ beforeAll(async () => {
 
   state.receiverAddress = (await fundWallet(receiver)).address;
   await receiver.refreshWallet();
-  const receiverBalance = await receiver.getAssetBalance(state.assetId).catch(() => ({ settled: 0 }));
+  const receiverBalance = await receiver
+    .getAssetBalance(state.assetId)
+    .catch(() => ({ settled: 0 }));
   state.receiverSettledBefore = Number(receiverBalance.settled ?? 0);
 });
 
@@ -169,18 +178,24 @@ describe('Regtest expired invoice', () => {
       await mine(1);
       await receiver.refreshWallet();
 
-      const ackAfterSend = await proxyRpc<boolean | null>(PROXY_HTTP_URL, 'ack.get', {
-        recipient_id: invoiceData.recipientId,
-      }).catch(() => null);
+      const ackAfterSend = await proxyRpc<boolean | null>(
+        PROXY_HTTP_URL,
+        'ack.get',
+        {
+          recipient_id: invoiceData.recipientId,
+        }
+      ).catch(() => null);
       const consignmentAfterSend = await proxyRpc<{ validated?: boolean }>(
         PROXY_HTTP_URL,
         'consignment.get',
-        { recipient_id: invoiceData.recipientId },
+        { recipient_id: invoiceData.recipientId }
       ).catch(() => ({ validated: undefined }));
-      const transferAfterSend = (await receiver.listTransfers(state.assetId)).find(
-        (item) => item.recipientId === invoiceData.recipientId,
-      );
-      const receiverBalance = await receiver.getAssetBalance(state.assetId).catch(() => ({ settled: 0 }));
+      const transferAfterSend = (
+        await receiver.listTransfers(state.assetId)
+      ).find((item) => item.recipientId === invoiceData.recipientId);
+      const receiverBalance = await receiver
+        .getAssetBalance(state.assetId)
+        .catch(() => ({ settled: 0 }));
       const receiverSettledAfterSend = Number(receiverBalance.settled ?? 0);
 
       report.phase1.ackAfterSend = ackAfterSend;
@@ -192,11 +207,15 @@ describe('Regtest expired invoice', () => {
         ackAfterSend === true &&
         consignmentAfterSend.validated === true &&
         transferAfterSend?.status === 'Settled' &&
-        receiverSettledAfterSend >= state.receiverSettledBefore + TRANSFER_AMOUNT;
+        receiverSettledAfterSend >=
+          state.receiverSettledBefore + TRANSFER_AMOUNT;
       expect(fullSuccess).toBe(false);
     } finally {
       report.durationMs = Date.now() - startedAt;
-      const reportPath = writeSmokeReport(report, 'regtest-expired-invoice.json');
+      const reportPath = writeSmokeReport(
+        report,
+        'regtest-expired-invoice.json'
+      );
       console.log(`smoke report: ${reportPath}`);
       console.log(JSON.stringify(report, null, 2));
     }

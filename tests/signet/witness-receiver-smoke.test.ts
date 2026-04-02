@@ -33,10 +33,11 @@ describe('Signet witness receiver smoke', () => {
             minConfirmations: 1,
           });
         } catch (error) {
-          const message = error instanceof Error ? error.message : String(error);
+          const message =
+            error instanceof Error ? error.message : String(error);
           if (message.includes('InsufficientAllocationSlots')) {
             throw new Error(
-              'Receiver has no free allocation slots for witnessReceive. Run `node cli/run.mjs createutxos stage2-receiver --num 5 --size 2000 --feeRate 2` and then `node cli/run.mjs refresh stage2-receiver` before rerunning this smoke.',
+              'Receiver has no free allocation slots for witnessReceive. Run `node cli/run.mjs createutxos stage2-receiver --num 5 --size 2000 --feeRate 2` and then `node cli/run.mjs refresh stage2-receiver` before rerunning this smoke.'
             );
           }
           throw error;

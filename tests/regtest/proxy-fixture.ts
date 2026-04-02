@@ -17,20 +17,22 @@ function dockerRmForce(containerName: string): void {
       encoding: 'utf8',
       stdio: 'pipe',
     });
-  } catch {}
+  } catch (_e) {
+    // container may not exist yet
+  }
 }
 
 export async function waitForProxyReady(
   proxyHttpUrl: string,
   timeoutMs = 15_000,
-  intervalMs = 500,
+  intervalMs = 500
 ): Promise<void> {
   await pollCondition(
     async () => {
       try {
         return await proxyRpc<{ protocol_version: string; version: string }>(
           proxyHttpUrl,
-          'server.info',
+          'server.info'
         );
       } catch {
         return null;
@@ -39,13 +41,13 @@ export async function waitForProxyReady(
     (info) => Boolean(info?.version),
     timeoutMs,
     intervalMs,
-    'Proxy did not become ready in time',
+    'Proxy did not become ready in time'
   );
 }
 
 export async function switchToRelayOnlyProxy(
   composeFile: string,
-  proxyHttpUrl: string,
+  proxyHttpUrl: string
 ): Promise<void> {
   dockerCompose(composeFile, ['stop', PROXY_SERVICE_NAME]);
   dockerRmForce(RELAY_ONLY_CONTAINER_NAME);
@@ -67,7 +69,7 @@ export async function switchToRelayOnlyProxy(
 
 export async function restoreStandardProxy(
   composeFile: string,
-  proxyHttpUrl: string,
+  proxyHttpUrl: string
 ): Promise<void> {
   dockerRmForce(RELAY_ONLY_CONTAINER_NAME);
   dockerCompose(composeFile, ['up', '-d', PROXY_SERVICE_NAME]);

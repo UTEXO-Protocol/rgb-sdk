@@ -6,20 +6,23 @@ module.exports = {
   testMatch: ['**/regtest/**/*.test.ts'],
   extensionsToTreatAsEsm: ['.ts'],
   transform: {
-    '^.+\\.ts$': ['ts-jest', {
-      tsconfig: {
-        target: 'ES2020',
-        module: 'ESNext',
-        moduleResolution: 'node',
-        esModuleInterop: true,
-        allowSyntheticDefaultImports: true,
-        skipLibCheck: true,
+    '^.+\\.ts$': [
+      'ts-jest',
+      {
+        tsconfig: {
+          target: 'ES2020',
+          module: 'ESNext',
+          moduleResolution: 'node',
+          esModuleInterop: true,
+          allowSyntheticDefaultImports: true,
+          skipLibCheck: true,
+        },
+        diagnostics: {
+          ignoreCodes: [1343, 2351, 6059, 7016],
+        },
+        useESM: true,
       },
-      diagnostics: {
-        ignoreCodes: [1343, 2351, 6059, 7016],
-      },
-      useESM: true,
-    }],
+    ],
   },
   transformIgnorePatterns: [
     'node_modules/(?!(@metamask|bitcoindevkit|@types)/)',

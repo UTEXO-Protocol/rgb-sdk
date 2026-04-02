@@ -22,7 +22,7 @@ export async function pollCondition<T>(
   predicate: (value: T) => boolean,
   timeoutMs: number,
   intervalMs: number,
-  errorMessage: string,
+  errorMessage: string
 ): Promise<T> {
   const startedAt = Date.now();
 
@@ -40,7 +40,7 @@ export async function pollCondition<T>(
 export async function proxyRpc<T>(
   proxyUrl: string,
   method: string,
-  params: Record<string, unknown> | null = null,
+  params: Record<string, unknown> | null = null
 ): Promise<T> {
   const response = await fetch(proxyUrl, {
     method: 'POST',
@@ -65,7 +65,7 @@ export async function pollAck(
   proxyUrl: string,
   recipientId: string,
   timeoutMs = 90_000,
-  intervalMs = 2_000,
+  intervalMs = 2_000
 ): Promise<boolean> {
   const startedAt = Date.now();
 
@@ -86,7 +86,7 @@ export async function pollValidated(
   proxyUrl: string,
   recipientId: string,
   timeoutMs = 90_000,
-  intervalMs = 2_000,
+  intervalMs = 2_000
 ): Promise<boolean> {
   const startedAt = Date.now();
 
@@ -105,7 +105,9 @@ export async function pollValidated(
     await sleep(intervalMs);
   }
 
-  throw new Error(`Timed out waiting for validated flag on recipient_id=${recipientId}`);
+  throw new Error(
+    `Timed out waiting for validated flag on recipient_id=${recipientId}`
+  );
 }
 
 export async function pollSettledBalanceDelta(
@@ -113,7 +115,7 @@ export async function pollSettledBalanceDelta(
   beforeSettled: number,
   expectedDelta: number,
   timeoutMs = 180_000,
-  intervalMs = 5_000,
+  intervalMs = 5_000
 ): Promise<number> {
   const startedAt = Date.now();
 
@@ -127,7 +129,7 @@ export async function pollSettledBalanceDelta(
   }
 
   throw new Error(
-    `Timed out waiting for settled balance delta >= ${expectedDelta} (before=${beforeSettled})`,
+    `Timed out waiting for settled balance delta >= ${expectedDelta} (before=${beforeSettled})`
   );
 }
 
@@ -136,7 +138,7 @@ export async function pollTransferByRecipientId<T extends TransferLike>(
   recipientId: string,
   sendTxid?: string,
   timeoutMs = 120_000,
-  intervalMs = 5_000,
+  intervalMs = 5_000
 ): Promise<T> {
   let lastStatus: string | undefined;
 
@@ -149,22 +151,29 @@ export async function pollTransferByRecipientId<T extends TransferLike>(
     },
     timeoutMs,
     intervalMs,
-    `Transfer for recipientId ${recipientId} did not reach Settled within ${timeoutMs}ms (lastStatus=${lastStatus ?? 'missing'})`,
+    `Transfer for recipientId ${recipientId} did not reach Settled within ${timeoutMs}ms (lastStatus=${lastStatus ?? 'missing'})`
   );
 
   const transfer = transfers.find((item) => item.recipientId === recipientId);
   if (!transfer) {
-    throw new Error(`Transfer for recipientId ${recipientId} not found after polling`);
+    throw new Error(
+      `Transfer for recipientId ${recipientId} not found after polling`
+    );
   }
 
   if (sendTxid && transfer.txid && transfer.txid !== sendTxid) {
-    console.warn(`txid mismatch for recipientId ${recipientId}: expected ${sendTxid}, got ${transfer.txid}`);
+    console.warn(
+      `txid mismatch for recipientId ${recipientId}: expected ${sendTxid}, got ${transfer.txid}`
+    );
   }
 
   return transfer;
 }
 
-export function writeSmokeReport(report: unknown, fileName = 'smoke-report.json'): string {
+export function writeSmokeReport(
+  report: unknown,
+  fileName = 'smoke-report.json'
+): string {
   const artifactsDir = path.join(process.cwd(), 'artifacts');
   fs.mkdirSync(artifactsDir, { recursive: true });
 

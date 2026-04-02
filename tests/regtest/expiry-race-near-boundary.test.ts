@@ -1,7 +1,6 @@
 import {
   pollAck,
   pollCondition,
-  pollTransferByRecipientId,
   pollValidated,
   proxyRpc,
   sleep,
@@ -84,15 +83,27 @@ beforeAll(async () => {
   ensureBitcoindAccess();
 
   resetWalletDataDirs(getRegtestBaseDir());
-  await proxyRpc<{ protocol_version: string; version: string }>(PROXY_HTTP_URL, 'server.info');
+  await proxyRpc<{ protocol_version: string; version: string }>(
+    PROXY_HTTP_URL,
+    'server.info'
+  );
 
-  const { WalletManager, generateKeys } = (await import('../../dist/index.mjs')) as {
-    WalletManager: WalletManagerCtor;
-    generateKeys: GenerateKeysFn;
-  };
+  const { WalletManager, generateKeys } =
+    (await import('../../dist/index.mjs')) as {
+      WalletManager: WalletManagerCtor;
+      generateKeys: GenerateKeysFn;
+    };
 
-  const { wallet: sender } = await createRegtestWallet(WalletManager, generateKeys, 'sender');
-  const { wallet: receiver } = await createRegtestWallet(WalletManager, generateKeys, 'receiver');
+  const { wallet: sender } = await createRegtestWallet(
+    WalletManager,
+    generateKeys,
+    'sender'
+  );
+  const { wallet: receiver } = await createRegtestWallet(
+    WalletManager,
+    generateKeys,
+    'receiver'
+  );
   state.sender = sender;
   state.receiver = receiver;
 
@@ -114,12 +125,14 @@ beforeAll(async () => {
     (balance) => Number(balance.spendable ?? 0) >= TRANSFER_AMOUNT,
     30_000,
     1_000,
-    `Issued asset ${state.assetId} did not become spendable in time`,
+    `Issued asset ${state.assetId} did not become spendable in time`
   );
 
   state.receiverAddress = (await fundWallet(receiver)).address;
   await receiver.refreshWallet();
-  const receiverBalance = await receiver.getAssetBalance(state.assetId).catch(() => ({ settled: 0 }));
+  const receiverBalance = await receiver
+    .getAssetBalance(state.assetId)
+    .catch(() => ({ settled: 0 }));
   state.receiverSettledBefore = Number(receiverBalance.settled ?? 0);
 });
 
@@ -163,7 +176,8 @@ describe('Regtest expiry race near boundary', () => {
       report.phase1.recipientId = invoiceData.recipientId;
 
       const expirationTimestamp = Number(
-        (invoiceData as { expirationTimestamp?: number | null }).expirationTimestamp ?? 0,
+        (invoiceData as { expirationTimestamp?: number | null })
+          .expirationTimestamp ?? 0
       );
       report.phase1.expirationTimestamp = expirationTimestamp || null;
       if (expirationTimestamp > 0) {
@@ -207,38 +221,44 @@ describe('Regtest expiry race near boundary', () => {
           return receiver
             .listTransfers(state.assetId)
             .then((items) =>
-              items.find((item) => item.recipientId === invoiceData.recipientId),
+              items.find((item) => item.recipientId === invoiceData.recipientId)
             );
         },
         (transfer) =>
-          transfer?.status === 'Settled' ||
-          transfer?.status === 'Failed',
+          transfer?.status === 'Settled' || transfer?.status === 'Failed',
         30_000,
         1_000,
-        `Transfer for recipient_id=${invoiceData.recipientId} did not reach a terminal status`,
+        `Transfer for recipient_id=${invoiceData.recipientId} did not reach a terminal status`
       );
       report.phase1.transferStatusAfterSend = currentTransfer?.status;
       expect(currentTransfer).toBeDefined();
 
-      const receiverBalance = await receiver.getAssetBalance(state.assetId).catch(() => ({ settled: 0 }));
+      const receiverBalance = await receiver
+        .getAssetBalance(state.assetId)
+        .catch(() => ({ settled: 0 }));
       const receiverSettledAfterSend = Number(receiverBalance.settled ?? 0);
       report.phase1.receiverSettledAfterSend = receiverSettledAfterSend;
 
       if (currentTransfer?.status === 'Settled') {
-        const ack = await pollAck(PROXY_HTTP_URL, invoiceData.recipientId, 30_000, 1_000);
+        const ack = await pollAck(
+          PROXY_HTTP_URL,
+          invoiceData.recipientId,
+          30_000,
+          1_000
+        );
         const validated = await pollValidated(
           PROXY_HTTP_URL,
           invoiceData.recipientId,
           30_000,
-          1_000,
+          1_000
         );
         report.phase1.ackAfterSend = ack;
         report.phase1.validatedAfterSend = validated;
         expect(ack).toBe(true);
         expect(validated).toBe(true);
-        expect(receiverSettledAfterSend - state.receiverSettledBefore).toBeGreaterThanOrEqual(
-          TRANSFER_AMOUNT,
-        );
+        expect(
+          receiverSettledAfterSend - state.receiverSettledBefore
+        ).toBeGreaterThanOrEqual(TRANSFER_AMOUNT);
       } else {
         const ack = await proxyRpc<boolean | null>(PROXY_HTTP_URL, 'ack.get', {
           recipient_id: invoiceData.recipientId,
@@ -246,7 +266,7 @@ describe('Regtest expiry race near boundary', () => {
         const validated = await proxyRpc<{ validated?: boolean }>(
           PROXY_HTTP_URL,
           'consignment.get',
-          { recipient_id: invoiceData.recipientId },
+          { recipient_id: invoiceData.recipientId }
         )
           .then((consignment) => consignment.validated)
           .catch(() => undefined);
@@ -256,7 +276,10 @@ describe('Regtest expiry race near boundary', () => {
       }
     } finally {
       report.durationMs = Date.now() - startedAt;
-      const reportPath = writeSmokeReport(report, 'regtest-expiry-race-near-boundary.json');
+      const reportPath = writeSmokeReport(
+        report,
+        'regtest-expiry-race-near-boundary.json'
+      );
       console.log(`smoke report: ${reportPath}`);
       console.log(JSON.stringify(report, null, 2));
     }

@@ -111,16 +111,21 @@ beforeAll(async () => {
 
   resetWalletDataDirs(getRegtestBaseDir());
 
-  const { WalletManager, generateKeys } = (await import('../../dist/index.mjs')) as {
-    WalletManager: WalletManagerCtor;
-    generateKeys: GenerateKeysFn;
-  };
+  const { WalletManager, generateKeys } =
+    (await import('../../dist/index.mjs')) as {
+      WalletManager: WalletManagerCtor;
+      generateKeys: GenerateKeysFn;
+    };
 
-  const { wallet: sender } = await createRegtestWallet(WalletManager, generateKeys, 'sender');
+  const { wallet: sender } = await createRegtestWallet(
+    WalletManager,
+    generateKeys,
+    'sender'
+  );
   const { wallet: receiver } = await createRegtestWallet(
     WalletManager,
     generateKeys,
-    'receiver',
+    'receiver'
   );
 
   state.sender = sender;
@@ -145,7 +150,7 @@ beforeAll(async () => {
     (balance) => Number(balance.spendable ?? 0) >= TRANSFER_AMOUNT,
     ASSET_READY_TIMEOUT_MS,
     ASSET_READY_INTERVAL_MS,
-    `Issued relay-only asset ${state.assetId} did not become spendable in time`,
+    `Issued relay-only asset ${state.assetId} did not become spendable in time`
   );
 
   const phase2Asset = await sender.issueAssetNia({
@@ -165,7 +170,7 @@ beforeAll(async () => {
     (balance) => Number(balance.spendable ?? 0) >= TRANSFER_AMOUNT,
     ASSET_READY_TIMEOUT_MS,
     ASSET_READY_INTERVAL_MS,
-    `Issued relay-only manual-ack asset ${state.phase2AssetId} did not become spendable in time`,
+    `Issued relay-only manual-ack asset ${state.phase2AssetId} did not become spendable in time`
   );
 
   state.receiverAddress = (await fundWallet(receiver)).address;
@@ -221,15 +226,19 @@ describe('Regtest relay-only mode', () => {
       await mine(1);
       await sleep(2_000);
 
-      const ackBeforeManual = await proxyRpc<boolean | null>(PROXY_HTTP_URL, 'ack.get', {
-        recipient_id: invoiceData.recipientId,
-      });
+      const ackBeforeManual = await proxyRpc<boolean | null>(
+        PROXY_HTTP_URL,
+        'ack.get',
+        {
+          recipient_id: invoiceData.recipientId,
+        }
+      );
       const consignmentBeforeManual = await proxyRpc<{ validated?: boolean }>(
         PROXY_HTTP_URL,
         'consignment.get',
         {
           recipient_id: invoiceData.recipientId,
-        },
+        }
       );
 
       report.phase1.ackBeforeManual = ackBeforeManual;
@@ -238,10 +247,14 @@ describe('Regtest relay-only mode', () => {
       expect(ackBeforeManual).toBeNull();
       expect(consignmentBeforeManual.validated).toBeUndefined();
 
-      const manualAckPosted = await proxyRpc<boolean>(PROXY_HTTP_URL, 'ack.post', {
-        recipient_id: invoiceData.recipientId,
-        ack: true,
-      });
+      const manualAckPosted = await proxyRpc<boolean>(
+        PROXY_HTTP_URL,
+        'ack.post',
+        {
+          recipient_id: invoiceData.recipientId,
+          ack: true,
+        }
+      );
       report.phase1.manualAckPosted = manualAckPosted;
       expect(manualAckPosted).toBe(true);
 
@@ -253,13 +266,16 @@ describe('Regtest relay-only mode', () => {
         (ack) => ack === true,
         5_000,
         500,
-        `Manual ACK did not stick for recipient_id=${invoiceData.recipientId}`,
+        `Manual ACK did not stick for recipient_id=${invoiceData.recipientId}`
       );
       report.phase1.ackAfterManual = ackAfterManual;
       expect(ackAfterManual).toBe(true);
     } finally {
       report.durationMs = Date.now() - startedAt;
-      const reportPath = writeSmokeReport(report, 'regtest-relay-only-mode.json');
+      const reportPath = writeSmokeReport(
+        report,
+        'regtest-relay-only-mode.json'
+      );
       console.log(`smoke report: ${reportPath}`);
       console.log(JSON.stringify(report, null, 2));
     }
@@ -271,9 +287,11 @@ describe('Regtest relay-only mode', () => {
     const phase2AssetId = state.phase2AssetId;
     const startedAt = Date.now();
 
-    const beforeBalance = await receiver.getAssetBalance(phase2AssetId).catch(() => ({
-      settled: 0,
-    }));
+    const beforeBalance = await receiver
+      .getAssetBalance(phase2AssetId)
+      .catch(() => ({
+        settled: 0,
+      }));
     const receiverSettledBefore = Number(beforeBalance.settled ?? 0);
     const report: RelayOnlyReport = {
       timestamp: new Date().toISOString(),
@@ -321,21 +339,29 @@ describe('Regtest relay-only mode', () => {
       await mine(1);
       await sleep(2_000);
 
-      const ackBeforeManual = await proxyRpc<boolean | null>(PROXY_HTTP_URL, 'ack.get', {
-        recipient_id: invoiceData.recipientId,
-      });
+      const ackBeforeManual = await proxyRpc<boolean | null>(
+        PROXY_HTTP_URL,
+        'ack.get',
+        {
+          recipient_id: invoiceData.recipientId,
+        }
+      );
       report.phase2!.ackBeforeManual = ackBeforeManual;
       expect(ackBeforeManual).toBeNull();
 
       await receiver.refreshWallet();
-      const balanceBeforeManualAck = await receiver.getAssetBalance(phase2AssetId);
-      const receiverSettledBeforeManualAck = Number(balanceBeforeManualAck.settled ?? 0);
-      report.phase2!.receiverSettledBeforeManualAck = receiverSettledBeforeManualAck;
+      const balanceBeforeManualAck =
+        await receiver.getAssetBalance(phase2AssetId);
+      const receiverSettledBeforeManualAck = Number(
+        balanceBeforeManualAck.settled ?? 0
+      );
+      report.phase2!.receiverSettledBeforeManualAck =
+        receiverSettledBeforeManualAck;
       expect(receiverSettledBeforeManualAck).toBe(receiverSettledBefore);
 
-      const transferBeforeManual = (await receiver.listTransfers(phase2AssetId)).find(
-        (item) => item.recipientId === invoiceData.recipientId,
-      );
+      const transferBeforeManual = (
+        await receiver.listTransfers(phase2AssetId)
+      ).find((item) => item.recipientId === invoiceData.recipientId);
       report.phase2!.transferStatusBeforeManual = transferBeforeManual?.status;
       expect(transferBeforeManual?.status).toBe('WaitingConfirmations');
 
@@ -347,21 +373,29 @@ describe('Regtest relay-only mode', () => {
         (ack) => ack === true,
         5_000,
         500,
-        `Receiver refresh did not ACK recipient_id=${invoiceData.recipientId}`,
+        `Receiver refresh did not ACK recipient_id=${invoiceData.recipientId}`
       );
       report.phase2!.ackAfterReceiverRefresh = ackAfterReceiverRefresh;
       expect(ackAfterReceiverRefresh).toBe(true);
 
-      const lateManualAckPosted = await proxyRpc<boolean>(PROXY_HTTP_URL, 'ack.post', {
-        recipient_id: invoiceData.recipientId,
-        ack: true,
-      });
+      const lateManualAckPosted = await proxyRpc<boolean>(
+        PROXY_HTTP_URL,
+        'ack.post',
+        {
+          recipient_id: invoiceData.recipientId,
+          ack: true,
+        }
+      );
       report.phase2!.lateManualAckPosted = lateManualAckPosted;
       expect(lateManualAckPosted).toBe(false);
 
-      const ackAfterLateManual = await proxyRpc<boolean | null>(PROXY_HTTP_URL, 'ack.get', {
-        recipient_id: invoiceData.recipientId,
-      });
+      const ackAfterLateManual = await proxyRpc<boolean | null>(
+        PROXY_HTTP_URL,
+        'ack.get',
+        {
+          recipient_id: invoiceData.recipientId,
+        }
+      );
       report.phase2!.ackAfterLateManual = ackAfterLateManual;
       expect(ackAfterLateManual).toBe(true);
 
@@ -373,7 +407,7 @@ describe('Regtest relay-only mode', () => {
         invoiceData.recipientId,
         sendResult.txid,
         RELAY_TRANSFER_TIMEOUT_MS,
-        RELAY_TRANSFER_INTERVAL_MS,
+        RELAY_TRANSFER_INTERVAL_MS
       );
       report.phase2!.currentTransferStatus = currentTransfer.status;
       report.phase2!.currentTransferTxid = currentTransfer.txid ?? null;
@@ -384,10 +418,11 @@ describe('Regtest relay-only mode', () => {
 
       const finalBalance = await receiver.getAssetBalance(phase2AssetId);
       const receiverSettledAfterManualAck = Number(finalBalance.settled ?? 0);
-      report.phase2!.receiverSettledAfterManualAck = receiverSettledAfterManualAck;
-      expect(receiverSettledAfterManualAck - receiverSettledBefore).toBeGreaterThanOrEqual(
-        TRANSFER_AMOUNT,
-      );
+      report.phase2!.receiverSettledAfterManualAck =
+        receiverSettledAfterManualAck;
+      expect(
+        receiverSettledAfterManualAck - receiverSettledBefore
+      ).toBeGreaterThanOrEqual(TRANSFER_AMOUNT);
 
       for (let cycle = 1; cycle <= 2; cycle += 1) {
         await receiver.refreshWallet();
@@ -396,12 +431,17 @@ describe('Regtest relay-only mode', () => {
         report.phase2!.refreshChecks!.push({ cycle, settled });
       }
 
-      const finalSettledValues = report.phase2!.refreshChecks!.map(({ settled }) => settled);
+      const finalSettledValues = report.phase2!.refreshChecks!.map(
+        ({ settled }) => settled
+      );
       expect(new Set(finalSettledValues).size).toBe(1);
       report.phase2!.receiverSettledFinal = finalSettledValues.at(-1);
     } finally {
       report.durationMs = Date.now() - startedAt;
-      const reportPath = writeSmokeReport(report, 'regtest-relay-only-convergence.json');
+      const reportPath = writeSmokeReport(
+        report,
+        'regtest-relay-only-convergence.json'
+      );
       console.log(`smoke report: ${reportPath}`);
       console.log(JSON.stringify(report, null, 2));
     }

@@ -73,7 +73,9 @@ describe('Signet sequential receives smoke', () => {
     const sender = state.sender!;
     const receiver = state.receiver!;
     const assetId = state.assetId;
-    const receiverSettledBefore = Number(state.receiverBalanceBefore?.settled ?? 0);
+    const receiverSettledBefore = Number(
+      state.receiverBalanceBefore?.settled ?? 0
+    );
     const startedAt = Date.now();
     const report: SequentialReport = {
       timestamp: new Date().toISOString(),
@@ -82,7 +84,9 @@ describe('Signet sequential receives smoke', () => {
         assetId,
         senderAddress: state.senderAddress,
         receiverAddress: state.receiverAddress,
-        senderSpendableBefore: Number(state.senderBalanceBefore?.spendable ?? 0),
+        senderSpendableBefore: Number(
+          state.senderBalanceBefore?.spendable ?? 0
+        ),
         receiverSettledBefore,
         iterations: SEQUENTIAL_ITERATIONS,
       },
@@ -97,10 +101,11 @@ describe('Signet sequential receives smoke', () => {
           return sender.getAssetBalance(assetId);
         },
         (balance) =>
-          Number(balance.spendable ?? 0) >= SEQUENTIAL_ITERATIONS * TRANSFER_AMOUNT,
+          Number(balance.spendable ?? 0) >=
+          SEQUENTIAL_ITERATIONS * TRANSFER_AMOUNT,
         180_000,
         5_000,
-        `Sender asset did not reach spendable >= ${SEQUENTIAL_ITERATIONS * TRANSFER_AMOUNT} before sequential test`,
+        `Sender asset did not reach spendable >= ${SEQUENTIAL_ITERATIONS * TRANSFER_AMOUNT} before sequential test`
       );
 
       let expectedSettledLowerBound = receiverSettledBefore;
@@ -113,7 +118,7 @@ describe('Signet sequential receives smoke', () => {
           (balance) => Number(balance.spendable ?? 0) >= TRANSFER_AMOUNT,
           120_000,
           5_000,
-          `Sender spendable did not recover before cycle=${cycle}`,
+          `Sender spendable did not recover before cycle=${cycle}`
         );
 
         let invoiceData;
@@ -123,10 +128,11 @@ describe('Signet sequential receives smoke', () => {
             minConfirmations: 1,
           });
         } catch (error) {
-          const message = error instanceof Error ? error.message : String(error);
+          const message =
+            error instanceof Error ? error.message : String(error);
           if (message.includes('InsufficientAllocationSlots')) {
             throw new Error(
-              `Receiver has no free allocation slots for cycle=${cycle}. Run \`node cli/run.mjs createutxos stage2-receiver --num 10 --size 2000 --feeRate 2\` and then \`node cli/run.mjs refresh stage2-receiver\` before rerunning this sequential smoke.`,
+              `Receiver has no free allocation slots for cycle=${cycle}. Run \`node cli/run.mjs createutxos stage2-receiver --num 10 --size 2000 --feeRate 2\` and then \`node cli/run.mjs refresh stage2-receiver\` before rerunning this sequential smoke.`
             );
           }
           throw error;
@@ -153,13 +159,13 @@ describe('Signet sequential receives smoke', () => {
           PROXY_HTTP_URL,
           invoiceData.recipientId,
           ACK_TIMEOUT_MS,
-          ACK_INTERVAL_MS,
+          ACK_INTERVAL_MS
         );
         const validated = await pollValidated(
           PROXY_HTTP_URL,
           invoiceData.recipientId,
           ACK_TIMEOUT_MS,
-          ACK_INTERVAL_MS,
+          ACK_INTERVAL_MS
         );
         cycleReport.ack = ack;
         cycleReport.validated = validated;
@@ -174,23 +180,26 @@ describe('Signet sequential receives smoke', () => {
           invoiceData.recipientId,
           sendResult.txid,
           TRANSFER_TIMEOUT_MS,
-          TRANSFER_INTERVAL_MS,
+          TRANSFER_INTERVAL_MS
         );
         cycleReport.status = transfer.status;
         expect(transfer.status).toBe('Settled');
 
-        const receiverBalanceAfterCycle = await receiver.getAssetBalance(assetId);
-        const receiverSettledAfterCycle = Number(receiverBalanceAfterCycle.settled ?? 0);
+        const receiverBalanceAfterCycle =
+          await receiver.getAssetBalance(assetId);
+        const receiverSettledAfterCycle = Number(
+          receiverBalanceAfterCycle.settled ?? 0
+        );
         cycleReport.receiverSettledAfterCycle = receiverSettledAfterCycle;
         expectedSettledLowerBound += TRANSFER_AMOUNT;
         expect(receiverSettledAfterCycle).toBeGreaterThanOrEqual(
-          expectedSettledLowerBound,
+          expectedSettledLowerBound
         );
 
         await sender.refreshWallet();
         const senderBalanceAfterCycle = await sender.getAssetBalance(assetId);
         cycleReport.senderSpendableAfterCycle = Number(
-          senderBalanceAfterCycle.spendable ?? 0,
+          senderBalanceAfterCycle.spendable ?? 0
         );
       }
 
@@ -199,7 +208,7 @@ describe('Signet sequential receives smoke', () => {
       const totalDelta = finalSettled - receiverSettledBefore;
       report.phase2.totalDelta = totalDelta;
       expect(totalDelta).toBeGreaterThanOrEqual(
-        SEQUENTIAL_ITERATIONS * TRANSFER_AMOUNT,
+        SEQUENTIAL_ITERATIONS * TRANSFER_AMOUNT
       );
 
       const postRefreshSettled: number[] = [];
@@ -219,7 +228,10 @@ describe('Signet sequential receives smoke', () => {
       throw error;
     } finally {
       report.durationMs = Date.now() - startedAt;
-      const reportPath = writeSmokeReport(report, 'signet-sequential-receives.json');
+      const reportPath = writeSmokeReport(
+        report,
+        'signet-sequential-receives.json'
+      );
       console.log(`smoke report: ${reportPath}`);
       console.log(JSON.stringify(report, null, 2));
     }

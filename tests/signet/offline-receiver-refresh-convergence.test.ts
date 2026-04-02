@@ -12,7 +12,6 @@ import {
 } from './fixture';
 import {
   pollAck,
-  pollSettledBalanceDelta,
   pollTransferByRecipientId,
   pollValidated,
   writeSmokeReport,
@@ -25,7 +24,11 @@ type ConvergenceReport = ReturnType<typeof createBaseReport> & {
     preRefreshTransferStatus?: string;
   };
   phase2: ReturnType<typeof createBaseReport>['phase2'] & {
-    delayedRefreshChecks: Array<{ cycle: number; settled: number; currentTransferStatus?: string }>;
+    delayedRefreshChecks: Array<{
+      cycle: number;
+      settled: number;
+      currentTransferStatus?: string;
+    }>;
   };
 };
 
@@ -49,7 +52,9 @@ describe('Signet offline receiver refresh convergence', () => {
     const sender = state.sender!;
     const receiver = state.receiver!;
     const assetId = state.assetId;
-    const receiverSettledBefore = Number(state.receiverBalanceBefore?.settled ?? 0);
+    const receiverSettledBefore = Number(
+      state.receiverBalanceBefore?.settled ?? 0
+    );
     const startedAt = Date.now();
     const report = createBaseReport(state) as ConvergenceReport;
     report.phase2.delayedRefreshChecks = [];
@@ -86,7 +91,7 @@ describe('Signet offline receiver refresh convergence', () => {
           serialized.includes('AllocationSlots')
         ) {
           throw new Error(
-            'Receiver has no free allocation slots for witness receive. Run `node cli/run.mjs createutxos stage2-receiver --num 5 --size 2000 --feeRate 2` and then `node cli/run.mjs refresh stage2-receiver` before rerunning this convergence test.',
+            'Receiver has no free allocation slots for witness receive. Run `node cli/run.mjs createutxos stage2-receiver --num 5 --size 2000 --feeRate 2` and then `node cli/run.mjs refresh stage2-receiver` before rerunning this convergence test.'
           );
         }
         throw error;
@@ -97,7 +102,10 @@ describe('Signet offline receiver refresh convergence', () => {
       const ack = await pollAck(PROXY_HTTP_URL, invoiceData.recipientId);
       report.phase1.pollAckMs = Date.now() - ackStartedAt;
 
-      const validated = await pollValidated(PROXY_HTTP_URL, invoiceData.recipientId);
+      const validated = await pollValidated(
+        PROXY_HTTP_URL,
+        invoiceData.recipientId
+      );
       report.phase1.ack = ack;
       report.phase1.validated = validated;
 
@@ -107,7 +115,7 @@ describe('Signet offline receiver refresh convergence', () => {
       try {
         const preRefreshTransfers = await receiver.listTransfers(assetId);
         const preRefreshTransfer = preRefreshTransfers.find(
-          (item) => item.recipientId === invoiceData.recipientId,
+          (item) => item.recipientId === invoiceData.recipientId
         );
         report.phase1.preRefreshTransferStatus = preRefreshTransfer?.status;
       } catch (error) {
@@ -121,7 +129,7 @@ describe('Signet offline receiver refresh convergence', () => {
         try {
           const transfers = await receiver.listTransfers(assetId);
           currentTransferStatus = transfers.find(
-            (item) => item.recipientId === invoiceData.recipientId,
+            (item) => item.recipientId === invoiceData.recipientId
           )?.status;
         } catch {
           currentTransferStatus = undefined;
@@ -142,13 +150,13 @@ describe('Signet offline receiver refresh convergence', () => {
         invoiceData.recipientId,
         sendResult.txid,
         60_000,
-        5_000,
+        5_000
       );
       report.phase1.pollTransferMs = Date.now() - transferStartedAt;
       report.phase1.currentTransferStatus = currentTransfer.status;
       report.phase1.currentTransferTxid = currentTransfer.txid;
       report.phase1.txidMatch = Boolean(
-        currentTransfer.txid && currentTransfer.txid === sendResult.txid,
+        currentTransfer.txid && currentTransfer.txid === sendResult.txid
       );
 
       const settledStartedAt = Date.now();
@@ -158,23 +166,26 @@ describe('Signet offline receiver refresh convergence', () => {
       report.phase1.receiverSettledAfter = receiverSettledAfter;
 
       expect(currentTransfer.status).toBe('Settled');
-      expect(receiverSettledAfter - receiverSettledBefore).toBeGreaterThanOrEqual(
-        TRANSFER_AMOUNT,
-      );
+      expect(
+        receiverSettledAfter - receiverSettledBefore
+      ).toBeGreaterThanOrEqual(TRANSFER_AMOUNT);
 
       await finalizeTransferSnapshot(
         receiver,
         assetId,
         invoiceData.recipientId,
         sendResult.txid,
-        report,
+        report
       );
     } catch (error) {
       report.note = error instanceof Error ? error.message : String(error);
       throw error;
     } finally {
       report.durationMs = Date.now() - startedAt;
-      const reportPath = writeSmokeReport(report, 'signet-offline-receiver-refresh-convergence.json');
+      const reportPath = writeSmokeReport(
+        report,
+        'signet-offline-receiver-refresh-convergence.json'
+      );
       console.log(`smoke report: ${reportPath}`);
       console.log(JSON.stringify(report, null, 2));
     }

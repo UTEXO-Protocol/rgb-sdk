@@ -115,19 +115,24 @@ beforeAll(async () => {
 
   await proxyRpc<{ protocol_version: string; version: string }>(
     PROXY_HTTP_URL,
-    'server.info',
+    'server.info'
   );
 
-  const { WalletManager, generateKeys } = (await import('../../dist/index.mjs')) as {
-    WalletManager: WalletManagerCtor;
-    generateKeys: GenerateKeysFn;
-  };
+  const { WalletManager, generateKeys } =
+    (await import('../../dist/index.mjs')) as {
+      WalletManager: WalletManagerCtor;
+      generateKeys: GenerateKeysFn;
+    };
 
-  const { wallet: sender } = await createRegtestWallet(WalletManager, generateKeys, 'sender');
+  const { wallet: sender } = await createRegtestWallet(
+    WalletManager,
+    generateKeys,
+    'sender'
+  );
   const { wallet: receiver } = await createRegtestWallet(
     WalletManager,
     generateKeys,
-    'receiver',
+    'receiver'
   );
 
   state.sender = sender;
@@ -153,16 +158,18 @@ beforeAll(async () => {
     (balance) => Number(balance.spendable ?? 0) >= TRANSFER_AMOUNT,
     30_000,
     1_000,
-    `Issued witness asset ${state.assetId} did not become spendable in time`,
+    `Issued witness asset ${state.assetId} did not become spendable in time`
   );
   state.senderSpendableBefore = Number(senderBalance.spendable ?? 0);
 
   const receiverFunding = await fundWallet(receiver);
   state.receiverAddress = receiverFunding.address;
   await receiver.refreshWallet();
-  const receiverBalance = await receiver.getAssetBalance(state.assetId).catch(() => ({
-    settled: 0,
-  }));
+  const receiverBalance = await receiver
+    .getAssetBalance(state.assetId)
+    .catch(() => ({
+      settled: 0,
+    }));
   state.receiverSettledBefore = Number(receiverBalance.settled ?? 0);
 });
 
@@ -221,12 +228,17 @@ describe('Regtest witness receiver', () => {
 
       await mine(1);
 
-      const ack = await pollAck(PROXY_HTTP_URL, invoiceData.recipientId, 30_000, 1_000);
+      const ack = await pollAck(
+        PROXY_HTTP_URL,
+        invoiceData.recipientId,
+        30_000,
+        1_000
+      );
       const validated = await pollValidated(
         PROXY_HTTP_URL,
         invoiceData.recipientId,
         30_000,
-        1_000,
+        1_000
       );
 
       report.phase1.ack = ack;
@@ -242,12 +254,12 @@ describe('Regtest witness receiver', () => {
         invoiceData.recipientId,
         sendResult.txid,
         30_000,
-        1_000,
+        1_000
       );
       report.phase1.currentTransferStatus = currentTransfer.status;
       report.phase1.currentTransferTxid = currentTransfer.txid;
       report.phase1.txidMatch = Boolean(
-        currentTransfer.txid && currentTransfer.txid === sendResult.txid,
+        currentTransfer.txid && currentTransfer.txid === sendResult.txid
       );
 
       const balance = await receiver.getAssetBalance(state.assetId);
@@ -256,7 +268,7 @@ describe('Regtest witness receiver', () => {
 
       expect(currentTransfer.status).toBe('Settled');
       expect(receiverSettledAfter - state.receiverSettledBefore).toBe(
-        TRANSFER_AMOUNT,
+        TRANSFER_AMOUNT
       );
 
       for (let cycle = 1; cycle <= IDEMPOTENT_REFRESH_COUNT; cycle += 1) {
@@ -268,13 +280,19 @@ describe('Regtest witness receiver', () => {
         });
       }
 
-      const allSettled = report.phase2.refreshChecks.map((item) => item.settled);
+      const allSettled = report.phase2.refreshChecks.map(
+        (item) => item.settled
+      );
       expect(new Set(allSettled).size).toBe(1);
-      report.phase2.receiverSettledFinal = report.phase2.refreshChecks.at(-1)?.settled;
+      report.phase2.receiverSettledFinal =
+        report.phase2.refreshChecks.at(-1)?.settled;
       expect(report.phase2.receiverSettledFinal).toBe(receiverSettledAfter);
     } finally {
       report.durationMs = Date.now() - startedAt;
-      const reportPath = writeSmokeReport(report, 'regtest-witness-receiver.json');
+      const reportPath = writeSmokeReport(
+        report,
+        'regtest-witness-receiver.json'
+      );
       console.log(`smoke report: ${reportPath}`);
       console.log(JSON.stringify(report, null, 2));
     }
@@ -284,7 +302,9 @@ describe('Regtest witness receiver', () => {
     const sender = state.sender!;
     const receiver = state.receiver!;
     const startedAt = Date.now();
-    const beforeBalance = await receiver.getAssetBalance(state.assetId).catch(() => ({ settled: 0 }));
+    const beforeBalance = await receiver
+      .getAssetBalance(state.assetId)
+      .catch(() => ({ settled: 0 }));
     const receiverSettledBefore = Number(beforeBalance.settled ?? 0);
     const report: WitnessMissingDataReport = {
       timestamp: new Date().toISOString(),
@@ -325,7 +345,10 @@ describe('Regtest witness receiver', () => {
         });
       } catch (error) {
         sendFailed = true;
-        report.phase1.sendError = [String(error), (error as Error)?.message ?? '']
+        report.phase1.sendError = [
+          String(error),
+          (error as Error)?.message ?? '',
+        ]
           .filter(Boolean)
           .join('\n');
       }
@@ -334,15 +357,19 @@ describe('Regtest witness receiver', () => {
       expect(report.phase1.sendError).toBeDefined();
 
       await receiver.refreshWallet();
-      const transferAfterFailure = (await receiver.listTransfers(state.assetId)).find(
-        (item) => item.recipientId === invoiceData.recipientId,
-      );
+      const transferAfterFailure = (
+        await receiver.listTransfers(state.assetId)
+      ).find((item) => item.recipientId === invoiceData.recipientId);
       report.phase1.transferStatusAfterFailure = transferAfterFailure?.status;
       expect(transferAfterFailure?.status).not.toBe('Settled');
 
-      const ackAfterFailure = await proxyRpc<boolean | null>(PROXY_HTTP_URL, 'ack.get', {
-        recipient_id: invoiceData.recipientId,
-      }).catch(() => null);
+      const ackAfterFailure = await proxyRpc<boolean | null>(
+        PROXY_HTTP_URL,
+        'ack.get',
+        {
+          recipient_id: invoiceData.recipientId,
+        }
+      ).catch(() => null);
       report.phase1.ackAfterFailure = ackAfterFailure;
       expect(ackAfterFailure).not.toBe(true);
 
@@ -352,7 +379,10 @@ describe('Regtest witness receiver', () => {
       expect(receiverSettledAfter).toBe(receiverSettledBefore);
     } finally {
       report.durationMs = Date.now() - startedAt;
-      const reportPath = writeSmokeReport(report, 'regtest-witness-missing-witness-data.json');
+      const reportPath = writeSmokeReport(
+        report,
+        'regtest-witness-missing-witness-data.json'
+      );
       console.log(`smoke report: ${reportPath}`);
       console.log(JSON.stringify(report, null, 2));
     }
