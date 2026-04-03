@@ -4,14 +4,7 @@
 
 This is the underlying SDK used by RGB client applications. It provides a complete set of TypeScript/Node.js bindings for managing RGB-based transfers using **rgb-protocol libraries**
 
-⚠️ **Security Notice**  
-If you're migrating from the legacy `rgb-sdk` (which relied on a remote RGB Node server), be aware that wallet metadata such as xpubs may have been exposed and this cannot be undone.
-
-If you're upgrading from `rgb-sdk` to `@utexo/rgb-sdk`, see the **[Migration Guide](./MIGRATION.md)** for step-by-step instructions on moving your wallet state to local storage.
-
-For full details on security implications and recommended actions, please read **[SECURITY.md](./SECURITY.md)**.
-
-> **RGB Protocol**: This SDK uses the [`rgb-lib`](https://github.com/RGB-Tools/rgb-lib) binding library to interact with the RGB protocol. All operations are performed locally, providing full control over wallet data and operations.
+**RGB Protocol**: This SDK uses the [`rgb-lib`](https://github.com/RGB-Tools/rgb-lib) binding library to interact with the RGB protocol. All operations are performed locally, providing full control over wallet data and operations.
 
 ---
 
@@ -126,18 +119,20 @@ The SDK uses default endpoints for RGB transport and Bitcoin indexing. These are
 
 **Transport Endpoints** (RGB protocol communication):
 
+- **UTEXO**: `rpcs://rgb-proxy-utexo.utexo.com/json-rpc`
 - **Mainnet**: `rpcs://rgb-proxy-mainnet.utexo.com/json-rpc`
 - **Testnet**: `rpcs://rgb-proxy-testnet3.utexo.com/json-rpc`
 - **Testnet4**: `rpcs://proxy.iriswallet.com/0.2/json-rpc`
-- **Signet**: `rpcs://rgb-proxy-utexo.utexo.com/json-rpc`
+- **Signet**: `rpcs://proxy.iriswallet.com/0.2/json-rpc`
 - **Regtest**: `rpcs://proxy.iriswallet.com/0.2/json-rpc`
 
 **Indexer URLs** (Bitcoin blockchain data):
 
+- **UTEXO**: `https://esplora-api.utexo.com`
 - **Mainnet**: `ssl://electrum.iriswallet.com:50003`
 - **Testnet**: `ssl://electrum.iriswallet.com:50013`
 - **Testnet4**: `ssl://electrum.iriswallet.com:50053`
-- **Signet**: `https://esplora-api.utexo.com`
+- **Signet**: `ssl://electrum.iriswallet.com:50033`
 - **Regtest**: `tcp://regtest.thunderstack.org:50001`
 
 UTEXOWallet uses network (`testnet` / `mainnet`) that define indexer and transport endpoints internally.
@@ -173,8 +168,6 @@ console.log('BTC balance:', balance);
 
 await wallet.dispose();
 ```
-
----
 
 ## Core Workflows
 

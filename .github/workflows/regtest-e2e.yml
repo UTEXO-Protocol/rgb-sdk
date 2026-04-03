@@ -1,0 +1,88 @@
+name: Regtest E2E Tests
+
+on:
+  workflow_dispatch:
+
+jobs:
+  regtest:
+    name: Regtest E2E
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout rgb-sdk
+        uses: actions/checkout@v4
+
+      - name: Checkout test playground
+        uses: actions/checkout@v4
+        with:
+          repository: dcorral/test-rgb-proxy-playground
+          path: playground
+          submodules: recursive
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Start regtest stack
+        working-directory: playground
+        run: |
+          ./regtest.sh start
+          echo "Waiting for services to be ready..."
+          sleep 15
+
+      - name: Verify stack is healthy
+        run: |
+          curl -sf http://localhost:3000/json-rpc -X POST \
+            -H 'Content-Type: application/json' \
+            -d '{"jsonrpc":"2.0","id":1,"method":"server.info","params":{}}' \
+            && echo "Proxy is up" || echo "Proxy not responding yet"
+          nc -z localhost 50001 && echo "Electrs is up" || echo "Electrs not responding yet"
+
+      - name: Run regtest E2E tests
+        env:
+          REGTEST_PROXY_HTTP_URL: http://localhost:3000/json-rpc
+          REGTEST_PROXY_RPC_URL: rpc://localhost:3000/json-rpc
+          REGTEST_BITCOIND_CONTAINER: bitcoind
+          REGTEST_BITCOIND_USER: user
+          REGTEST_BITCOIND_PASS: password
+          REGTEST_INDEXER_URL: tcp://localhost:50001
+          REGTEST_DATA_DIR: /tmp/rgb-e2e
+          REGTEST_PLAYGROUND_COMPOSE_FILE: ${{ github.workspace }}/playground/docker-compose.yaml
+        run: npm run test:regtest 2>&1 | tee /tmp/test-output.txt
+
+      - name: Generate summary
+        if: always()
+        run: |
+          echo "## Regtest E2E Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if grep -q "Tests:.*passed" /tmp/test-output.txt 2>/dev/null; then
+            SUITES=$(grep "Test Suites:" /tmp/test-output.txt | tail -1 | sed 's/Test Suites: //')
+            TESTS=$(grep "Tests:" /tmp/test-output.txt | tail -1 | sed 's/Tests: *//')
+            TIME=$(grep "Time:" /tmp/test-output.txt | tail -1 | sed 's/Time: *//')
+            echo "| | |" >> $GITHUB_STEP_SUMMARY
+            echo "|---|---|" >> $GITHUB_STEP_SUMMARY
+            echo "| **Test Suites** | $SUITES |" >> $GITHUB_STEP_SUMMARY
+            echo "| **Tests** | $TESTS |" >> $GITHUB_STEP_SUMMARY
+            echo "| **Time** | $TIME |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "> Could not parse test results. Check logs." >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Upload smoke reports on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: regtest-smoke-reports
+          path: artifacts/
+          retention-days: 7
+          if-no-files-found: ignore
+
+      - name: Stop regtest stack
+        if: always()
+        working-directory: playground
+        run: ./regtest.sh stop

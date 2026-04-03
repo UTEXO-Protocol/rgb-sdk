@@ -7,11 +7,11 @@ import path from 'path';
 import fs from 'fs';
 import os from 'os';
 
-await jest.unstable_mockModule('../src/client/rgb-lib-client', () => ({
+await jest.unstable_mockModule('../src/binding/NodeRgbLibBinding', () => ({
   restoreWallet: () => undefined,
   restoreFromVss: () => {},
   generateKeys: () => {},
-  RGBLibClient: () => {},
+  NodeRgbLibBinding: () => {},
 }));
 
 const {
@@ -71,7 +71,7 @@ describe('restoreUtxoWalletFromBackup with mocked restoreWallet', () => {
       networkPreset: 'testnet',
     });
 
-    // testnet preset: layer1=testnet, utexo=signet
+    // testnet preset: layer1=testnet, utexo=utexo
     expect(result.layer1Path).toContain(fp);
     expect(result.utexoPath).toContain(fp);
     expect(result.layer1Path).not.toBe(result.utexoPath);

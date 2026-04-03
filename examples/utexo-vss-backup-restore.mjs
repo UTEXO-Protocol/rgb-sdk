@@ -10,7 +10,7 @@
 import path from 'path';
 import { UTEXOWallet, restoreUtxoWalletFromVss } from '../dist/index.mjs';
 
-const MNEMONIC = 'top reject between sugar rug pulse radar coffee kiss faculty pool vocal';
+const MNEMONIC = 'paddle smooth humble inherit reason basic brave clerk absorb later text that';
 const TARGET_DIR = path.join(process.cwd(), 'restored-utexo-vss');
 
 async function runVssBackup() {
@@ -41,16 +41,16 @@ async function runVssRestore() {
     });
     console.log('Restored directory:', restoredDir);
 
-    // const wallet = new UTEXOWallet(MNEMONIC, { dataDir: restoredDir, network: 'testnet' });
-    // try {
-    //     await wallet.initialize();
-    //     const address = await wallet.getAddress();
-    //     console.log('Restored wallet address:', address);
-    //     const balance = await wallet.getBtcBalance();
-    //     console.log('BTC balance:', balance);
-    // } finally {
-    //     await wallet.dispose();
-    // }
+    const wallet = new UTEXOWallet(MNEMONIC, { dataDir: restoredDir, network: 'testnet' });
+    try {
+        await wallet.initialize();
+        const address = await wallet.getAddress();
+        console.log('Restored wallet address:', address);
+        const balance = await wallet.getBtcBalance();
+        console.log('BTC balance:', balance);
+    } finally {
+        await wallet.dispose();
+    }
 }
 
 const runRestore = true; // true = run VSS restore instead of backup

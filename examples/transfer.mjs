@@ -12,9 +12,9 @@
 import { UTEXOWallet } from '../dist/index.mjs';
 
 const NETWORK = 'testnet';
-const MNEMONIC_A = process.env.MNEMONIC_A || 'top reject between sugar rug pulse radar coffee kiss faculty pool vocal';
-const MNEMONIC_B = process.env.MNEMONIC_B || 'famous hurt miss favorite pitch rich rude cricket fault hammer split guilt';
-const ASSET_ID = process.env.ASSET_ID||'rgb:GE5hMbGS-TdK60Sf-V4TNAUM-zb0228l-4yi_qEh-PiMHLOg';
+const MNEMONIC_A = process.env.MNEMONIC_A || 'paddle smooth humble inherit reason basic brave clerk absorb later text that';
+const MNEMONIC_B = process.env.MNEMONIC_B || 'tobacco dinner advice together repeat digital need cancel lift near blind cute';
+const ASSET_ID = process.env.ASSET_ID||'rgb:4PhQDg98-kFPjSKO-HdbJOXo-IWt6P~a-HeVZA8L-A~tvBNU';
 if (!ASSET_ID) {
     console.error('ASSET_ID is required (e.g. from create-utxos-asset.mjs output)');
     process.exit(1);
@@ -31,6 +31,10 @@ async function main() {
     try {
         await walletA.initialize();
         await walletB.initialize();
+
+        await walletB.refreshWallet();
+        await walletA.refreshWallet();
+
         console.log('Wallet A address:', await walletA.getAddress());
         console.log('Wallet B address:', await walletB.getAddress());
 
@@ -63,10 +67,10 @@ async function main() {
         await walletB.refreshWallet();
         await walletA.refreshWallet();
 
-        const transfersA = await walletA.listTransfers(ASSET_ID); // sent stansfer should be settled
-        const transfersB = await walletB.listTransfers(ASSET_ID); // received transfer should be settled
-        console.log('Wallet A listTransfers:', transfersA.length, transfersA);
-        console.log('Wallet B listTransfers:', transfersB.length, transfersB);
+        // const transfersA = await walletA.listTransfers(ASSET_ID); // sent stansfer should be settled
+        // const transfersB = await walletB.listTransfers(ASSET_ID); // received transfer should be settled
+        // console.log('Wallet A listTransfers:', transfersA.length, transfersA);
+        // console.log('allet B listTransfers:', transfersB.length, transfersB);
     } finally {
         await walletA.dispose();
         await walletB.dispose();
@@ -74,7 +78,6 @@ async function main() {
 
     console.log('Done.');
 }
-
 main()
     .then(() => process.exit(0))
     .catch((err) => {

@@ -1,0 +1,11 @@
+{
+  "walletName": "stage2-receiver",
+  "network": "signet",
+  "mnemonic": "REPLACE_WITH_12_OR_24_WORD_MNEMONIC",
+  "xpub": "REPLACE_WITH_XPUB",
+  "accountXpubVanilla": "REPLACE_WITH_ACCOUNT_XPUB_VANILLA",
+  "accountXpubColored": "REPLACE_WITH_ACCOUNT_XPUB_COLORED",
+  "masterFingerprint": "REPLACE_WITH_FINGERPRINT",
+  "xpriv": "REPLACE_WITH_XPRIV",
+  "createdAt": "REPLACE_WITH_ISO_TIMESTAMP"
+}
