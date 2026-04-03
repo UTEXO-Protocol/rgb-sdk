@@ -84,15 +84,27 @@ beforeAll(async () => {
 
   resetWalletDataDirs(getRegtestBaseDir());
 
-  await proxyRpc<{ protocol_version: string; version: string }>(PROXY_HTTP_URL, 'server.info');
+  await proxyRpc<{ protocol_version: string; version: string }>(
+    PROXY_HTTP_URL,
+    'server.info'
+  );
 
-  const { WalletManager, generateKeys } = (await import('../../dist/index.mjs')) as {
-    WalletManager: WalletManagerCtor;
-    generateKeys: GenerateKeysFn;
-  };
+  const { WalletManager, generateKeys } =
+    (await import('../../dist/index.mjs')) as {
+      WalletManager: WalletManagerCtor;
+      generateKeys: GenerateKeysFn;
+    };
 
-  const { wallet: sender } = await createRegtestWallet(WalletManager, generateKeys, 'sender');
-  const { wallet: receiver } = await createRegtestWallet(WalletManager, generateKeys, 'receiver');
+  const { wallet: sender } = await createRegtestWallet(
+    WalletManager,
+    generateKeys,
+    'sender'
+  );
+  const { wallet: receiver } = await createRegtestWallet(
+    WalletManager,
+    generateKeys,
+    'receiver'
+  );
 
   state.sender = sender;
   state.receiver = receiver;
@@ -112,7 +124,9 @@ beforeAll(async () => {
 
   state.receiverAddress = (await fundWallet(receiver)).address;
   await receiver.refreshWallet();
-  const receiverBalance = await receiver.getAssetBalance(state.assetId).catch(() => ({ settled: 0 }));
+  const receiverBalance = await receiver
+    .getAssetBalance(state.assetId)
+    .catch(() => ({ settled: 0 }));
   state.receiverSettledBefore = Number(receiverBalance.settled ?? 0);
 });
 
@@ -163,13 +177,17 @@ describe('Regtest pre-confirmation gating', () => {
       });
       report.phase1.txid = sendResult.txid;
 
-      const ackBeforeMine = await proxyRpc<boolean | null>(PROXY_HTTP_URL, 'ack.get', {
-        recipient_id: invoiceData.recipientId,
-      });
+      const ackBeforeMine = await proxyRpc<boolean | null>(
+        PROXY_HTTP_URL,
+        'ack.get',
+        {
+          recipient_id: invoiceData.recipientId,
+        }
+      );
       const consignmentBeforeMine = await proxyRpc<{ validated?: boolean }>(
         PROXY_HTTP_URL,
         'consignment.get',
-        { recipient_id: invoiceData.recipientId },
+        { recipient_id: invoiceData.recipientId }
       );
       report.phase1.ackBeforeMine = ackBeforeMine;
       report.phase1.validatedBeforeMine = consignmentBeforeMine.validated;
@@ -177,25 +195,32 @@ describe('Regtest pre-confirmation gating', () => {
       expect(consignmentBeforeMine.validated).toBe(true);
 
       await receiver.refreshWallet();
-      const transferBeforeMine = (await receiver.listTransfers(state.assetId)).find(
-        (item) => item.recipientId === invoiceData.recipientId,
-      );
+      const transferBeforeMine = (
+        await receiver.listTransfers(state.assetId)
+      ).find((item) => item.recipientId === invoiceData.recipientId);
       report.phase1.transferStatusBeforeMine = transferBeforeMine?.status;
       expect(transferBeforeMine?.status).toBe('WaitingConfirmations');
 
-      const balanceBeforeMine = await receiver.getAssetBalance(state.assetId).catch(() => ({ settled: 0 }));
+      const balanceBeforeMine = await receiver
+        .getAssetBalance(state.assetId)
+        .catch(() => ({ settled: 0 }));
       const receiverSettledBeforeMine = Number(balanceBeforeMine.settled ?? 0);
       report.phase1.receiverSettledBeforeMine = receiverSettledBeforeMine;
       expect(receiverSettledBeforeMine).toBe(state.receiverSettledBefore);
 
       await mine(1);
 
-      const ackAfterMine = await pollAck(PROXY_HTTP_URL, invoiceData.recipientId, 15_000, 500);
+      const ackAfterMine = await pollAck(
+        PROXY_HTTP_URL,
+        invoiceData.recipientId,
+        15_000,
+        500
+      );
       const validatedAfterMine = await pollValidated(
         PROXY_HTTP_URL,
         invoiceData.recipientId,
         15_000,
-        500,
+        500
       );
       report.phase2.ackAfterMine = ackAfterMine;
       report.phase2.validatedAfterMine = validatedAfterMine;
@@ -208,7 +233,7 @@ describe('Regtest pre-confirmation gating', () => {
         invoiceData.recipientId,
         sendResult.txid,
         20_000,
-        1_000,
+        1_000
       );
       report.phase2.currentTransferStatus = currentTransfer.status;
       report.phase2.currentTransferTxid = currentTransfer.txid ?? null;
@@ -222,11 +247,14 @@ describe('Regtest pre-confirmation gating', () => {
       expect(validatedAfterMine).toBe(true);
       expect(currentTransfer.status).toBe('Settled');
       expect(receiverSettledAfterMine - state.receiverSettledBefore).toBe(
-        TRANSFER_AMOUNT,
+        TRANSFER_AMOUNT
       );
     } finally {
       report.durationMs = Date.now() - startedAt;
-      const reportPath = writeSmokeReport(report, 'regtest-pre-confirmation-gating.json');
+      const reportPath = writeSmokeReport(
+        report,
+        'regtest-pre-confirmation-gating.json'
+      );
       console.log(`smoke report: ${reportPath}`);
       console.log(JSON.stringify(report, null, 2));
     }

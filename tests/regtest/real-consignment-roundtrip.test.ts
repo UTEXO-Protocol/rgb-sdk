@@ -76,15 +76,27 @@ beforeAll(async () => {
   ensureBitcoindAccess();
 
   resetWalletDataDirs(getRegtestBaseDir());
-  await proxyRpc<{ protocol_version: string; version: string }>(PROXY_HTTP_URL, 'server.info');
+  await proxyRpc<{ protocol_version: string; version: string }>(
+    PROXY_HTTP_URL,
+    'server.info'
+  );
 
-  const { WalletManager, generateKeys } = (await import('../../dist/index.mjs')) as {
-    WalletManager: WalletManagerCtor;
-    generateKeys: GenerateKeysFn;
-  };
+  const { WalletManager, generateKeys } =
+    (await import('../../dist/index.mjs')) as {
+      WalletManager: WalletManagerCtor;
+      generateKeys: GenerateKeysFn;
+    };
 
-  const { wallet: sender } = await createRegtestWallet(WalletManager, generateKeys, 'sender');
-  const { wallet: receiver } = await createRegtestWallet(WalletManager, generateKeys, 'receiver');
+  const { wallet: sender } = await createRegtestWallet(
+    WalletManager,
+    generateKeys,
+    'sender'
+  );
+  const { wallet: receiver } = await createRegtestWallet(
+    WalletManager,
+    generateKeys,
+    'receiver'
+  );
   state.sender = sender;
   state.receiver = receiver;
 
@@ -149,8 +161,18 @@ describe('Regtest real consignment roundtrip', () => {
 
       await mine(1);
 
-      const ack = await pollAck(PROXY_HTTP_URL, invoiceData.recipientId, 15_000, 500);
-      const validated = await pollValidated(PROXY_HTTP_URL, invoiceData.recipientId, 15_000, 500);
+      const ack = await pollAck(
+        PROXY_HTTP_URL,
+        invoiceData.recipientId,
+        15_000,
+        500
+      );
+      const validated = await pollValidated(
+        PROXY_HTTP_URL,
+        invoiceData.recipientId,
+        15_000,
+        500
+      );
       report.phase1.ack = ack;
       report.phase1.validated = validated;
       expect(ack).toBe(true);
@@ -191,12 +213,16 @@ describe('Regtest real consignment roundtrip', () => {
         recipient_id: invoiceData.recipientId,
       });
       report.phase1.duplicateConsignmentTxid = consignmentAfterDuplicate.txid;
-      report.phase1.duplicateConsignmentValidated = consignmentAfterDuplicate.validated;
+      report.phase1.duplicateConsignmentValidated =
+        consignmentAfterDuplicate.validated;
       expect(consignmentAfterDuplicate.txid).toBe(sendResult.txid);
       expect(consignmentAfterDuplicate.validated).toBe(true);
     } finally {
       report.durationMs = Date.now() - startedAt;
-      const reportPath = writeSmokeReport(report, 'regtest-real-consignment-roundtrip.json');
+      const reportPath = writeSmokeReport(
+        report,
+        'regtest-real-consignment-roundtrip.json'
+      );
       console.log(`smoke report: ${reportPath}`);
       console.log(JSON.stringify(report, null, 2));
     }

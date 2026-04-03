@@ -75,7 +75,10 @@ const state: State = {
   assetId: '',
 };
 
-async function ackPostRaw(recipientId: string, ack: boolean): Promise<JsonRpcErrorResponse> {
+async function ackPostRaw(
+  recipientId: string,
+  ack: boolean
+): Promise<JsonRpcErrorResponse> {
   const response = await fetch(PROXY_HTTP_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -105,19 +108,24 @@ beforeAll(async () => {
 
   await proxyRpc<{ protocol_version: string; version: string }>(
     PROXY_HTTP_URL,
-    'server.info',
+    'server.info'
   );
 
-  const { WalletManager, generateKeys } = (await import('../../dist/index.mjs')) as {
-    WalletManager: WalletManagerCtor;
-    generateKeys: GenerateKeysFn;
-  };
+  const { WalletManager, generateKeys } =
+    (await import('../../dist/index.mjs')) as {
+      WalletManager: WalletManagerCtor;
+      generateKeys: GenerateKeysFn;
+    };
 
-  const { wallet: sender } = await createRegtestWallet(WalletManager, generateKeys, 'sender');
+  const { wallet: sender } = await createRegtestWallet(
+    WalletManager,
+    generateKeys,
+    'sender'
+  );
   const { wallet: receiver } = await createRegtestWallet(
     WalletManager,
     generateKeys,
-    'receiver',
+    'receiver'
   );
 
   state.sender = sender;
@@ -142,7 +150,7 @@ beforeAll(async () => {
     (balance) => Number(balance.spendable ?? 0) >= TRANSFER_AMOUNT,
     30_000,
     1_000,
-    `Issued ack-guard asset ${state.assetId} did not become spendable in time`,
+    `Issued ack-guard asset ${state.assetId} did not become spendable in time`
   );
 
   state.receiverAddress = (await fundWallet(receiver)).address;
@@ -195,12 +203,17 @@ describe('Regtest ACK guard', () => {
 
       await mine(1);
 
-      const ack = await pollAck(PROXY_HTTP_URL, invoiceData.recipientId, 30_000, 1_000);
+      const ack = await pollAck(
+        PROXY_HTTP_URL,
+        invoiceData.recipientId,
+        30_000,
+        1_000
+      );
       const validated = await pollValidated(
         PROXY_HTTP_URL,
         invoiceData.recipientId,
         30_000,
-        1_000,
+        1_000
       );
       report.phase1.ack = ack;
       report.phase1.validated = validated;
@@ -214,9 +227,13 @@ describe('Regtest ACK guard', () => {
 
       expect(ackPostResponse.error?.code).toBe(-100);
 
-      const ackAfterAttempt = await proxyRpc<boolean | null>(PROXY_HTTP_URL, 'ack.get', {
-        recipient_id: invoiceData.recipientId,
-      });
+      const ackAfterAttempt = await proxyRpc<boolean | null>(
+        PROXY_HTTP_URL,
+        'ack.get',
+        {
+          recipient_id: invoiceData.recipientId,
+        }
+      );
       report.phase1.ackAfterAttempt = ackAfterAttempt;
       expect(ackAfterAttempt).toBe(true);
     } finally {

@@ -1,18 +1,27 @@
 /**
  * UTEXO wallet restore: VSS and file backup restore helpers.
+ *
+ * Pure crypto helpers (getBackupStoreId, buildVssConfigFromMnemonic) are
+ * re-exported from @utexo/rgb-sdk-core. Node-specific (fs/path) helpers
+ * stay here.
  */
 
 import path from 'path';
 import fs from 'fs';
 import {
-  deriveKeysFromMnemonic,
-  deriveVssSigningKeyFromMnemonic,
-} from '../crypto';
-import { getUtxoNetworkConfig, type UtxoNetworkPreset } from './utils/network';
-import { restoreFromVss, restoreWallet } from '../client/rgb-lib-client';
-import { ValidationError } from '../errors';
-import type { VssBackupConfig } from '../types/wallet-model';
-import { DEFAULT_VSS_SERVER_URL } from './config/vss';
+  getUtxoNetworkConfig,
+  type UtxoNetworkPreset,
+  DEFAULT_VSS_SERVER_URL,
+} from '@utexo/rgb-sdk-core';
+import { restoreFromVss, restoreWallet } from '../binding/NodeRgbLibBinding';
+import { ValidationError } from '@utexo/rgb-sdk-core';
+import type { VssBackupConfig } from '@utexo/rgb-sdk-core';
+import {
+  getBackupStoreId,
+  buildVssConfigFromMnemonic,
+} from '@utexo/rgb-sdk-core';
+
+export { getBackupStoreId, buildVssConfigFromMnemonic };
 
 /** Backup file extension; used by createBackup and restore. */
 export const BACKUP_FILE_SUFFIX = '.backup';
@@ -22,11 +31,6 @@ export const UTEXO_BACKUP_SUFFIX = '_utexo.backup';
 
 const UTEXO_BACKUP_TMP_LAYER1 = '.layer1';
 const UTEXO_BACKUP_TMP_UTEXO = '.utexo';
-
-/** Store id for backup/restore (same convention as VSS: wallet_<masterFingerprint>). */
-export function getBackupStoreId(masterFingerprint: string): string {
-  return `wallet_${masterFingerprint}`;
-}
 
 export interface PrepareUtxoBackupDirsResult {
   storeId: string;
@@ -38,7 +42,6 @@ export interface PrepareUtxoBackupDirsResult {
 
 /**
  * Prepare backup directory and temp dirs for UTEXO createBackup.
- * Creates backupPath if needed and .layer1/.utexo temp subdirs; returns paths for createBackup and final filenames.
  */
 export function prepareUtxoBackupDirs(
   backupPath: string,
@@ -68,7 +71,7 @@ export function prepareUtxoBackupDirs(
 }
 
 /**
- * Move backup files from temp dirs to final paths and remove temp dirs. Call after createBackup into layer1TmpDir/utexoTmpDir.
+ * Move backup files from temp dirs to final paths and remove temp dirs.
  */
 export function finalizeUtxoBackupPaths(params: {
   layer1BackupPath: string;
@@ -93,38 +96,13 @@ export function finalizeUtxoBackupPaths(params: {
 }
 
 /**
- * Build VSS config from mnemonic (storeId = wallet_<masterFingerprint>, signingKey derived).
- * Used when config is not passed to vssBackup or restoreUtxoWalletFromVss.
- */
-export async function buildVssConfigFromMnemonic(
-  mnemonic: string,
-  serverUrl: string,
-  networkPreset: UtxoNetworkPreset = 'testnet'
-): Promise<VssBackupConfig> {
-  const keys = await deriveKeysFromMnemonic(networkPreset, mnemonic.trim());
-  return {
-    serverUrl,
-    storeId: `wallet_${keys.masterFingerprint}`,
-    signingKey: deriveVssSigningKeyFromMnemonic(mnemonic.trim()),
-    backupMode: 'Blocking',
-  };
-}
-
-/**
  * Restore a UTEXOWallet from VSS by restoring both layer1 and utexo stores.
- * Mnemonic is required; config is optional (built from mnemonic when omitted; vssServerUrl uses DEFAULT_VSS_SERVER_URL if omitted).
- * Uses the same storeId suffix convention as UTEXOWallet VSS backup (storeId_layer1, storeId_utexo).
- * Restored data is written to targetDir/{layer1Network}/{masterFingerprint} and
- * targetDir/{utexoNetwork}/{masterFingerprint} (same layout as when using dataDir on UTEXOWallet).
  */
 export async function restoreUtxoWalletFromVss(params: {
   mnemonic: string;
   targetDir: string;
-  /** Optional; when omitted, config is built from mnemonic (vssServerUrl defaults to DEFAULT_VSS_SERVER_URL). */
   config?: VssBackupConfig;
-  /** Preset to derive layer1/utexo network names; defaults to 'testnet'. */
   networkPreset?: UtxoNetworkPreset;
-  /** Optional; when omitted and config not passed, DEFAULT_VSS_SERVER_URL is used. */
   vssServerUrl?: string;
 }): Promise<{ layer1Path: string; utexoPath: string; targetDir: string }> {
   const {
@@ -174,9 +152,6 @@ export async function restoreUtxoWalletFromVss(params: {
 
 /**
  * Restore a UTEXOWallet from a regular (file) backup created by UTEXOWallet.createBackup.
- * Expects one folder with wallet_<masterFingerprint>_layer1.backup and wallet_<masterFingerprint>_utexo.backup
- * (same naming convention as VSS: storeId_layer1, storeId_utexo with storeId = wallet_<fp>).
- * Restores into targetDir (same layout as VSS restore).
  */
 export function restoreUtxoWalletFromBackup(params: {
   backupPath: string;

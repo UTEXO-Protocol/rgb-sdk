@@ -85,7 +85,7 @@ async function restartReceiver(): Promise<RegtestWallet> {
     walletCtor,
     receiverKeys,
     'receiver',
-    getRegtestBaseDir(),
+    getRegtestBaseDir()
   );
   state.receiver = receiver;
   return receiver;
@@ -100,19 +100,27 @@ beforeAll(async () => {
   ensureBitcoindAccess();
 
   resetWalletDataDirs(getRegtestBaseDir());
-  await proxyRpc<{ protocol_version: string; version: string }>(PROXY_HTTP_URL, 'server.info');
+  await proxyRpc<{ protocol_version: string; version: string }>(
+    PROXY_HTTP_URL,
+    'server.info'
+  );
 
-  const { WalletManager, generateKeys } = (await import('../../dist/index.mjs')) as {
-    WalletManager: WalletManagerCtor;
-    generateKeys: GenerateKeysFn;
-  };
+  const { WalletManager, generateKeys } =
+    (await import('../../dist/index.mjs')) as {
+      WalletManager: WalletManagerCtor;
+      generateKeys: GenerateKeysFn;
+    };
   state.walletManagerCtor = WalletManager;
 
-  const { wallet: sender } = await createRegtestWallet(WalletManager, generateKeys, 'sender');
+  const { wallet: sender } = await createRegtestWallet(
+    WalletManager,
+    generateKeys,
+    'sender'
+  );
   const { wallet: receiver, keys: receiverKeys } = await createRegtestWallet(
     WalletManager,
     generateKeys,
-    'receiver',
+    'receiver'
   );
   state.sender = sender;
   state.receiver = receiver;
@@ -136,12 +144,14 @@ beforeAll(async () => {
     (balance) => Number(balance.spendable ?? 0) >= TRANSFER_AMOUNT,
     30_000,
     1_000,
-    `Issued asset ${state.assetId} did not become spendable in time`,
+    `Issued asset ${state.assetId} did not become spendable in time`
   );
 
   state.receiverAddress = (await fundWallet(receiver)).address;
   await receiver.refreshWallet();
-  const receiverBalance = await receiver.getAssetBalance(state.assetId).catch(() => ({ settled: 0 }));
+  const receiverBalance = await receiver
+    .getAssetBalance(state.assetId)
+    .catch(() => ({ settled: 0 }));
   state.receiverSettledBefore = Number(receiverBalance.settled ?? 0);
 });
 
@@ -192,14 +202,19 @@ describe('Regtest receiver restart after ACK before Settled', () => {
       });
       report.phase1.txid = sendResult.txid;
 
-      const ackBeforeRestart = await pollAck(PROXY_HTTP_URL, invoiceData.recipientId, 30_000, 1_000);
+      const ackBeforeRestart = await pollAck(
+        PROXY_HTTP_URL,
+        invoiceData.recipientId,
+        30_000,
+        1_000
+      );
       report.phase1.ackBeforeRestart = ackBeforeRestart;
       expect(ackBeforeRestart).toBe(true);
 
       await receiver.refreshWallet();
-      const transferBeforeRestart = (await receiver.listTransfers(state.assetId)).find(
-        (item) => item.recipientId === invoiceData.recipientId,
-      );
+      const transferBeforeRestart = (
+        await receiver.listTransfers(state.assetId)
+      ).find((item) => item.recipientId === invoiceData.recipientId);
       report.phase1.transferStatusBeforeRestart = transferBeforeRestart?.status;
       expect(transferBeforeRestart?.status).toBe('WaitingConfirmations');
 
@@ -216,7 +231,7 @@ describe('Regtest receiver restart after ACK before Settled', () => {
         invoiceData.recipientId,
         sendResult.txid,
         30_000,
-        1_000,
+        1_000
       );
       report.phase2.currentTransferStatus = currentTransfer.status;
       report.phase2.currentTransferTxid = currentTransfer.txid ?? null;
@@ -229,11 +244,14 @@ describe('Regtest receiver restart after ACK before Settled', () => {
       expect(currentTransfer.status).toBe('Settled');
       expect(currentTransfer.txid).toBe(sendResult.txid);
       expect(receiverSettledAfter - state.receiverSettledBefore).toBe(
-        TRANSFER_AMOUNT,
+        TRANSFER_AMOUNT
       );
     } finally {
       report.durationMs = Date.now() - startedAt;
-      const reportPath = writeSmokeReport(report, 'regtest-restart-after-ack-before-settled.json');
+      const reportPath = writeSmokeReport(
+        report,
+        'regtest-restart-after-ack-before-settled.json'
+      );
       console.log(`smoke report: ${reportPath}`);
       console.log(JSON.stringify(report, null, 2));
     }

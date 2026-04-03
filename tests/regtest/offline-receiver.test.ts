@@ -89,19 +89,24 @@ beforeAll(async () => {
 
   await proxyRpc<{ protocol_version: string; version: string }>(
     PROXY_HTTP_URL,
-    'server.info',
+    'server.info'
   );
 
-  const { WalletManager, generateKeys } = (await import('../../dist/index.mjs')) as {
-    WalletManager: WalletManagerCtor;
-    generateKeys: GenerateKeysFn;
-  };
+  const { WalletManager, generateKeys } =
+    (await import('../../dist/index.mjs')) as {
+      WalletManager: WalletManagerCtor;
+      generateKeys: GenerateKeysFn;
+    };
 
-  const { wallet: sender } = await createRegtestWallet(WalletManager, generateKeys, 'sender');
+  const { wallet: sender } = await createRegtestWallet(
+    WalletManager,
+    generateKeys,
+    'sender'
+  );
   const { wallet: receiver } = await createRegtestWallet(
     WalletManager,
     generateKeys,
-    'receiver',
+    'receiver'
   );
 
   state.sender = sender;
@@ -127,7 +132,7 @@ beforeAll(async () => {
     (balance) => Number(balance.spendable ?? 0) >= TRANSFER_AMOUNT,
     30_000,
     1_000,
-    `Issued asset ${state.assetId} did not become spendable in time`,
+    `Issued asset ${state.assetId} did not become spendable in time`
   );
   state.senderSpendableBefore = Number(senderBalance.spendable ?? 0);
 
@@ -136,9 +141,11 @@ beforeAll(async () => {
   const receiverFunding = await fundWallet(receiver);
   state.receiverAddress = receiverFunding.address;
   await receiver.refreshWallet();
-  const receiverBalance = await receiver.getAssetBalance(state.assetId).catch(() => ({
-    settled: 0,
-  }));
+  const receiverBalance = await receiver
+    .getAssetBalance(state.assetId)
+    .catch(() => ({
+      settled: 0,
+    }));
   state.receiverSettledBefore = Number(receiverBalance.settled ?? 0);
 });
 
@@ -194,12 +201,17 @@ describe('Regtest offline receiver', () => {
 
       await mine(1);
 
-      const ack = await pollAck(PROXY_HTTP_URL, invoiceData.recipientId, 30_000, 1_000);
+      const ack = await pollAck(
+        PROXY_HTTP_URL,
+        invoiceData.recipientId,
+        30_000,
+        1_000
+      );
       const validated = await pollValidated(
         PROXY_HTTP_URL,
         invoiceData.recipientId,
         30_000,
-        1_000,
+        1_000
       );
 
       report.phase1.ack = ack;
@@ -215,12 +227,12 @@ describe('Regtest offline receiver', () => {
         invoiceData.recipientId,
         sendResult.txid,
         30_000,
-        1_000,
+        1_000
       );
       report.phase1.currentTransferStatus = currentTransfer.status;
       report.phase1.currentTransferTxid = currentTransfer.txid;
       report.phase1.txidMatch = Boolean(
-        currentTransfer.txid && currentTransfer.txid === sendResult.txid,
+        currentTransfer.txid && currentTransfer.txid === sendResult.txid
       );
 
       const balance = await receiver.getAssetBalance(state.assetId);
@@ -229,7 +241,7 @@ describe('Regtest offline receiver', () => {
 
       expect(currentTransfer.status).toBe('Settled');
       expect(receiverSettledAfter - state.receiverSettledBefore).toBe(
-        TRANSFER_AMOUNT,
+        TRANSFER_AMOUNT
       );
 
       for (let cycle = 1; cycle <= IDEMPOTENT_REFRESH_COUNT; cycle += 1) {
@@ -241,13 +253,19 @@ describe('Regtest offline receiver', () => {
         });
       }
 
-      const allSettled = report.phase2.refreshChecks.map((item) => item.settled);
+      const allSettled = report.phase2.refreshChecks.map(
+        (item) => item.settled
+      );
       expect(new Set(allSettled).size).toBe(1);
-      report.phase2.receiverSettledFinal = report.phase2.refreshChecks.at(-1)?.settled;
+      report.phase2.receiverSettledFinal =
+        report.phase2.refreshChecks.at(-1)?.settled;
       expect(report.phase2.receiverSettledFinal).toBe(receiverSettledAfter);
     } finally {
       report.durationMs = Date.now() - startedAt;
-      const reportPath = writeSmokeReport(report, 'regtest-offline-receiver.json');
+      const reportPath = writeSmokeReport(
+        report,
+        'regtest-offline-receiver.json'
+      );
       console.log(`smoke report: ${reportPath}`);
       console.log(JSON.stringify(report, null, 2));
     }

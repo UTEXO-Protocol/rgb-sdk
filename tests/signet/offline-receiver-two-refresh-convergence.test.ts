@@ -52,7 +52,9 @@ describe('Signet offline receiver two-refresh convergence', () => {
     const sender = state.sender!;
     const receiver = state.receiver!;
     const assetId = state.assetId;
-    const receiverSettledBefore = Number(state.receiverBalanceBefore?.settled ?? 0);
+    const receiverSettledBefore = Number(
+      state.receiverBalanceBefore?.settled ?? 0
+    );
     const startedAt = Date.now();
     const report = createBaseReport(state) as TwoRefreshReport;
     report.phase2.delayedRefreshChecks = [];
@@ -79,7 +81,10 @@ describe('Signet offline receiver two-refresh convergence', () => {
       const ack = await pollAck(PROXY_HTTP_URL, invoiceData.recipientId);
       report.phase1.pollAckMs = Date.now() - ackStartedAt;
 
-      const validated = await pollValidated(PROXY_HTTP_URL, invoiceData.recipientId);
+      const validated = await pollValidated(
+        PROXY_HTTP_URL,
+        invoiceData.recipientId
+      );
       report.phase1.ack = ack;
       report.phase1.validated = validated;
       expect(ack).toBe(true);
@@ -94,29 +99,36 @@ describe('Signet offline receiver two-refresh convergence', () => {
         (transfer) => transfer?.status === 'Settled',
         180_000,
         5_000,
-        `Sender transfer txid=${sendResult.txid} did not reach Settled before receiver refresh`,
+        `Sender transfer txid=${sendResult.txid} did not reach Settled before receiver refresh`
       );
-      report.phase1.senderTransferStatusBeforeReceiverRefresh = senderTransfer?.status;
+      report.phase1.senderTransferStatusBeforeReceiverRefresh =
+        senderTransfer?.status;
       expect(senderTransfer?.status).toBe('Settled');
 
-      const receiverBalanceWhileOffline = await receiver.getAssetBalance(assetId).catch((error) => {
-        const message = error instanceof Error ? error.message : String(error);
-        if (message.includes('AssetNotFound')) {
-          return { settled: receiverSettledBefore };
-        }
-        throw error;
-      });
+      const receiverBalanceWhileOffline = await receiver
+        .getAssetBalance(assetId)
+        .catch((error) => {
+          const message =
+            error instanceof Error ? error.message : String(error);
+          if (message.includes('AssetNotFound')) {
+            return { settled: receiverSettledBefore };
+          }
+          throw error;
+        });
       report.phase1.receiverSettledWhileOffline = Number(
-        receiverBalanceWhileOffline.settled ?? 0,
+        receiverBalanceWhileOffline.settled ?? 0
       );
-      expect(report.phase1.receiverSettledWhileOffline).toBe(receiverSettledBefore);
+      expect(report.phase1.receiverSettledWhileOffline).toBe(
+        receiverSettledBefore
+      );
 
       try {
         const preRefreshTransfers = await receiver.listTransfers(assetId);
         const preRefreshTransfer = preRefreshTransfers.find(
-          (item) => item.recipientId === invoiceData.recipientId,
+          (item) => item.recipientId === invoiceData.recipientId
         );
-        report.phase1.receiverTransferStatusBeforeRefresh = preRefreshTransfer?.status;
+        report.phase1.receiverTransferStatusBeforeRefresh =
+          preRefreshTransfer?.status;
       } catch (error) {
         report.phase1.receiverTransferStatusBeforeRefresh = `error: ${error instanceof Error ? error.message : String(error)}`;
       }
@@ -126,7 +138,7 @@ describe('Signet offline receiver two-refresh convergence', () => {
         const balance = await receiver.getAssetBalance(assetId);
         const transfers = await receiver.listTransfers(assetId);
         const currentTransfer = transfers.find(
-          (item) => item.recipientId === invoiceData.recipientId,
+          (item) => item.recipientId === invoiceData.recipientId
         );
 
         report.phase2.delayedRefreshChecks.push({
@@ -144,13 +156,16 @@ describe('Signet offline receiver two-refresh convergence', () => {
       expect(firstRefresh?.settled).toBe(receiverSettledBefore);
       expect(secondRefresh?.currentTransferStatus).toBe('Settled');
       expect(secondRefresh?.currentTransferTxid).toBe(sendResult.txid);
-      expect(secondRefresh?.settled).toBe(receiverSettledBefore + TRANSFER_AMOUNT);
+      expect(secondRefresh?.settled).toBe(
+        receiverSettledBefore + TRANSFER_AMOUNT
+      );
 
-      report.phase1.currentTransferStatus = secondRefresh?.currentTransferStatus;
+      report.phase1.currentTransferStatus =
+        secondRefresh?.currentTransferStatus;
       report.phase1.currentTransferTxid = secondRefresh?.currentTransferTxid;
       report.phase1.txidMatch = Boolean(
         secondRefresh?.currentTransferTxid &&
-          secondRefresh.currentTransferTxid === sendResult.txid,
+        secondRefresh.currentTransferTxid === sendResult.txid
       );
       report.phase1.receiverSettledAfter = secondRefresh?.settled;
       report.phase1.pollSettledMs = Date.now() - ackStartedAt;
@@ -160,7 +175,7 @@ describe('Signet offline receiver two-refresh convergence', () => {
         assetId,
         invoiceData.recipientId,
         sendResult.txid,
-        report,
+        report
       );
     } catch (error) {
       report.note = error instanceof Error ? error.message : String(error);
@@ -169,7 +184,7 @@ describe('Signet offline receiver two-refresh convergence', () => {
       report.durationMs = Date.now() - startedAt;
       const reportPath = writeSmokeReport(
         report,
-        'signet-offline-receiver-two-refresh-convergence.json',
+        'signet-offline-receiver-two-refresh-convergence.json'
       );
       console.log(`smoke report: ${reportPath}`);
       console.log(JSON.stringify(report, null, 2));

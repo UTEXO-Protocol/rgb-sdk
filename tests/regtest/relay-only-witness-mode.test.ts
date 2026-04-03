@@ -95,13 +95,22 @@ beforeAll(async () => {
   await switchToRelayOnlyProxy(state.composeFile, PROXY_HTTP_URL);
   resetWalletDataDirs(getRegtestBaseDir());
 
-  const { WalletManager, generateKeys } = (await import('../../dist/index.mjs')) as {
-    WalletManager: WalletManagerCtor;
-    generateKeys: GenerateKeysFn;
-  };
+  const { WalletManager, generateKeys } =
+    (await import('../../dist/index.mjs')) as {
+      WalletManager: WalletManagerCtor;
+      generateKeys: GenerateKeysFn;
+    };
 
-  const { wallet: sender } = await createRegtestWallet(WalletManager, generateKeys, 'sender');
-  const { wallet: receiver } = await createRegtestWallet(WalletManager, generateKeys, 'receiver');
+  const { wallet: sender } = await createRegtestWallet(
+    WalletManager,
+    generateKeys,
+    'sender'
+  );
+  const { wallet: receiver } = await createRegtestWallet(
+    WalletManager,
+    generateKeys,
+    'receiver'
+  );
   state.sender = sender;
   state.receiver = receiver;
 
@@ -123,12 +132,14 @@ beforeAll(async () => {
     (balance) => Number(balance.spendable ?? 0) >= TRANSFER_AMOUNT,
     15_000,
     500,
-    `Issued relay-only witness asset ${state.assetId} did not become spendable in time`,
+    `Issued relay-only witness asset ${state.assetId} did not become spendable in time`
   );
 
   state.receiverAddress = (await fundWallet(receiver)).address;
   await receiver.refreshWallet();
-  const receiverBalance = await receiver.getAssetBalance(state.assetId).catch(() => ({ settled: 0 }));
+  const receiverBalance = await receiver
+    .getAssetBalance(state.assetId)
+    .catch(() => ({ settled: 0 }));
   state.receiverSettledBefore = Number(receiverBalance.settled ?? 0);
 });
 
@@ -187,9 +198,13 @@ describe('Regtest relay-only witness mode', () => {
       await pollCondition(
         async () => {
           try {
-            return await proxyRpc<{ validated?: boolean }>(PROXY_HTTP_URL, 'consignment.get', {
-              recipient_id: invoiceData.recipientId,
-            });
+            return await proxyRpc<{ validated?: boolean }>(
+              PROXY_HTTP_URL,
+              'consignment.get',
+              {
+                recipient_id: invoiceData.recipientId,
+              }
+            );
           } catch {
             return null;
           }
@@ -197,16 +212,20 @@ describe('Regtest relay-only witness mode', () => {
         (consignment) => consignment !== null,
         5_000,
         250,
-        `Consignment did not appear for witness recipient_id=${invoiceData.recipientId}`,
+        `Consignment did not appear for witness recipient_id=${invoiceData.recipientId}`
       );
 
-      const ackBeforeRefresh = await proxyRpc<boolean | null>(PROXY_HTTP_URL, 'ack.get', {
-        recipient_id: invoiceData.recipientId,
-      });
+      const ackBeforeRefresh = await proxyRpc<boolean | null>(
+        PROXY_HTTP_URL,
+        'ack.get',
+        {
+          recipient_id: invoiceData.recipientId,
+        }
+      );
       const consignmentBeforeRefresh = await proxyRpc<{ validated?: boolean }>(
         PROXY_HTTP_URL,
         'consignment.get',
-        { recipient_id: invoiceData.recipientId },
+        { recipient_id: invoiceData.recipientId }
       );
       report.phase1.ackBeforeRefresh = ackBeforeRefresh;
       report.phase1.validatedBeforeRefresh = consignmentBeforeRefresh.validated;
@@ -215,9 +234,9 @@ describe('Regtest relay-only witness mode', () => {
       expect(consignmentBeforeRefresh.validated).toBeUndefined();
 
       await receiver.refreshWallet();
-      const transferAfterRefresh = (await receiver.listTransfers(state.assetId)).find(
-        (item) => item.recipientId === invoiceData.recipientId,
-      );
+      const transferAfterRefresh = (
+        await receiver.listTransfers(state.assetId)
+      ).find((item) => item.recipientId === invoiceData.recipientId);
       report.phase1.transferStatusAfterRefresh = transferAfterRefresh?.status;
       expect(transferAfterRefresh?.status).toBe('WaitingConfirmations');
 
@@ -229,21 +248,29 @@ describe('Regtest relay-only witness mode', () => {
         (ack) => ack === true,
         5_000,
         500,
-        `Receiver refresh did not ACK witness recipient_id=${invoiceData.recipientId}`,
+        `Receiver refresh did not ACK witness recipient_id=${invoiceData.recipientId}`
       );
       report.phase1.ackAfterReceiverRefresh = ackAfterReceiverRefresh;
       expect(ackAfterReceiverRefresh).toBe(true);
 
-      const lateManualAckPosted = await proxyRpc<boolean>(PROXY_HTTP_URL, 'ack.post', {
-        recipient_id: invoiceData.recipientId,
-        ack: true,
-      });
+      const lateManualAckPosted = await proxyRpc<boolean>(
+        PROXY_HTTP_URL,
+        'ack.post',
+        {
+          recipient_id: invoiceData.recipientId,
+          ack: true,
+        }
+      );
       report.phase1.lateManualAckPosted = lateManualAckPosted;
       expect(lateManualAckPosted).toBe(false);
 
-      const ackAfterLateManual = await proxyRpc<boolean | null>(PROXY_HTTP_URL, 'ack.get', {
-        recipient_id: invoiceData.recipientId,
-      });
+      const ackAfterLateManual = await proxyRpc<boolean | null>(
+        PROXY_HTTP_URL,
+        'ack.get',
+        {
+          recipient_id: invoiceData.recipientId,
+        }
+      );
       report.phase1.ackAfterLateManual = ackAfterLateManual;
       expect(ackAfterLateManual).toBe(true);
 
@@ -255,7 +282,7 @@ describe('Regtest relay-only witness mode', () => {
         invoiceData.recipientId,
         sendResult.txid,
         20_000,
-        1_000,
+        1_000
       );
       report.phase1.currentTransferStatus = currentTransfer.status;
       report.phase1.currentTransferTxid = currentTransfer.txid ?? null;
@@ -267,11 +294,14 @@ describe('Regtest relay-only witness mode', () => {
       expect(currentTransfer.status).toBe('Settled');
       expect(currentTransfer.txid).toBe(sendResult.txid);
       expect(report.phase1.receiverSettledAfter).toBe(
-        state.receiverSettledBefore + TRANSFER_AMOUNT,
+        state.receiverSettledBefore + TRANSFER_AMOUNT
       );
     } finally {
       report.durationMs = Date.now() - startedAt;
-      const reportPath = writeSmokeReport(report, 'regtest-relay-only-witness-mode.json');
+      const reportPath = writeSmokeReport(
+        report,
+        'regtest-relay-only-witness-mode.json'
+      );
       console.log(`smoke report: ${reportPath}`);
       console.log(JSON.stringify(report, null, 2));
     }

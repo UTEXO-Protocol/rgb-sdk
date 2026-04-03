@@ -87,22 +87,20 @@
   "types": "./dist/index.d.ts",
   "dependencies": {
     "@bitcoindevkit/bdk-wallet-node": "^0.2.0",
-    "@bitcoindevkit/bdk-wallet-web": "^0.2.0",
-    "@bitcoinerlab/secp256k1": "^1.2.0",
-    "@noble/hashes": "^2.0.1",
+"@noble/hashes": "^2.0.1",
+    "@scure/btc-signer": "^2.0.1",
+    "@utexo/rgb-lib": "0.3.0-beta.13",
+    "@utexo/rgb-sdk-core": "1.0.0-beta.2",
     "axios": "^1.8.4",
     "bare-node-runtime": "^1.1.4",
-    "bip32": "^5.0.0-rc.0",
-    "bip39": "^3.1.0",
     "bitcoinjs-lib": "^6.1.7",
     "form-data": "^4.0.0",
-    "@utexo/rgb-lib": "0.3.0-beta.13",
     "ripemd160": "^2.0.3"
   },
   "optionalDependencies": {
-    "@utexo/rgb-lib-linux-x64": "0.3.0-beta.13",
+    "@utexo/rgb-lib-darwin-arm64": "0.3.0-beta.13",
     "@utexo/rgb-lib-linux-arm64": "0.3.0-beta.13",
-    "@utexo/rgb-lib-darwin-arm64": "0.3.0-beta.13"
+    "@utexo/rgb-lib-linux-x64": "0.3.0-beta.13"
   },
   "keywords": [
     "rgb",

@@ -59,15 +59,16 @@ beforeAll(async () => {
 
   resetWalletDataDirs(getRegtestBaseDir());
 
-  const { WalletManager, generateKeys } = (await import('../../dist/index.mjs')) as {
-    WalletManager: WalletManagerCtor;
-    generateKeys: GenerateKeysFn;
-  };
+  const { WalletManager, generateKeys } =
+    (await import('../../dist/index.mjs')) as {
+      WalletManager: WalletManagerCtor;
+      generateKeys: GenerateKeysFn;
+    };
 
   const { wallet: receiver } = await createRegtestWallet(
     WalletManager,
     generateKeys,
-    'receiver',
+    'receiver'
   );
   state.receiver = receiver;
   state.receiverAddress = (await fundWallet(receiver)).address;
@@ -124,7 +125,10 @@ describe('Regtest upload guard semantics', () => {
       expect(second.result).toBe(false);
     } finally {
       report.durationMs = Date.now() - startedAt;
-      const reportPath = writeSmokeReport(report, 'regtest-upload-guard-duplicate.json');
+      const reportPath = writeSmokeReport(
+        report,
+        'regtest-upload-guard-duplicate.json'
+      );
       console.log(`smoke report: ${reportPath}`);
       console.log(JSON.stringify(report, null, 2));
     }
@@ -177,7 +181,10 @@ describe('Regtest upload guard semantics', () => {
       expect(second.error?.code).toBe(-101);
     } finally {
       report.durationMs = Date.now() - startedAt;
-      const reportPath = writeSmokeReport(report, 'regtest-upload-guard-changed-file.json');
+      const reportPath = writeSmokeReport(
+        report,
+        'regtest-upload-guard-changed-file.json'
+      );
       console.log(`smoke report: ${reportPath}`);
       console.log(JSON.stringify(report, null, 2));
     }

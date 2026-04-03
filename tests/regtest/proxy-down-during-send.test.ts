@@ -2,11 +2,7 @@ import { execFileSync } from 'node:child_process';
 
 import { jest } from '@jest/globals';
 
-import {
-  pollCondition,
-  proxyRpc,
-  writeSmokeReport,
-} from '../shared/helpers';
+import { pollCondition, proxyRpc, writeSmokeReport } from '../shared/helpers';
 import {
   createRegtestWallet,
   env,
@@ -84,7 +80,10 @@ async function waitForProxyReady(): Promise<void> {
   await pollCondition(
     async () => {
       try {
-        return await proxyRpc<{ version: string }>(PROXY_HTTP_URL, 'server.info');
+        return await proxyRpc<{ version: string }>(
+          PROXY_HTTP_URL,
+          'server.info'
+        );
       } catch {
         return null;
       }
@@ -92,7 +91,7 @@ async function waitForProxyReady(): Promise<void> {
     (info) => Boolean(info?.version),
     15_000,
     500,
-    'Proxy did not become ready in time',
+    'Proxy did not become ready in time'
   );
 }
 
@@ -117,13 +116,22 @@ beforeAll(async () => {
   resetWalletDataDirs(getRegtestBaseDir());
   await waitForProxyReady();
 
-  const { WalletManager, generateKeys } = (await import('../../dist/index.mjs')) as {
-    WalletManager: WalletManagerCtor;
-    generateKeys: GenerateKeysFn;
-  };
+  const { WalletManager, generateKeys } =
+    (await import('../../dist/index.mjs')) as {
+      WalletManager: WalletManagerCtor;
+      generateKeys: GenerateKeysFn;
+    };
 
-  const { wallet: sender } = await createRegtestWallet(WalletManager, generateKeys, 'sender');
-  const { wallet: receiver } = await createRegtestWallet(WalletManager, generateKeys, 'receiver');
+  const { wallet: sender } = await createRegtestWallet(
+    WalletManager,
+    generateKeys,
+    'sender'
+  );
+  const { wallet: receiver } = await createRegtestWallet(
+    WalletManager,
+    generateKeys,
+    'receiver'
+  );
   state.sender = sender;
   state.receiver = receiver;
 
@@ -141,7 +149,9 @@ beforeAll(async () => {
 
   state.receiverAddress = (await fundWallet(receiver)).address;
   await receiver.refreshWallet();
-  const receiverBalance = await receiver.getAssetBalance(state.assetId).catch(() => ({ settled: 0 }));
+  const receiverBalance = await receiver
+    .getAssetBalance(state.assetId)
+    .catch(() => ({ settled: 0 }));
   state.receiverSettledBefore = Number(receiverBalance.settled ?? 0);
 });
 
@@ -198,15 +208,22 @@ describe('Regtest proxy down during send', () => {
           minConfirmations: 1,
         });
       } catch (error) {
-        const serialized = [String(error), (error as Error)?.message ?? '', (error as Error)?.stack ?? '']
+        const serialized = [
+          String(error),
+          (error as Error)?.message ?? '',
+          (error as Error)?.stack ?? '',
+        ]
           .filter(Boolean)
           .join('\n');
         report.phase1.sendError = serialized;
-        report.phase1.sendErrorKind = /fetch failed|ECONNREFUSED|SocketError|connect/i.test(serialized)
-          ? 'network'
-          : /InvalidTransportEndpoints|no valid transport endpoints/i.test(serialized)
-            ? 'transport'
-            : 'other';
+        report.phase1.sendErrorKind =
+          /fetch failed|ECONNREFUSED|SocketError|connect/i.test(serialized)
+            ? 'network'
+            : /InvalidTransportEndpoints|no valid transport endpoints/i.test(
+                  serialized
+                )
+              ? 'transport'
+              : 'other';
       } finally {
         await startProxy();
       }
@@ -215,18 +232,26 @@ describe('Regtest proxy down during send', () => {
       expect(['network', 'transport']).toContain(report.phase1.sendErrorKind);
 
       await receiver.refreshWallet();
-      const ackAfterRecovery = await proxyRpc<boolean | null>(PROXY_HTTP_URL, 'ack.get', {
-        recipient_id: invoiceData.recipientId,
-      }).catch(() => null);
+      const ackAfterRecovery = await proxyRpc<boolean | null>(
+        PROXY_HTTP_URL,
+        'ack.get',
+        {
+          recipient_id: invoiceData.recipientId,
+        }
+      ).catch(() => null);
       report.phase1.ackAfterRecovery = ackAfterRecovery;
 
       const transferAfterRecovery = await receiver
         .listTransfers(state.assetId)
-        .then((items) => items.find((item) => item.recipientId === invoiceData.recipientId))
+        .then((items) =>
+          items.find((item) => item.recipientId === invoiceData.recipientId)
+        )
         .catch(() => undefined);
       report.phase1.transferStatusAfterRecovery = transferAfterRecovery?.status;
 
-      const receiverBalance = await receiver.getAssetBalance(state.assetId).catch(() => ({ settled: 0 }));
+      const receiverBalance = await receiver
+        .getAssetBalance(state.assetId)
+        .catch(() => ({ settled: 0 }));
       const receiverSettledAfterRecovery = Number(receiverBalance.settled ?? 0);
       report.phase1.receiverSettledAfterRecovery = receiverSettledAfterRecovery;
 
@@ -234,7 +259,10 @@ describe('Regtest proxy down during send', () => {
       expect(receiverSettledAfterRecovery).toBe(state.receiverSettledBefore);
     } finally {
       report.durationMs = Date.now() - startedAt;
-      const reportPath = writeSmokeReport(report, 'regtest-proxy-down-during-send.json');
+      const reportPath = writeSmokeReport(
+        report,
+        'regtest-proxy-down-during-send.json'
+      );
       console.log(`smoke report: ${reportPath}`);
       console.log(JSON.stringify(report, null, 2));
     }

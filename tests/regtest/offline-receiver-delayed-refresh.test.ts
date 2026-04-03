@@ -91,16 +91,21 @@ beforeAll(async () => {
 
   resetWalletDataDirs(getRegtestBaseDir());
 
-  const { WalletManager, generateKeys } = (await import('../../dist/index.mjs')) as {
-    WalletManager: WalletManagerCtor;
-    generateKeys: GenerateKeysFn;
-  };
+  const { WalletManager, generateKeys } =
+    (await import('../../dist/index.mjs')) as {
+      WalletManager: WalletManagerCtor;
+      generateKeys: GenerateKeysFn;
+    };
 
-  const { wallet: sender } = await createRegtestWallet(WalletManager, generateKeys, 'sender');
+  const { wallet: sender } = await createRegtestWallet(
+    WalletManager,
+    generateKeys,
+    'sender'
+  );
   const { wallet: receiver } = await createRegtestWallet(
     WalletManager,
     generateKeys,
-    'receiver',
+    'receiver'
   );
 
   state.sender = sender;
@@ -127,16 +132,18 @@ beforeAll(async () => {
     (balance) => Number(balance.spendable ?? 0) >= TRANSFER_AMOUNT,
     30_000,
     1_000,
-    `Issued asset ${state.assetId} did not become spendable in time`,
+    `Issued asset ${state.assetId} did not become spendable in time`
   );
   state.senderSpendableBefore = Number(senderBalance.spendable ?? 0);
 
   const receiverFunding = await fundWallet(receiver);
   state.receiverAddress = receiverFunding.address;
   await receiver.refreshWallet();
-  const receiverBalance = await receiver.getAssetBalance(state.assetId).catch(() => ({
-    settled: 0,
-  }));
+  const receiverBalance = await receiver
+    .getAssetBalance(state.assetId)
+    .catch(() => ({
+      settled: 0,
+    }));
   state.receiverSettledBefore = Number(receiverBalance.settled ?? 0);
 });
 
@@ -192,12 +199,17 @@ describe('Regtest offline receiver delayed refresh', () => {
 
       await mine(1);
 
-      const ack = await pollAck(PROXY_HTTP_URL, invoiceData.recipientId, 30_000, 1_000);
+      const ack = await pollAck(
+        PROXY_HTTP_URL,
+        invoiceData.recipientId,
+        30_000,
+        1_000
+      );
       const validated = await pollValidated(
         PROXY_HTTP_URL,
         invoiceData.recipientId,
         30_000,
-        1_000,
+        1_000
       );
       report.phase1.ack = ack;
       report.phase1.validated = validated;
@@ -213,24 +225,29 @@ describe('Regtest offline receiver delayed refresh', () => {
         (transfer) => transfer?.status === 'Settled',
         30_000,
         1_000,
-        `Sender transfer txid=${sendResult.txid} did not reach Settled before receiver refresh`,
+        `Sender transfer txid=${sendResult.txid} did not reach Settled before receiver refresh`
       );
-      report.phase1.senderTransferStatusBeforeReceiverRefresh = senderTransfer?.status;
+      report.phase1.senderTransferStatusBeforeReceiverRefresh =
+        senderTransfer?.status;
 
-      const receiverBalanceWhileOffline = await receiver.getAssetBalance(state.assetId).catch(() => ({
-        settled: 0,
-      }));
+      const receiverBalanceWhileOffline = await receiver
+        .getAssetBalance(state.assetId)
+        .catch(() => ({
+          settled: 0,
+        }));
       report.phase1.receiverSettledWhileOffline = Number(
-        receiverBalanceWhileOffline.settled ?? 0,
+        receiverBalanceWhileOffline.settled ?? 0
       );
-      expect(report.phase1.receiverSettledWhileOffline).toBe(state.receiverSettledBefore);
+      expect(report.phase1.receiverSettledWhileOffline).toBe(
+        state.receiverSettledBefore
+      );
 
       for (let cycle = 1; cycle <= RECEIVER_REFRESH_COUNT; cycle += 1) {
         await receiver.refreshWallet();
         const balance = await receiver.getAssetBalance(state.assetId);
         const transfers = await receiver.listTransfers(state.assetId);
         const currentTransfer = transfers.find(
-          (item) => item.recipientId === invoiceData.recipientId,
+          (item) => item.recipientId === invoiceData.recipientId
         );
 
         report.phase2.receiverRefreshChecks.push({
@@ -244,12 +261,14 @@ describe('Regtest offline receiver delayed refresh', () => {
       const finalTransfer = await pollCondition(
         async () => {
           const transfers = await receiver.listTransfers(state.assetId);
-          return transfers.find((item) => item.recipientId === invoiceData.recipientId);
+          return transfers.find(
+            (item) => item.recipientId === invoiceData.recipientId
+          );
         },
         (transfer) => transfer?.status === 'Settled',
         10_000,
         500,
-        `Receiver transfer recipientId=${invoiceData.recipientId} did not reach Settled after ${RECEIVER_REFRESH_COUNT} refreshes`,
+        `Receiver transfer recipientId=${invoiceData.recipientId} did not reach Settled after ${RECEIVER_REFRESH_COUNT} refreshes`
       );
 
       const finalBalance = await receiver.getAssetBalance(state.assetId);
@@ -258,17 +277,19 @@ describe('Regtest offline receiver delayed refresh', () => {
       report.phase2.finalTransferStatus = finalTransfer?.status;
       report.phase2.finalTransferTxid = finalTransfer?.txid;
       report.phase2.txidMatch = Boolean(
-        finalTransfer?.txid && finalTransfer.txid === sendResult.txid,
+        finalTransfer?.txid && finalTransfer.txid === sendResult.txid
       );
 
       expect(finalTransfer?.status).toBe('Settled');
       expect(finalTransfer?.txid).toBe(sendResult.txid);
-      expect(receiverSettledAfter - state.receiverSettledBefore).toBe(TRANSFER_AMOUNT);
+      expect(receiverSettledAfter - state.receiverSettledBefore).toBe(
+        TRANSFER_AMOUNT
+      );
     } finally {
       report.durationMs = Date.now() - startedAt;
       const reportPath = writeSmokeReport(
         report,
-        'regtest-offline-receiver-delayed-refresh.json',
+        'regtest-offline-receiver-delayed-refresh.json'
       );
       console.log(`smoke report: ${reportPath}`);
       console.log(JSON.stringify(report, null, 2));

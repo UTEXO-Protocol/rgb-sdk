@@ -92,5 +92,5 @@ See [examples/README.md](../examples/README.md) for full documentation.
 
 ## Integration Test Suites
 
-- `tests/signet/README.md` — current Signet manual/integration baseline
+- `tests/signet/README.md` — current UTEXO manual/integration baseline
 - `tests/regtest/README.md` — current regtest e2e baseline

@@ -12,7 +12,7 @@
 import { UTEXOWallet } from '../dist/index.mjs';
 
 const NETWORK = 'testnet';
-const MNEMONIC = "drastic vacuum age family between general melody elbow ball very require pulp";
+const MNEMONIC = "tobacco dinner advice together repeat digital need cancel lift near blind cute";
 // drastic vacuum age family between general melody elbow ball very require pulp
 // const MNEMONIC = process.env.MNEMONIC || 'apple deposit job second wear metal zebra target filter chunk pill dynamic';
 // const MNEMONIC = process.env.MNEMONIC || 'famous hurt miss favorite pitch rich rude cricket fault hammer split guilt';

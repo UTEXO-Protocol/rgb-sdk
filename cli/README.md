@@ -35,7 +35,7 @@ utexo generate_keys mywallet testnet
 **Parameters:**
 - `wallet_name` (required) - Name for the wallet configuration file
 - `network` (optional) - Bitcoin network, defaults to `regtest` if not provided
-  - Options: `mainnet`, `testnet`, `testnet4`, `regtest`, `signet`
+  - Options: `mainnet`, `testnet`, `testnet4`, `regtest`, `utexo`
 
 **Output:**
 - Creates a JSON file in `cli/data/<wallet_name>.json` containing:
@@ -345,4 +345,4 @@ Scripts read and write wallet configs under `data/` automatically.
 - All scripts use ES modules (`.mjs` extension)
 - Scripts require the project to be built (`npm run build`) before use
 - Wallet files are stored in `cli/data/` as `<wallet_name>.json`
-- Wallet `network` from config (e.g. `regtest`, `signet`, `testnet`) is mapped to UTEXOWallet presets `mainnet` or `testnet` automatically
+- Wallet `network` from config (e.g. `regtest`, `utexo`, `testnet`) is mapped to UTEXOWallet presets `mainnet` or `testnet` automatically

@@ -1,6 +1,6 @@
-# Signet Tests
+# UTEXO Tests
 
-This directory contains the manual Signet integration tests for offline receiver flows.
+This directory contains the manual UTEXO integration tests for offline receiver flows.
 
 ## Current working configuration
 
@@ -26,7 +26,7 @@ cp cli/data/stage2-sender.example.json cli/data/stage2-sender.json
 cp cli/data/stage2-receiver.example.json cli/data/stage2-receiver.json
 ```
 
-Then replace placeholder values with your real wallet data (or regenerate files with `node cli/generate_keys.mjs <wallet_name> signet`).
+Then replace placeholder values with your real wallet data (or regenerate files with `node cli/generate_keys.mjs <wallet_name> utexo`).
 ## Run
 
 ```bash
@@ -85,7 +85,7 @@ Minimum recommendation: 2 free receiver slots (one per sequential iteration).
 
 ## Operational note
 
-If a Signet test fails with `InsufficientAllocationSlots`, create additional UTXOs and refresh the affected wallet. In practice the most common maintenance step is `stage2-receiver`:
+If a UTEXO test fails with `InsufficientAllocationSlots`, create additional UTXOs and refresh the affected wallet. In practice the most common maintenance step is `stage2-receiver`:
 
 ```bash
 cd /path/to/rgb-sdk
