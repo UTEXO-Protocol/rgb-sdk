@@ -46,6 +46,7 @@
     "example:new-wallet": "node examples/new-wallet.mjs",
     "example:create-utxos-asset": "node examples/create-utxos-asset.mjs",
     "example:read-wallet": "node examples/read-wallet.mjs",
+    "example:rotate-address": "node examples/rotate-address.mjs",
     "example:transfer": "node examples/transfer.mjs",
     "example:onchain": "node examples/onchain-flow.mjs",
     "example:vss": "node examples/utexo-vss-backup-restore.mjs",
@@ -87,10 +88,10 @@
   "types": "./dist/index.d.ts",
   "dependencies": {
     "@bitcoindevkit/bdk-wallet-node": "^0.2.0",
-"@noble/hashes": "^2.0.1",
+    "@noble/hashes": "^2.0.1",
     "@scure/btc-signer": "^2.0.1",
-    "@utexo/rgb-lib": "0.3.0-beta.13",
-    "@utexo/rgb-sdk-core": "1.0.0-beta.2",
+    "@utexo/rgb-lib": "0.3.0-beta.16.dev",
+    "@utexo/rgb-sdk-core": "1.0.0-beta.3",
     "axios": "^1.8.4",
     "bare-node-runtime": "^1.1.4",
     "bitcoinjs-lib": "^6.1.7",
@@ -98,9 +99,9 @@
     "ripemd160": "^2.0.3"
   },
   "optionalDependencies": {
-    "@utexo/rgb-lib-darwin-arm64": "0.3.0-beta.13",
-    "@utexo/rgb-lib-linux-arm64": "0.3.0-beta.13",
-    "@utexo/rgb-lib-linux-x64": "0.3.0-beta.13"
+    "@utexo/rgb-lib-darwin-arm64": "0.3.0-beta.16.dev",
+    "@utexo/rgb-lib-linux-arm64": "0.3.0-beta.16.dev",
+    "@utexo/rgb-lib-linux-x64": "0.3.0-beta.16.dev"
   },
   "keywords": [
     "rgb",

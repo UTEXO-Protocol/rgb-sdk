@@ -66,6 +66,9 @@ export class WalletManager extends BaseWalletManager {
       transportEndpoint: params.transportEndpoint,
       indexerUrl: params.indexerUrl,
       dataDir,
+      reuseAddresses: params.reuseAddresses,
+      vanillaKeychain: params.vanillaKeychain,
+      maxAllocationsPerUtxo: params.maxAllocationsPerUtxo,
     });
 
     super(params, client, new NodeSigner());
