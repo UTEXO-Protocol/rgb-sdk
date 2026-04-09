@@ -92,6 +92,32 @@ export const generateKeys = (
   return rgblib.generateKeys(mapNetworkToRgbLib(network));
 };
 
+export const validateConsignment = (params: {
+  filePath: string;
+  indexerUrl: string;
+  network: string;
+}): unknown => {
+  return (rgblib as any).validateConsignment(
+    params.filePath,
+    params.indexerUrl,
+    mapNetworkToRgbLib(params.network)
+  );
+};
+
+export const validateConsignmentOffchain = (params: {
+  filePath: string;
+  txid: string;
+  indexerUrl: string;
+  network: string;
+}): unknown => {
+  return (rgblib as any).validateConsignmentOffchain(
+    params.filePath,
+    params.txid,
+    params.indexerUrl,
+    mapNetworkToRgbLib(params.network)
+  );
+};
+
 export const restoreWallet = (params: {
   backupFilePath: string;
   password: string;
@@ -152,6 +178,18 @@ export const restoreFromVss = (params: {
 };
 
 /**
+ * Normalises the raw PSBT string returned by rgb-lib.
+ * Some calls return a plain base64 string; others wrap it as {"psbt":"<base64>"}.
+ */
+function extractPsbt(raw: string): string {
+  if (typeof raw === 'string' && raw.trimStart().startsWith('{')) {
+    const obj = JSON.parse(raw);
+    return obj?.psbt ?? raw;
+  }
+  return raw;
+}
+
+/**
  * RGB Lib Client class - Local implementation using rgb-lib
  */
 export class NodeRgbLibBinding implements IRgbLibBinding {
@@ -174,6 +212,9 @@ export class NodeRgbLibBinding implements IRgbLibBinding {
     network: string;
     transportEndpoint?: string;
     indexerUrl?: string;
+    reuseAddresses?: boolean;
+    vanillaKeychain?: number | null;
+    maxAllocationsPerUtxo?: number;
   }) {
     this.xpubVan = params.xpubVan;
     this.xpubCol = params.xpubCol;
@@ -198,15 +239,14 @@ export class NodeRgbLibBinding implements IRgbLibBinding {
       fs.mkdirSync(this.dataDir, { recursive: true });
     }
 
-    const walletData = {
+    const vanillaKeychain =
+      params.vanillaKeychain !== undefined ? params.vanillaKeychain : 0;
+    const walletData: Record<string, unknown> = {
       dataDir: this.dataDir,
       bitcoinNetwork: mapNetworkToRgbLib(this.originalNetwork),
       databaseType: rgblib.DatabaseType.Sqlite,
-      accountXpubVanilla: this.xpubVan,
-      accountXpubColored: this.xpubCol,
-      masterFingerprint: this.masterFingerprint,
-      maxAllocationsPerUtxo: '1',
-      vanillaKeychain: '0',
+      maxAllocationsPerUtxo: String(params.maxAllocationsPerUtxo ?? 1),
+      reuseAddresses: params.reuseAddresses ?? false,
       supportedSchemas: [
         rgblib.AssetSchema.Cfa,
         rgblib.AssetSchema.Nia,
@@ -214,8 +254,19 @@ export class NodeRgbLibBinding implements IRgbLibBinding {
       ],
     };
 
+    const singlesigKeys: Record<string, unknown> = {
+      accountXpubVanilla: this.xpubVan,
+      accountXpubColored: this.xpubCol,
+      masterFingerprint: this.masterFingerprint,
+      vanillaKeychain:
+        vanillaKeychain === null ? null : String(vanillaKeychain),
+    };
+
     try {
-      this.wallet = new rgblib.Wallet(new rgblib.WalletData(walletData));
+      this.wallet = new rgblib.Wallet(
+        new rgblib.WalletData(walletData),
+        new rgblib.SinglesigKeys(singlesigKeys)
+      );
     } catch (error) {
       throw new WalletError(
         'Failed to initialize rgb-lib wallet',
@@ -271,6 +322,14 @@ export class NodeRgbLibBinding implements IRgbLibBinding {
     return this.wallet.getAddress();
   }
 
+  async rotateVanillaAddress(): Promise<string> {
+    return this.wallet.rotateVanillaAddress();
+  }
+
+  async rotateColoredAddress(): Promise<string> {
+    return this.wallet.rotateColoredAddress();
+  }
+
   listUnspents(): Promise<Unspent[]> {
     const online = this.getOnline();
     const raw: RawUnspent[] = this.wallet.listUnspents(online, false, false);
@@ -313,7 +372,7 @@ export class NodeRgbLibBinding implements IRgbLibBinding {
     const feeRate = params.feeRate ? String(params.feeRate) : '1';
     const skipSync = false;
 
-    return this.wallet.createUtxosBegin(
+    const psbt = this.wallet.createUtxosBegin(
       online,
       upTo,
       num,
@@ -321,6 +380,8 @@ export class NodeRgbLibBinding implements IRgbLibBinding {
       feeRate,
       skipSync
     );
+
+    return extractPsbt(psbt);
   }
 
   async createUtxosEnd(params: CreateUtxosEndRequestModel): Promise<number> {
@@ -398,10 +459,12 @@ export class NodeRgbLibBinding implements IRgbLibBinding {
       recipientMap,
       donation,
       feeRate,
-      minConfirmations
+      minConfirmations,
+      null,
+      false
     );
 
-    return psbt;
+    return extractPsbt(psbt);
   }
 
   /**
@@ -447,10 +510,12 @@ export class NodeRgbLibBinding implements IRgbLibBinding {
       recipientMap,
       donation,
       feeRate,
-      minConfirmations
+      minConfirmations,
+      null,
+      false
     );
 
-    return psbt;
+    return extractPsbt(psbt);
   }
 
   async sendEnd(params: SendAssetEndRequestModel): Promise<SendResult> {
@@ -505,14 +570,17 @@ export class NodeRgbLibBinding implements IRgbLibBinding {
   async blindReceive(params: InvoiceRequest): Promise<InvoiceReceiveData> {
     const assetId = params.assetId || null;
     const assignment = `{"Fungible":${params.amount}}`;
-    const durationSeconds = String(params.durationSeconds ?? 2000);
+    const durationSeconds = params.durationSeconds ?? 2000;
+    const expirationTimestamp = String(
+      Math.floor(Date.now() / 1000) + durationSeconds
+    );
     const transportEndpoints: string[] = [this.transportEndpoint];
     const minConfirmations = String(params.minConfirmations ?? 3);
 
     const raw = this.wallet.blindReceive(
       assetId,
       assignment,
-      durationSeconds,
+      expirationTimestamp,
       transportEndpoints,
       minConfirmations
     );
@@ -527,14 +595,17 @@ export class NodeRgbLibBinding implements IRgbLibBinding {
   async witnessReceive(params: InvoiceRequest): Promise<InvoiceReceiveData> {
     const assetId = params.assetId || null;
     const assignment = `{"Fungible":${params.amount}}`;
-    const durationSeconds = String(params.durationSeconds ?? 2000);
+    const durationSeconds = params.durationSeconds ?? 2000;
+    const expirationTimestamp = String(
+      Math.floor(Date.now() / 1000) + durationSeconds
+    );
     const transportEndpoints: string[] = [this.transportEndpoint];
     const minConfirmations = String(params.minConfirmations ?? 3);
 
     const raw = this.wallet.witnessReceive(
       assetId,
       assignment,
-      durationSeconds,
+      expirationTimestamp,
       transportEndpoints,
       minConfirmations
     );

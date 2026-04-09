@@ -20,7 +20,7 @@ async function main() {
     
     console.log('Mnemonic:', keys.mnemonic);
 
-    const wallet = new UTEXOWallet(keys.mnemonic, { network: NETWORK });
+    const wallet = new UTEXOWallet(keys.mnemonic, { network: NETWORK, reuseAddresses: true });
     try {
         await wallet.initialize();
         const address = await wallet.getAddress();

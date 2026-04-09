@@ -30,7 +30,9 @@ The primary wallet class is **`UTEXOWallet`**: initialize with a mnemonic (or se
 | `restoreUtxoWalletFromVss({ mnemonic, targetDir, config?, vssServerUrl? })` | Restore UTEXO wallet from VSS cloud backup – top-level function |
 | `deriveKeysFromMnemonic(network, mnemonic)` | Derive wallet keys from existing mnemonic |
 | `deriveKeysFromSeed(network, seed)` | Derive wallet keys from BIP39 seed |
-| `getAddress()` | Get deposit address (async) |
+| `getAddress()` | Get current deposit address (async) |
+| `rotateVanillaAddress()` | Rotate to the next vanilla (BTC) receive address and return it (async) |
+| `rotateColoredAddress()` | Rotate to the next colored (RGB) receive address and return it (async) |
 | `getBtcBalance()` | Get on-chain BTC balance (async) |
 | `getXpub()` | Get vanilla and colored xpubs |
 | `getNetwork()` | Get current network |
@@ -187,6 +189,11 @@ await wallet.initialize();
 const walletWithDir = new UTEXOWallet(keys.mnemonic, { network: 'testnet', dataDir: './wallet-data' });
 await walletWithDir.initialize();
 
+// Optional: enable address reuse — getAddress() returns the same address on every call
+// instead of advancing the derivation index. Default: false.
+const reuseWallet = new UTEXOWallet(keys.mnemonic, { network: 'testnet', reuseAddresses: true });
+await reuseWallet.initialize();
+
 // Restore from file backup (layer1 + utexo in one folder)
 const { targetDir } = restoreUtxoWalletFromBackup({
     backupPath: './backup-folder',
@@ -232,6 +239,20 @@ const asset = await wallet.issueAssetNia({
 });
 
 console.log('Asset issued:', asset.asset?.assetId);
+```
+
+### Address Reuse and Rotation
+
+By default, each call to `getAddress()` advances the derivation index so a fresh receive address is returned. Set `reuseAddresses: true` to keep returning the same address — useful for testing or scenarios where address rotation is handled externally.
+
+The address can be rotated manually at any time:
+
+```javascript
+// Advance to the next vanilla (BTC) receive address
+const newVanilla = await wallet.rotateVanillaAddress();
+
+// Advance to the next colored (RGB) receive address
+const newColored = await wallet.rotateColoredAddress();
 ```
 
 ### Asset Transfers

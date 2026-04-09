@@ -30,6 +30,12 @@ export type {
 // VSS backup exports (single-wallet restore; use restoreUtxoWalletFromVss for UTEXOWallet)
 export { restoreFromVss } from './binding/NodeRgbLibBinding';
 
+// Consignment validation
+export {
+  validateConsignment,
+  validateConsignmentOffchain,
+} from './binding/NodeRgbLibBinding';
+
 // Type exports
 export * from './types/rgb-model';
 export type {
