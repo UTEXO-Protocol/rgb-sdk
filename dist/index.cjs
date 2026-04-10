@@ -410,12 +410,13 @@ function isNode() {
   return typeof process !== "undefined" && process.versions != null && process.versions.node != null;
 }
 function isBare() {
-  return typeof globalThis !== "undefined" && globalThis.Bare;
+  return typeof globalThis !== "undefined" && !!globalThis.Bare;
 }
 function isBrowser() {
   return typeof window !== "undefined" && typeof window.document !== "undefined";
 }
 function getEnvironment() {
+  if (isBare()) return "bare";
   if (isNode()) return "node";
   if (isBrowser()) return "browser";
   return "unknown";
@@ -3871,6 +3872,7 @@ exports.getEnvironment = getEnvironment;
 exports.getUtxoNetworkConfig = getUtxoNetworkConfig;
 exports.getXprivFromMnemonic = getXprivFromMnemonic;
 exports.getXpubFromXpriv = getXpubFromXpriv;
+exports.isBare = isBare;
 exports.isBrowser = isBrowser;
 exports.isNode = isNode;
 exports.logger = logger;

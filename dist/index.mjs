@@ -387,12 +387,13 @@ function isNode() {
   return typeof process !== "undefined" && process.versions != null && process.versions.node != null;
 }
 function isBare() {
-  return typeof globalThis !== "undefined" && globalThis.Bare;
+  return typeof globalThis !== "undefined" && !!globalThis.Bare;
 }
 function isBrowser() {
   return typeof window !== "undefined" && typeof window.document !== "undefined";
 }
 function getEnvironment() {
+  if (isBare()) return "bare";
   if (isNode()) return "node";
   if (isBrowser()) return "browser";
   return "unknown";
@@ -3802,6 +3803,6 @@ function configureLogging(level) {
   logger.setLevel(level);
 }
 
-export { BIP32_VERSIONS, BadRequestError, COIN_BITCOIN_MAINNET, COIN_BITCOIN_TESTNET, COIN_RGB_MAINNET, COIN_RGB_TESTNET, ConfigurationError, ConflictError, CryptoError, DEFAULT_API_TIMEOUT, DEFAULT_LOG_LEVEL, DEFAULT_MAX_RETRIES, DEFAULT_NETWORK, DEFAULT_VSS_SERVER_URL, DERIVATION_ACCOUNT, DERIVATION_PURPOSE, KEYCHAIN_BTC, KEYCHAIN_RGB, LightningProtocol, LogLevel, NETWORK_MAP, NetworkError, NotFoundError, OnchainProtocol, RgbNodeError, SDKError, UTEXOProtocol, UTEXOWallet, ValidationError, WalletError, WalletManager, accountXpubsFromMnemonic, configureLogging, createWallet, createWalletManager, deriveKeysFromMnemonic, deriveKeysFromMnemonicOrSeed, deriveKeysFromSeed, deriveKeysFromXpriv, deriveVssSigningKeyFromMnemonic, generateKeys2 as generateKeys, getDestinationAsset, getEnvironment, getUtxoNetworkConfig, getXprivFromMnemonic, getXpubFromXpriv, isBrowser, isNode, logger, normalizeNetwork, restoreFromBackup, restoreFromVss, restoreKeys, restoreUtxoWalletFromBackup, restoreUtxoWalletFromVss, signMessage, signPsbt, signPsbtFromSeed, signPsbtSync, utexoNetworkIdMap, utexoNetworkMap, validateBase64, validateHex, validateMnemonic, validateNetwork, validatePsbt, validateRequired, validateString, verifyMessage, wallet };
+export { BIP32_VERSIONS, BadRequestError, COIN_BITCOIN_MAINNET, COIN_BITCOIN_TESTNET, COIN_RGB_MAINNET, COIN_RGB_TESTNET, ConfigurationError, ConflictError, CryptoError, DEFAULT_API_TIMEOUT, DEFAULT_LOG_LEVEL, DEFAULT_MAX_RETRIES, DEFAULT_NETWORK, DEFAULT_VSS_SERVER_URL, DERIVATION_ACCOUNT, DERIVATION_PURPOSE, KEYCHAIN_BTC, KEYCHAIN_RGB, LightningProtocol, LogLevel, NETWORK_MAP, NetworkError, NotFoundError, OnchainProtocol, RgbNodeError, SDKError, UTEXOProtocol, UTEXOWallet, ValidationError, WalletError, WalletManager, accountXpubsFromMnemonic, configureLogging, createWallet, createWalletManager, deriveKeysFromMnemonic, deriveKeysFromMnemonicOrSeed, deriveKeysFromSeed, deriveKeysFromXpriv, deriveVssSigningKeyFromMnemonic, generateKeys2 as generateKeys, getDestinationAsset, getEnvironment, getUtxoNetworkConfig, getXprivFromMnemonic, getXpubFromXpriv, isBare, isBrowser, isNode, logger, normalizeNetwork, restoreFromBackup, restoreFromVss, restoreKeys, restoreUtxoWalletFromBackup, restoreUtxoWalletFromVss, signMessage, signPsbt, signPsbtFromSeed, signPsbtSync, utexoNetworkIdMap, utexoNetworkMap, validateBase64, validateHex, validateMnemonic, validateNetwork, validatePsbt, validateRequired, validateString, verifyMessage, wallet };
 //# sourceMappingURL=index.mjs.map
 //# sourceMappingURL=index.mjs.map

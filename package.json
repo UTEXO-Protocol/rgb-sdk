@@ -97,6 +97,7 @@
     "ripemd160": "^2.0.3"
   },
   "optionalDependencies": {
+    "@utexo/rgb-lib-bare": "0.3.0-beta.15",
     "@utexo/rgb-lib-linux-x64": "0.3.0-beta.13",
     "@utexo/rgb-lib-linux-arm64": "0.3.0-beta.13",
     "@utexo/rgb-lib-darwin-arm64": "0.3.0-beta.13"

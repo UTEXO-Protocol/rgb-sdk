@@ -81,7 +81,12 @@ export {
 
 // Utility exports
 export { logger, configureLogging, LogLevel } from './utils/logger';
-export { isNode, isBrowser, getEnvironment } from './utils/environment';
+export {
+  isNode,
+  isBare,
+  isBrowser,
+  getEnvironment,
+} from './utils/environment';
 export type { Environment } from './utils/environment';
 export {
   validateNetwork,
