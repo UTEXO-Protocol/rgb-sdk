@@ -352,9 +352,10 @@ A complete script is available at:
 
 The script runs the full flow by default, including faucet funding and asset transfer steps.
 
-Docs subpage:
+Docs subpages:
 
 - [Full Getting Started File](./getting-started-full-example)
+- [Integration flow examples (customer checklist)](./integration-flow-examples)
 
 ## Practical lifecycle checklist
 

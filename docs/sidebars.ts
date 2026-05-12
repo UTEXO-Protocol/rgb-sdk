@@ -5,6 +5,7 @@ const sidebars: SidebarsConfig = {
     'intro',
     'getting-started',
     'getting-started-full-example',
+    'integration-flow-examples',
     'usage',
     'rgb-lib-alignment',
   ],
