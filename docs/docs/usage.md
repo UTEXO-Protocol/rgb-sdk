@@ -154,6 +154,7 @@ new UTEXOWallet(mnemonicOrSeed, options?)
 | `network` | `'mainnet' \| 'testnet'` | Chooses UTEXO preset mapping for layer1/utexo routing and bridge network IDs. |
 | `dataDir` | `string` | Base directory for persisted wallet data. SDK stores wallets under network/fingerprint structure. |
 | `vssServerUrl` | `string` | Optional VSS server override used by default VSS config helpers. |
+| `reuseAddresses` | `boolean` | **`true`** = **`getAddress()`** keeps reusing the **same** receive string for **`UTEXOWallet`’s UTEXO / RGB deposit path**. Omit or **`false`** = **`getAddress()`** usually yields a **new** address each time (**privacy default**). Does **not** apply to **`UTEXOWallet`’s plain-Bitcoin-route receives**. |
 
 Notes:
 
@@ -166,7 +167,7 @@ Notes:
 
 ### `initialize()`
 
-Initializes internal layer1 and utexo wallet managers.
+Initializes internal **layer1** and **UTEXO** rgb-lib wallet state behind **`UTEXOWallet`**.
 
 ### `dispose()`
 
@@ -209,6 +210,16 @@ Typical use:
 ### `getAddress()`
 
 Returns a receive address for the wallet context.
+
+Without **`reuseAddresses`**, **`getAddress()`** typically steps to a **new** derivation each time (**default**). With **`reuseAddresses: true`**, it **reuses** one address for **`getAddress()`** calls on the **UTXO / RGB-facing** side of **`UTEXOWallet`** until you call **`rotateVanillaAddress()`** or **`rotateColoredAddress()`**.
+
+### `rotateVanillaAddress()`
+
+Async. Advances the **vanilla (BTC)** receive keychain and returns the new address.
+
+### `rotateColoredAddress()`
+
+Async. Advances the **colored (RGB)** receive keychain and returns the new address.
 
 ### `getBtcBalance()`
 

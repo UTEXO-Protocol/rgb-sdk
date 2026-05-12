@@ -319,13 +319,26 @@ await restoredWallet.initialize();
 
 ## Address behavior
 
-By default, each call to `getAddress()` rotates to a new receive address (new derivation index).
+**Default** — leave **`reuseAddresses`** out of **`UTEXOWallet`** options (or set **`false`**). Then **`getAddress()`** usually gives you a **new** receive address on each call—the normal privacy-friendly pattern.
 
-- improves privacy (harder to correlate incoming payments)
-- reduces address reuse risk in operational flows
-- matches HD wallet best practices
+**Reuse** — add **`reuseAddresses: true`** inside the second argument to **`new UTEXOWallet(mnemonic, { … })`** when you want **`getAddress()`** to **keep returning the same** receive string for your **UTXO / RGB deposit** flow, so the product can show one stable “deposit here” slot. It does **not** change how the separate **plain-Bitcoin-route** receive rail inside **`UTEXOWallet`** picks addresses (that rail still rotates as usual).
 
-If your app requires showing the same deposit address, persist one generated address and reuse that value in your UI/service.
+Need a fresh receive string while reuse is on? Call **`rotateVanillaAddress()`** or **`rotateColoredAddress()`**.
+
+```ts
+const wallet = new UTEXOWallet(keys.mnemonic, {
+  network: 'testnet',
+  reuseAddresses: true,
+});
+await wallet.initialize();
+```
+
+```ts
+const newVanilla = await wallet.rotateVanillaAddress();
+const newColored = await wallet.rotateColoredAddress();
+```
+
+Example: `examples/rotate-address.mjs`. See also [Integration flow examples](./integration-flow-examples) (Stable deposit section).
 
 ## Mnemonic to private key
 
@@ -355,7 +368,7 @@ The script runs the full flow by default, including faucet funding and asset tra
 Docs subpages:
 
 - [Full Getting Started File](./getting-started-full-example)
-- [Integration flow examples (customer checklist)](./integration-flow-examples)
+- [Integration flow examples](./integration-flow-examples)
 
 ## Practical lifecycle checklist
 
