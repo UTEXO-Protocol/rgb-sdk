@@ -12,7 +12,7 @@
 import { UTEXOWallet } from '../dist/index.mjs';
 
 const NETWORK = 'testnet';
-const MNEMONIC = "tobacco dinner advice together repeat digital need cancel lift near blind cute";
+const MNEMONIC = "slab deliver medal play immune enact drink inch okay pledge unknown stable";
 // drastic vacuum age family between general melody elbow ball very require pulp
 // const MNEMONIC = process.env.MNEMONIC || 'apple deposit job second wear metal zebra target filter chunk pill dynamic';
 // const MNEMONIC = process.env.MNEMONIC || 'famous hurt miss favorite pitch rich rude cricket fault hammer split guilt';
@@ -27,7 +27,7 @@ async function main() {
         const address = await wallet.getAddress();
         console.log('Wallet address:', address);
 
-        const count = await wallet.createUtxos({ num: 20, size: 1000 });
+        const count = await wallet.createUtxos({ num: 10, size: 1000 });
         await wallet.syncWallet();
         console.log('Created %d UTXO(s)', count);
 

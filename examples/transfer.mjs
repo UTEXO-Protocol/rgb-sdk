@@ -12,9 +12,9 @@
 import { UTEXOWallet } from '../dist/index.mjs';
 
 const NETWORK = 'testnet';
-const MNEMONIC_A = process.env.MNEMONIC_A || 'paddle smooth humble inherit reason basic brave clerk absorb later text that';
-const MNEMONIC_B = process.env.MNEMONIC_B || 'tobacco dinner advice together repeat digital need cancel lift near blind cute';
-const ASSET_ID = process.env.ASSET_ID||'rgb:4PhQDg98-kFPjSKO-HdbJOXo-IWt6P~a-HeVZA8L-A~tvBNU';
+const MNEMONIC_A = process.env.MNEMONIC_A || 'hybrid fame undo length tennis field cruel income media memory embrace reason';
+const MNEMONIC_B = process.env.MNEMONIC_B || 'slab deliver medal play immune enact drink inch okay pledge unknown stable';
+const ASSET_ID = process.env.ASSET_ID||'rgb:bOJpeaL1-4Og2TYO-z8hsInv-qTMH3Lj-AGuhVJ5-kAveVAM';
 if (!ASSET_ID) {
     console.error('ASSET_ID is required (e.g. from create-utxos-asset.mjs output)');
     process.exit(1);
@@ -42,7 +42,7 @@ async function main() {
         const amountBlind = 20;
 
         const invWitness = await walletB.witnessReceive({ amount: amountWitness });
-        console.log('Wallet B witness invoice created');
+        console.log('Wallet B witness invoice created',invWitness);
         const sendWitness = await walletA.send({
             invoice: invWitness.invoice,
             assetId: ASSET_ID,
@@ -52,7 +52,7 @@ async function main() {
         console.log('Witness transfer sent:', sendWitness);
 
         const invBlind = await walletB.blindReceive({ amount: amountBlind });
-        console.log('Wallet B blind invoice created');
+        console.log('Wallet B blind invoice created',invBlind);
         const sendBlind = await walletA.send({
             invoice: invBlind.invoice,
             assetId: ASSET_ID,
@@ -67,10 +67,10 @@ async function main() {
         await walletB.refreshWallet();
         await walletA.refreshWallet();
 
-        // const transfersA = await walletA.listTransfers(ASSET_ID); // sent stansfer should be settled
-        // const transfersB = await walletB.listTransfers(ASSET_ID); // received transfer should be settled
-        // console.log('Wallet A listTransfers:', transfersA.length, transfersA);
-        // console.log('allet B listTransfers:', transfersB.length, transfersB);
+        const transfersA = await walletA.listTransfers(ASSET_ID); // sent stansfer should be settled
+        const transfersB = await walletB.listTransfers(ASSET_ID); // received transfer should be settled
+        console.log('Wallet A listTransfers:', transfersA.length, transfersA);
+        console.log('allet B listTransfers:', transfersB.length, transfersB);
     } finally {
         await walletA.dispose();
         await walletB.dispose();

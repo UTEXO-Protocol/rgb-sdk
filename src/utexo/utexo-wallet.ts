@@ -35,6 +35,7 @@ export class UTEXOWallet extends UTEXOWalletCore {
       dataDir: dataDir
         ? path.join(dataDir, String(this.networkMap.utexo), fp)
         : undefined,
+      reuseAddresses: this.options.reuseAddresses,
     });
 
     this.layer1Wallet = new WalletManager({

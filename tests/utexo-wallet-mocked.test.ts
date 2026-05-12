@@ -62,6 +62,8 @@ const createMockWalletManager = () =>
     getAddress: jest
       .fn()
       .mockResolvedValue('tb1ptest1234567890abcdefghijklmnopqrstuvwxyz' as any),
+    rotateVanillaAddress: jest.fn().mockResolvedValue('tb1pnewvanilla'),
+    rotateColoredAddress: jest.fn().mockResolvedValue('tb1pnewcolored'),
     getBtcBalance: jest.fn().mockResolvedValue(mockBtcBalance),
     listUnspents: jest.fn().mockResolvedValue([]),
     listAssets: jest.fn().mockResolvedValue(mockListAssets),
@@ -129,10 +131,14 @@ const createMockWalletManager = () =>
     verifyMessage: jest.fn().mockResolvedValue(true),
   }) as any;
 
+const WalletManagerMock = jest
+  .fn()
+  .mockImplementation(() => createMockWalletManager());
+
 await jest.unstable_mockModule('../src/wallet/wallet-manager', () => {
   const mockInstance = createMockWalletManager();
   return {
-    WalletManager: jest.fn().mockImplementation(() => mockInstance),
+    WalletManager: WalletManagerMock,
     createWalletManager: jest.fn().mockImplementation(() => mockInstance),
     createWallet: jest.fn(),
     restoreFromBackup: jest.fn(),
@@ -235,6 +241,60 @@ describe('UTEXOWallet with mocked WalletManager', () => {
       amount: 10,
     });
     expect(result.invoice).toMatch(/^rgb:/);
+  });
+
+  it('should call rotateVanillaAddress and return result', async () => {
+    const result = await wallet.rotateVanillaAddress();
+    expect(result).toBeDefined();
+  });
+
+  it('should call rotateColoredAddress and return result', async () => {
+    const result = await wallet.rotateColoredAddress();
+    expect(result).toBeDefined();
+  });
+
+  describe('reuseAddresses propagation', () => {
+    it('passes reuseAddresses: true only to the utexo wallet, not layer1', async () => {
+      WalletManagerMock.mockClear();
+      const w = new UTEXOWallet(MNEMONIC, {
+        network: 'testnet',
+        reuseAddresses: true,
+      } as any);
+      await w.initialize();
+
+      // WalletManager is called twice: utexoWallet first, then layer1Wallet
+      expect(WalletManagerMock).toHaveBeenCalledTimes(2);
+      const [utexoCall, layer1Call] = WalletManagerMock.mock.calls;
+      expect(utexoCall[0].reuseAddresses).toBe(true);
+      expect(layer1Call[0].reuseAddresses).toBeUndefined();
+
+      await w.dispose();
+    });
+
+    it('passes reuseAddresses: false when option is false', async () => {
+      WalletManagerMock.mockClear();
+      const w = new UTEXOWallet(MNEMONIC, {
+        network: 'testnet',
+        reuseAddresses: false,
+      } as any);
+      await w.initialize();
+
+      const [utexoCall] = WalletManagerMock.mock.calls;
+      expect(utexoCall[0].reuseAddresses).toBe(false);
+
+      await w.dispose();
+    });
+
+    it('omits reuseAddresses when not provided in options', async () => {
+      WalletManagerMock.mockClear();
+      const w = new UTEXOWallet(MNEMONIC, { network: 'testnet' });
+      await w.initialize();
+
+      const [utexoCall] = WalletManagerMock.mock.calls;
+      expect(utexoCall[0].reuseAddresses).toBeUndefined();
+
+      await w.dispose();
+    });
   });
 
   describe('async methods return Promises', () => {
