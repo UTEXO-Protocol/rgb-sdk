@@ -15,7 +15,7 @@ For testnet setup, faucets, and parameters, see [Getting Started](./getting-star
 
 ## Recommended model: one `UTEXOWallet` per end user
 
-- **Provisioning:** `generateKeys(network)` → persist the **mnemonic** (or seed) keyed by your internal `userId` in secure storage (**never** in logs).
+- **Provisioning (once per user):** `generateKeys(network)` → persist the **mnemonic** (or seed) keyed by your internal `userId` in secure storage (**never** in logs). **Do not** call **`generateKeys`** again for that user; reopen with **`openWalletForUser`-style** flow using the stored mnemonic.
 - **Isolation:** Pass a **`dataDir` per user** (e.g. `./wallet-data/{{userId}}`) so chain and RGB state do not collide on disk.
 - **Lifecycle:** Construct `UTEXOWallet`, call `await wallet.initialize()`, then run sync/send/receive APIs, and `dispose()` when tearing down process-local instances.
 
@@ -46,17 +46,25 @@ Custody designs often phrase this as **one secret per address**. In RGB + this S
 
 Use this explanation when aligning security reviews with UX (one mnemonic per user maps cleanly to “one wallet per customer”).
 
-## Flow 1 — Generate keys for every user, derive account secrets, create `UTEXOWallet`
+## Flow 1 — One mnemonic and one `UTEXOWallet` config per user
 
-End-to-end **per-user onboarding** pattern: one identity ⇒ one mnemonic ⇒ one **`UTEXOWallet`** with isolated **`dataDir`**.
+**Idea:** each **application user** gets **one** BIP39 mnemonic (at signup only), **one** stable **`userId` → mnemonic** mapping (encrypted), and **`UTEXOWallet`** opened with **`reuseAddresses: true`** and a **fixed `dataDir` for that `userId`**.  
+**Do not** call **`generateKeys()`** on every script run or every API request—that creates a **new** wallet every time and breaks address reuse.
+
+| When | What to call |
+|------|----------------|
+| **User registers** (once) | **`generateKeys`**, encrypt & store **`mnemonic`** keyed by **`userId`**, then **`new UTEXOWallet(mnemonic, utexoWalletOptions(userId))`** — same options you will use forever for this user |
+| **Every later session** | Load mnemonic for **`userId`** from KMS/DB, **`openWalletForUser(userId, mnemonic)`** only — **no** **`generateKeys`** |
+
+End-to-end shape: **one identity ⇒ one mnemonic (persisted) ⇒ same wallet options on every open.**
 
 ### Steps
 
-1. **New user:** call **`generateKeys(networkPreset)`** with your product network (`'testnet'` or `'mainnet'` for `UTEXOWallet` presets). You get **`GeneratedKeys`**: mnemonic, **`xpriv`**, vanilla/colored **`accountXpub*`**, **`masterFingerprint`**, etc.
-2. **Persist:** Store **mnemonic** (recommended) or **seed** encrypted in KMS/Vault keyed by **`userId`**. Treat **`GeneratedKeys.xpriv`** and **`getXprivFromMnemonic`** output like the mnemonic—they recover the same HD tree.
-3. **Returning user:** Load mnemonic from KMS and optionally call **`deriveKeysFromMnemonic(network, mnemonic)`** to rehydrate the same publication material (or reconstruct keys only inside a short-lived process).
-4. **Account `xpriv` (HSM / audit):** If policy needs explicit extended private key strings, **`await getXprivFromMnemonic(bitcoinNetwork, mnemonic)`** (use the same **`network`**/`BitcoinNetwork` you use elsewhere for that user, e.g. `'testnet'`). For UTEXO you often still keep **full mnemonic** nearby for **`signPsbt`** / **`send`** unless you offload signing.
-5. **`UTEXOWallet`:** Use the **same constructor options** every time you open the same logical user—**first signup, login, restore from backup/VSS, workers**—especially **`dataDir`** and **`reuseAddresses`**. If you onboard with **`reuseAddresses: true`** but reopen **without** it, **`getAddress()`** switches back to rotating addresses and UX can diverge from what you stored.
+1. **Signup only:** call **`generateKeys(networkPreset)`** **once** for that **`userId`**. You get **`GeneratedKeys`**: mnemonic, **`xpriv`**, vanilla/colored **`accountXpub*`**, **`masterFingerprint`**, etc.
+2. **Persist:** Store **mnemonic** (or seed) encrypted in KMS/Vault keyed by **`userId`** — this is your **mapping** (`userId` → secret). Treat **`GeneratedKeys.xpriv`** and **`getXprivFromMnemonic`** output like the mnemonic—they recover the same HD tree.
+3. **Every other time:** Load mnemonic by **`userId`** (never regenerate). Optionally **`deriveKeysFromMnemonic(network, mnemonic)`** to rehydrate publication material for checks.
+4. **Account `xpriv` (HSM / audit):** If policy needs explicit extended private key strings, **`await getXprivFromMnemonic(bitcoinNetwork, mnemonic)`**. For UTEXO you often still keep **full mnemonic** nearby for **`signPsbt`** / **`send`** unless you offload signing.
+5. **`UTEXOWallet`:** Use the **same constructor options** every time you open the same logical user—**signup, login, restore, workers**—especially **`dataDir`** and **`reuseAddresses`**. If signup used **`reuseAddresses: true`** but a later open omits it, **`getAddress()`** behavior will not match.
 
 ```ts
 import {
@@ -68,40 +76,34 @@ import {
 
 const networkPreset = 'testnet'; // UTEXOWallet: 'mainnet' | 'testnet'
 
-/** Keep identical for onboard, reopen, and restore so address + DB behavior match. */
+/** Same shape forever for this userId (reuseAddresses + dataDir). */
 function utexoWalletOptions(userId: string) {
   return {
     network: networkPreset,
     dataDir: `./wallet-data/${userId}`,
-    reuseAddresses: true, // omit here if you omitted on first run; do not mix per user
+    reuseAddresses: true,
   };
 }
 
-// ── New signup (runs once per customer) ──
+// ── Register wallet: call ONCE per user (e.g. after account created in your DB). NOT on login. ──
 async function onboardNewUser(userId: string) {
-  const keys = await generateKeys(networkPreset); // mnemonic + xpub pair + fingerprint, etc.
+  const keys = await generateKeys(networkPreset);
 
-  // TODO: kms.put(`user:${userId}:mnemonic`, encrypt(keys.mnemonic))
-  // Optional cold record (same sensitivity as mnemonic):
-  // const xprivForRecords = await getXprivFromMnemonic('testnet', keys.mnemonic);
+  // kms.put(`user:${userId}:mnemonic`, encrypt(keys.mnemonic))  ← your mapping: userId → mnemonic
+  // DB: users.wallet_mnemonic_enc = ... OR only a KMS reference id
 
   const wallet = new UTEXOWallet(keys.mnemonic, utexoWalletOptions(userId));
   await wallet.initialize();
 
   const depositAddress = await wallet.getAddress();
-  const pubs = wallet.getXpub(); // vanilla + colored account xpubs at runtime
-
-  // TODO: save user row: encrypted mnemonic ref, pubs.xpubVan + pubs.xpubCol optional for display/backend
+  const pubs = wallet.getXpub();
 
   await wallet.dispose();
   return { userId };
 }
 
-// ── Login / job worker (loads existing customer) ──
+// ── Any later run: login, cron, script — load mnemonic by userId, never generateKeys here ──
 async function openWalletForUser(userId: string, mnemonicFromKms: string) {
-  // Optional sanity check against stored xpub fingerprint:
-  // const derived = await deriveKeysFromMnemonic('testnet', mnemonicFromKms);
-
   const wallet = new UTEXOWallet(mnemonicFromKms, utexoWalletOptions(userId));
   await wallet.initialize();
   return wallet;

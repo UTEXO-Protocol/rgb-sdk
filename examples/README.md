@@ -34,6 +34,19 @@ node examples/read-wallet.mjs
 MNEMONIC="your mnemonic" node examples/read-wallet.mjs
 ```
 
+## Per-user onboard + reopen (reuseAddresses)
+
+- **`per-user-onboard-reopen.mjs`** – One mnemonic per `USER_ID`, stable `dataDir` + `reuseAddresses: true`.
+  - `ACTION=onboard` runs **once** per user (`generateKeys`); print and **save mnemonic**.
+  - `ACTION=balance` reopens with `MNEMONIC` + same `USER_ID` (needs indexer). Optional `ASSET_ID` for `listTransfers`.
+
+```bash
+ACTION=onboard USER_ID=myuser node examples/per-user-onboard-reopen.mjs
+ACTION=balance USER_ID=myuser MNEMONIC="twelve words here ..." node examples/per-user-onboard-reopen.mjs
+ACTION=reopen USER_ID=myuser MNEMONIC="..." node examples/per-user-onboard-reopen.mjs
+ASSET_ID="rgb:..." ACTION=balance USER_ID=myuser MNEMONIC="..." node examples/per-user-onboard-reopen.mjs
+```
+
 ## Transfer (2 wallets, witness + blind receive)
 
 - **`transfer.mjs`** – Two wallets (2 mnemonics): 1 witness receive + 1 blind receive, refresh, listTransfers. Assumes UTXOs and asset already exist (e.g. from create-utxos-asset.mjs); wallets must be funded.

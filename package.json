@@ -47,6 +47,7 @@
     "example:create-utxos-asset": "node examples/create-utxos-asset.mjs",
     "example:read-wallet": "node examples/read-wallet.mjs",
     "example:rotate-address": "node examples/rotate-address.mjs",
+    "example:per-user": "node examples/per-user-onboard-reopen.mjs",
     "example:transfer": "node examples/transfer.mjs",
     "example:onchain": "node examples/onchain-flow.mjs",
     "example:vss": "node examples/utexo-vss-backup-restore.mjs",
