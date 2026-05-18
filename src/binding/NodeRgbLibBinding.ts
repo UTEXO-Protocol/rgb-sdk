@@ -68,6 +68,7 @@ import {
 function mapNetworkToRgbLib(network: string): string {
   const networkMap: Record<string, string> = {
     mainnet: 'Mainnet',
+    bitcoin: 'Mainnet',
     testnet: 'Testnet',
     testnet4: 'Testnet4',
     signet: 'Signet',
