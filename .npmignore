@@ -1,2 +1,0 @@
-# Exclude wallet data from the published package (keys, configs)
-cli/data
