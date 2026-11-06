@@ -7,7 +7,7 @@ import { base64 } from '@scure/base';
 import { isEngineError } from '@utexo/rgb-sdk-core';
 import { WebRgbBurnController } from '../lib/webrgb/burn.js';
 import { WebRgbProvider } from '../lib/webrgb/index.js';
-import { validateBurnParams } from '../lib/webrgb/validation.js';
+import { validateBurnParams } from '@utexo/rgb-sdk-core';
 import {
   burnDestinationHash,
   createBurnDestination,

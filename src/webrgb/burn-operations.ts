@@ -2,7 +2,7 @@
 import { bytesToHex, randomBytes } from '@noble/hashes/utils.js';
 import type { BurnParams, BurnResult } from '@utexo/rgb-sdk-core';
 import { UTEXOWalletError } from '../errors.js';
-import { validateBurnParams } from './validation.js';
+import { validateBurnParams } from '@utexo/rgb-sdk-core';
 import { encodeBurnRecipient } from './recipient.js';
 import {
   burnDestinationHash,

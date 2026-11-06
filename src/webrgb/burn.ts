@@ -54,7 +54,10 @@ import type {
   RgbTransferStatusResult,
 } from '@utexo/webrgb';
 import { encodeBurnRecipient, normalizeBurnRecipient } from './recipient.js';
-import { validateBurnParams, validateConsignmentLookup } from './validation.js';
+import {
+  validateBurnParams,
+  validateConsignmentLookup,
+} from '@utexo/rgb-sdk-core';
 import type { BurnOperations } from './burn-operations.js';
 import { WebRgbError } from './errors.js';
 import type { WebRgbBurnWallet } from './wallet.js';
