@@ -161,15 +161,18 @@ describe('shared API', () => {
     );
   });
 
-  it('refreshWallet() and syncWallet() stay distinct', async () => {
+  it('refresh(), refreshWallet() and syncWallet() stay distinct', async () => {
     const engine = createFakeEngine();
     const wallet = new UTEXOWallet({ engine });
+    const options = { skipSync: true };
+    await wallet.refresh(options);
     await wallet.refreshWallet();
     await wallet.syncWallet();
     assert.deepEqual(
       engine.calls.map((c) => c.name),
-      ['refreshWallet', 'syncWallet']
+      ['refresh', 'refreshWallet', 'syncWallet']
     );
+    assert.deepEqual(engine.calls[0].args, [options]);
   });
 });
 

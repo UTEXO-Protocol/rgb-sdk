@@ -6,6 +6,8 @@ import type {
   FileBackupApi,
   RestartableWalletApi,
   SharedWalletApi,
+  Transaction,
+  TxidLookupApi,
   WalletBackupResponse,
   WalletTransfer,
 } from '@utexo/rgb-sdk-core';
@@ -23,7 +25,10 @@ interface Unlock {
 declare const rgbLike: SharedWalletApi<Unlock> &
   RestartableWalletApi<Unlock> &
   FileBackupApi &
-  BurnApi & { rotateVanillaAddress(): Promise<string> };
+  BurnApi &
+  TxidLookupApi & {
+    listOnchainTransfers(assetId?: string): Promise<WalletTransfer[]>;
+  };
 declare const bare: SharedWalletApi<void>;
 declare const legacy: SharedWalletApi<void> & {
   goOnline(params: { url: string }): Promise<void>;
@@ -45,10 +50,22 @@ assertType<
 assertType<Equal<typeof wallet.burn, BurnApi['burn']>>(true);
 void wallet.shutdown();
 
+assertType<
+  Equal<
+    ReturnType<typeof wallet.listTransactionsByTxid>,
+    Promise<Transaction[]>
+  >
+>(true);
+void wallet.listTransactionsByTxid('t', { skipSync: true });
+// @ts-expect-error not an extension of this engine
+void wallet.rotateVanillaAddress();
+// refresh() is shared: every engine has it.
+void wallet.refresh({ skipSync: true });
+
 // Not an extension: only through wallet.engine.
 // @ts-expect-error engine-specific method, not forwarded
-void wallet.rotateVanillaAddress();
-void wallet.engine.rotateVanillaAddress();
+void wallet.listOnchainTransfers();
+void wallet.engine.listOnchainTransfers();
 assertType<Equal<typeof wallet.engine, typeof rgbLike>>(true);
 
 // An engine without extensions has none on the facade.
@@ -60,6 +77,8 @@ void plain.createBackup({ backupPath: '/b', password: 'p' });
 void plain.shutdown();
 // @ts-expect-error no goOnline
 void plain.goOnline();
+// @ts-expect-error no TxidLookupApi
+void plain.listTransfersByTxid('t');
 
 // goOnline only when the engine has it, with its own signature.
 const old = new UTEXOWallet({ engine: legacy });

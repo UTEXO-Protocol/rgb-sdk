@@ -9,14 +9,19 @@
 
 import { assertEngineContract } from '@utexo/rgb-sdk-core';
 import type {
+  AddressRotationApi,
+  AssetMetadataApi,
   BurnApi,
   ConsignmentApi,
   ConsignmentFileApi,
   EngineCapabilities,
   FileBackupApi,
+  FileIssuanceApi,
+  IndexerCheckApi,
   MessageSigningApi,
   RestartableWalletApi,
   SharedWalletApi,
+  TxidLookupApi,
   VssBackupApi,
   VssFenceApi,
   WalletMaintenanceApi,
@@ -61,6 +66,18 @@ export const FORWARDED_EXTENSION_METHODS = [
   // MessageSigningApi
   'signMessage',
   'verifyMessage',
+  // IndexerCheckApi
+  'checkIndexerUrl',
+  // AssetMetadataApi
+  'getAssetMetadata',
+  // FileIssuanceApi
+  'issueAssetCfa',
+  'issueAssetUda',
+  // TxidLookupApi
+  'listTransfersByTxid',
+  'listTransactionsByTxid',
+  // AddressRotationApi
+  'rotateVanillaAddress',
   // Older engines connect with goOnline(); forwarded as is.
   'goOnline',
 ] as const;
@@ -77,7 +94,12 @@ type AllExtensionMethods = keyof (RestartableWalletApi<unknown> &
   ConsignmentFileApi &
   VssBackupApi &
   VssFenceApi &
-  MessageSigningApi);
+  MessageSigningApi &
+  IndexerCheckApi &
+  AssetMetadataApi &
+  FileIssuanceApi &
+  TxidLookupApi &
+  AddressRotationApi);
 type MissingExtensionMethods = Exclude<
   AllExtensionMethods,
   ForwardedExtensionMethod
@@ -129,6 +151,7 @@ const SHARED_METHODS = [
   'onchainSend',
   'listTransfers',
   'listTransactions',
+  'refresh',
   'refreshWallet',
   'syncWallet',
 ] as const satisfies readonly (keyof AnyEngine)[];
@@ -409,14 +432,23 @@ class UTEXOWalletBase<E extends AnyEngine> {
     return forward(this.#engine, 'listTransactions', args);
   }
 
-  /** Refreshes transfer state. Not the same as `syncWallet()`. */
+  /**
+   * Refreshes pending transfers and returns what changed, keyed by batch
+   * transfer ID. Each engine maps it to its own refresh. Not the same as
+   * `syncWallet()`.
+   */
+  refresh(...args: Parameters<E['refresh']>): ReturnType<E['refresh']> {
+    return forward(this.#engine, 'refresh', args);
+  }
+
+  /** `refresh()` without the result. */
   refreshWallet(
     ...args: Parameters<E['refreshWallet']>
   ): ReturnType<E['refreshWallet']> {
     return forward(this.#engine, 'refreshWallet', args);
   }
 
-  /** Syncs chain and wallet state. Not the same as `refreshWallet()`. */
+  /** Syncs chain and wallet state. Not the same as `refresh()`. */
   syncWallet(
     ...args: Parameters<E['syncWallet']>
   ): ReturnType<E['syncWallet']> {
