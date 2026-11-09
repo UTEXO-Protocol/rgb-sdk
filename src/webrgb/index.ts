@@ -1,4 +1,8 @@
-export { WebRgbProvider, WEBRGB_READ_METHODS } from './provider.js';
+export {
+  WebRgbProvider,
+  WEBRGB_METHODS,
+  WEBRGB_READ_METHODS,
+} from './provider.js';
 export type { WebRgbOptions, WebRgbApproval, WebRgbInfo } from './provider.js';
 export type {
   WebRgbBurnOptions,

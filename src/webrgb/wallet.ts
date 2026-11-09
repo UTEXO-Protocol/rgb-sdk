@@ -23,15 +23,8 @@ export type WebRgbWallet = Pick<
 > & {
   readonly protocol?: WalletProtocol;
   signMessage?: (message: string) => Promise<string>;
-} & Partial<BurnApi & ConsignmentApi>;
+} & BurnApi &
+  ConsignmentApi;
 
-/** Burn additionally needs `BurnApi` and `ConsignmentApi`. */
-export type WebRgbBurnWallet = WebRgbWallet & BurnApi & ConsignmentApi;
-
-export function isBurnWallet(wallet: WebRgbWallet): wallet is WebRgbBurnWallet {
-  return (
-    typeof wallet.getBfaCapabilities === 'function' &&
-    typeof wallet.burn === 'function' &&
-    typeof wallet.getConsignment === 'function'
-  );
-}
+/** @deprecated Every `WebRgbWallet` burns now; use `WebRgbWallet`. */
+export type WebRgbBurnWallet = WebRgbWallet;

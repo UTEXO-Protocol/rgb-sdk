@@ -2,7 +2,12 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
 import { createWalletConnectProvider } from '@utexo/webrgb-walletconnect';
-import { WebRgbProvider, WEBRGB_READ_METHODS } from '../lib/webrgb/index.js';
+import {
+  BurnOperations,
+  WebRgbProvider,
+  WEBRGB_METHODS,
+  WEBRGB_READ_METHODS,
+} from '../lib/webrgb/index.js';
 
 function fixture(options = {}) {
   const calls = [];
@@ -58,9 +63,23 @@ function fixture(options = {}) {
       assignment: { type: 'Fungible', amount: 10 },
       recipientId: 'utxob:receiver',
     }),
+    // A wallet that cannot burn: burn methods stay out of getInfo().
+    getBfaCapabilities: async () => ({ burn: false, consignment: false }),
+    burn: async () => {
+      throw new Error('burn must not run');
+    },
+    getConsignment: async () => {
+      throw new Error('getConsignment must not run');
+    },
+  };
+  const records = new Map();
+  const store = {
+    readAll: async () => [...records.values()],
+    write: async (record) => void records.set(record.id, record),
   };
   const provider = new WebRgbProvider(wallet, {
     origin: 'https://mint.example',
+    burn: { operations: new BurnOperations(wallet, store) },
     confirm: async (request) => {
       prompts.push(request);
       return true;
@@ -362,4 +381,20 @@ test('native asset errors map to WebRGB and unsafe balances are rejected', async
     code: 'INTERNAL_ERROR',
   });
   assert.equal(provider.request, undefined);
+});
+
+test('burn methods are regular provider methods, listed only when native burn works', async () => {
+  const { provider, wallet } = fixture({ sessionApproved: true });
+  assert.deepEqual(WEBRGB_METHODS, [
+    ...WEBRGB_READ_METHODS,
+    'burnAsset',
+    'getConsignment',
+  ]);
+  for (const method of WEBRGB_METHODS)
+    assert.equal(typeof provider[method], 'function', method);
+  assert.ok(!(await provider.getInfo()).methods.includes('burnAsset'));
+  wallet.getBfaCapabilities = async () => ({ burn: true, consignment: true });
+  const { methods } = await provider.getInfo();
+  assert.ok(methods.includes('burnAsset'));
+  assert.ok(methods.includes('getConsignment'));
 });

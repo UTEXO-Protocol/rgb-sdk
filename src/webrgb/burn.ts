@@ -1,7 +1,7 @@
 /* eslint no-unused-vars: "off", "@typescript-eslint/no-unused-vars": "error" -- TypeScript signatures. */
 /**
- * Optional WebRGB burn/proof extension. Receiving and read methods work without it.
- * Use a connected BFA wallet with native burn and consignment capabilities.
+ * WebRGB burn/proof methods. Every provider serves them; getInfo() lists them
+ * only while the native build and signer report burn and consignment support.
  * RGB Lib signs with its native keys.
  *
  * Setup: share one BurnOperations service and durable BurnOperationStore per
@@ -60,7 +60,7 @@ import {
 } from '@utexo/rgb-sdk-core';
 import type { BurnOperations } from './burn-operations.js';
 import { WebRgbError } from './errors.js';
-import type { WebRgbBurnWallet } from './wallet.js';
+import type { WebRgbWallet } from './wallet.js';
 import {
   burnDestinationHash,
   createBurnDestination,
@@ -98,7 +98,7 @@ export class WebRgbBurnController {
     this.proof = undefined;
   }
   constructor(
-    private wallet: WebRgbBurnWallet,
+    private wallet: WebRgbWallet,
     private host: Host,
     private options: WebRgbBurnOptions
   ) {

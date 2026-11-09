@@ -61,7 +61,7 @@ The facade's own errors are `UTEXOWalletError`, also an `EngineError`:
 
 ## WebRGB and burn journal (`@utexo/rgb-sdk/webrgb`)
 
-`WebRgbProvider` serves a WebRGB dApp session over a `UTEXOWallet` or an engine; `BurnOperations` is the durable burn journal it uses for `burnAsset`. Install the optional peer `@utexo/webrgb` to use this entry. Burn needs a wallet with `burn()` and `getConsignment()`; passing `burn` options with any other wallet throws `INVALID_PARAMS`. The app provides `crypto.getRandomValues` (burn operation IDs).
+`WebRgbProvider` serves a WebRGB dApp session over a `UTEXOWallet` or an engine; `BurnOperations` is the durable burn journal it uses for `burnAsset`. Install the optional peer `@utexo/webrgb` to use this entry. Burn is a regular provider method: the wallet must have `burn()`, `getConsignment()` and `getBfaCapabilities()`, and `burn: { operations }` is required (without it the constructor throws `INVALID_PARAMS`). `getInfo().methods` lists `burnAsset` and `getConsignment` only while the native wallet can serve them, for example not for a watch-only wallet; `WEBRGB_METHODS` lists every method the provider has. The app provides `crypto.getRandomValues` (burn operation IDs).
 
 ```typescript
 import { BurnOperations, WebRgbProvider } from '@utexo/rgb-sdk/webrgb';

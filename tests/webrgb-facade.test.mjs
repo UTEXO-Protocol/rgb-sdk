@@ -15,10 +15,12 @@ const memoryStore = () => {
   };
 };
 
+// The journal does not touch the wallet until a burn runs.
 const options = (extra = {}) => ({
   origin: 'https://example.com',
   sessionApproved: true,
   confirm: async () => true,
+  burn: { operations: new BurnOperations(burnEngine(), memoryStore()) },
   ...extra,
 });
 
@@ -71,20 +73,14 @@ test('WebRGB does not advertise burn when the engine reports it cannot burn', as
   assert.ok(methods.includes('getConsignment'));
 });
 
-test('burn options need a wallet with burn() and getConsignment()', () => {
-  const wallet = new UTEXOWallet({
-    engine: createFakeEngine({ isDisposed: () => false }),
-  });
-  assert.equal('burn' in wallet, false);
-  assert.throws(
-    () =>
-      new WebRgbProvider(wallet, {
-        ...options(),
-        burn: { operations: {} },
-      }),
-    { code: 'INVALID_PARAMS', message: /burn\(\) and getConsignment\(\)/ }
-  );
-  // Without burn options the same wallet is fine.
+test('burn operations are required like the rest of the provider', () => {
+  const wallet = new UTEXOWallet({ engine: burnEngine() });
+  for (const burn of [undefined, {}]) {
+    assert.throws(() => new WebRgbProvider(wallet, { ...options(), burn }), {
+      code: 'INVALID_PARAMS',
+      message: /burn\.operations is required/,
+    });
+  }
   assert.doesNotThrow(() => new WebRgbProvider(wallet, options()));
 });
 

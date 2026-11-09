@@ -614,26 +614,18 @@ test('ambiguous Tron burn remains pending after restart and cannot burn again', 
   );
   assert.equal(calls, 1);
 });
-test('provider advertises Tron only with a working burn controller', async () => {
+test('provider advertises Tron only while native burn works', async () => {
   const f = fixture();
-  const options = {
+  const provider = new WebRgbProvider(f.wallet, {
     origin: 'https://mint.example',
     sessionApproved: true,
     confirm: async () => true,
-  };
-  const provider = new WebRgbProvider(f.wallet, {
-    ...options,
     burn: { operations: f.operations },
   });
   assert.deepEqual((await provider.getInfo()).burnRecipientNamespaces, [
     'eip155',
     'tron',
   ]);
-  assert.equal(
-    (await new WebRgbProvider(f.wallet, options).getInfo())
-      .burnRecipientNamespaces,
-    undefined
-  );
   f.wallet.getBfaCapabilities = async () => ({
     burn: false,
     consignment: true,

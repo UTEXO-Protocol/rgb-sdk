@@ -18,7 +18,6 @@ import {
   type WebRgbBurnAssetArgs,
 } from './burn.js';
 import type { BurnDestinationRoute } from './burn-destination.js';
-import { isBurnWallet } from './wallet.js';
 import type { WebRgbWallet } from './wallet.js';
 
 export const WEBRGB_READ_METHODS = [
@@ -33,13 +32,15 @@ export const WEBRGB_READ_METHODS = [
   'getTransferStatus',
   'decodeRgbInvoice',
 ] as const;
+/** Every method the provider serves: the read methods plus burn and proof export. */
+export const WEBRGB_METHODS = [
+  ...WEBRGB_READ_METHODS,
+  'burnAsset',
+  'getConsignment',
+] as const;
 type SupportedProvider = Pick<
   RgbProvider,
-  | (typeof WEBRGB_READ_METHODS)[number]
-  | 'enabled'
-  | 'signMessage'
-  | 'burnAsset'
-  | 'getConsignment'
+  (typeof WEBRGB_METHODS)[number] | 'enabled' | 'signMessage'
 >;
 
 export interface WebRgbApproval {
@@ -62,7 +63,8 @@ export interface WebRgbOptions {
   /** Recheck transport authorization after async prompts and before native calls. */
   assertAuthorized?: () => void;
   minConfirmations?: number;
-  burn?: WebRgbBurnOptions;
+  /** The wallet's shared burn operation service and payout routes. */
+  burn: WebRgbBurnOptions;
 }
 export type WebRgbInfo = RgbInfo & {
   burnDestinationVersion?: 1;
@@ -106,16 +108,16 @@ function object(value: unknown): Record<string, unknown> {
 }
 
 /**
- * WebRGB receiving, signing and read API for an individual dApp session. No React Native or
- * WalletConnect runtime dependency. Burn is advertised only when the host
- * supplies a durable operation store and the native build/signer support it.
+ * WebRGB receiving, signing, burn and read API for an individual dApp session.
+ * No React Native or WalletConnect runtime dependency. getInfo() lists burn
+ * methods only while the native build and signer can serve them.
  */
 export class WebRgbProvider implements SupportedProvider {
   private authorized: boolean;
   private revision = 0;
   private enabling?: Promise<void>;
   private readonly floor: number;
-  private readonly burnController?: WebRgbBurnController;
+  private readonly burnController: WebRgbBurnController;
 
   constructor(
     private readonly wallet: WebRgbWallet,
@@ -125,26 +127,25 @@ export class WebRgbProvider implements SupportedProvider {
       throw new WebRgbError('INVALID_PARAMS', 'A session origin is required');
     }
     this.authorized = options.sessionApproved === true;
-    if (options.burn) {
-      if (!isBurnWallet(wallet))
-        throw new WebRgbError(
-          'INVALID_PARAMS',
-          'Burn needs a wallet with burn() and getConsignment()'
-        );
-      this.burnController = new WebRgbBurnController(
-        wallet,
-        {
-          origin: options.origin,
-          enabled: () => {
-            options.assertAuthorized?.();
-            return this.enabled;
-          },
-          confirm: (method, params) =>
-            options.confirm({ origin: options.origin, method, params }),
-        },
-        options.burn
+    if (!options.burn?.operations) {
+      throw new WebRgbError(
+        'INVALID_PARAMS',
+        'burn.operations is required: share one BurnOperations per wallet'
       );
     }
+    this.burnController = new WebRgbBurnController(
+      wallet,
+      {
+        origin: options.origin,
+        enabled: () => {
+          options.assertAuthorized?.();
+          return this.enabled;
+        },
+        confirm: (method, params) =>
+          options.confirm({ origin: options.origin, method, params }),
+      },
+      options.burn
+    );
     this.floor = Math.max(
       3,
       integer(options.minConfirmations ?? 3, 'minConfirmations', 0, 255)
@@ -157,7 +158,7 @@ export class WebRgbProvider implements SupportedProvider {
 
   revoke(): void {
     this.authorized = false;
-    this.burnController?.revoke();
+    this.burnController.revoke();
     this.revision += 1;
   }
 
@@ -195,33 +196,23 @@ export class WebRgbProvider implements SupportedProvider {
 
   async burnAsset(args: WebRgbBurnAssetArgs) {
     this.requireEnabled();
-    if (!this.burnController)
-      throw new WebRgbError(
-        'METHOD_NOT_SUPPORTED',
-        'Burn extension is not configured'
-      );
-    return walletCall(() => this.burnController!.burnAsset(args));
+    return walletCall(() => this.burnController.burnAsset(args));
   }
   async getConsignment(args: RgbGetConsignmentArgs) {
     this.requireEnabled();
-    if (!this.burnController)
-      throw new WebRgbError(
-        'METHOD_NOT_SUPPORTED',
-        'Burn extension is not configured'
-      );
-    return walletCall(() => this.burnController!.getConsignment(args));
+    return walletCall(() => this.burnController.getConsignment(args));
   }
 
   async getInfo(): Promise<WebRgbInfo> {
     this.requireEnabled();
-    const burnMethods = (await this.burnController?.methods()) ?? [];
+    const burnMethods = await this.burnController.methods();
     return {
       ready: true,
       network: this.wallet.getNetwork(),
       protocol: this.wallet.protocol ?? 'RGB_LN',
       ...(burnMethods.includes('burnAsset') && {
         burnRecipientNamespaces: ['eip155', 'tron'],
-        ...this.burnController!.destinationCapabilities(),
+        ...this.burnController.destinationCapabilities(),
       }),
       methods: [
         ...WEBRGB_READ_METHODS,
@@ -380,11 +371,9 @@ export class WebRgbProvider implements SupportedProvider {
       throw new WebRgbError('INVALID_PARAMS', 'transferId is required');
     }
     optionalAsset(assetId);
-    const burn = this.burnController
-      ? await walletCall(() =>
-          this.burnController!.getTransferStatus(transferId, assetId)
-        )
-      : null;
+    const burn = await walletCall(() =>
+      this.burnController.getTransferStatus(transferId, assetId)
+    );
     if (burn) return burn;
     await walletCall(() => this.wallet.refreshWallet());
     const transfer = (await this.listTransfers(assetId)).find(

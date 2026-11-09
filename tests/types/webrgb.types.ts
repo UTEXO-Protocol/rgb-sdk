@@ -16,16 +16,23 @@ void webRgbProtocol;
 
 declare const burnEngine: SharedWalletApi<void> & BurnApi & ConsignmentApi;
 declare const bareEngine: SharedWalletApi<void>;
-const options = { origin: 'https://example.com', confirm: async () => true };
+const burn = { operations: new BurnOperations(burnEngine, null!) };
+const options = {
+  origin: 'https://example.com',
+  confirm: async () => true,
+  burn,
+};
 
 // Over a facade, and over an engine directly.
-const wallet = new UTEXOWallet({ engine: burnEngine });
-new WebRgbProvider(wallet, {
-  ...options,
-  burn: { operations: new BurnOperations(wallet, null!) },
-});
+new WebRgbProvider(new UTEXOWallet({ engine: burnEngine }), options);
 new WebRgbProvider(burnEngine, options);
-// Read-only WebRGB needs no burn extension.
+// Burn is a regular method: a wallet without burn() is not a WebRGB wallet.
+// @ts-expect-error WebRgbWallet needs burn() and getConsignment()
 new WebRgbProvider(new UTEXOWallet({ engine: bareEngine }), options);
+// @ts-expect-error burn options are required
+new WebRgbProvider(burnEngine, {
+  origin: options.origin,
+  confirm: options.confirm,
+});
 // @ts-expect-error BurnOperations needs burn()
 new BurnOperations(new UTEXOWallet({ engine: bareEngine }), null!);
