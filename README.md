@@ -2,21 +2,15 @@
 
 One wallet API over one RGB engine. `UTEXOWallet` wraps an engine the app created (for example `RgbLibWallet` from `@utexo/rgb-lib-rn`), checks its contract version, forwards the shared wallet API and exposes the engine's own extensions with their exact types.
 
-> Status: local development build (`2.0.0-alpha.0`). Not published; install from local tarballs. This version replaces the archived Node SDK `1.0.0-beta.9` (see [Migration](#migration)).
+> Version 2 replaces the archived Node SDK `1.0.0-beta.9` (see [Migration](#migration)).
 
 The package has no React Native, Node or browser imports and no engine dependency. It runs wherever its engine runs.
 
-## Install (local tarballs)
+## Install
 
 ```bash
-(cd rgb-sdk-core && npm run build && npm pack --pack-destination ../.local-packages)
-(cd rgb-sdk && npm pack --pack-destination ../.local-packages)
-```
-
-```bash
-cd my-app
-npm install ../.local-packages/utexo-rgb-sdk-core-0.1.0.tgz ../.local-packages/utexo-rgb-sdk-2.0.0-alpha.0.tgz
-# plus an engine, e.g. @utexo/rgb-lib-rn (see its README)
+npm install @utexo/rgb-sdk @utexo/rgb-sdk-core
+# plus an engine, for example @utexo/rgb-lib-rn (see its README)
 ```
 
 Peer dependencies: `@utexo/rgb-sdk-core`; `@utexo/webrgb` only for the `./webrgb` entry.
@@ -32,7 +26,8 @@ const wallet = new UTEXOWallet({
 });
 
 await wallet.init(); // opens local state
-await wallet.unlock({}); // parameters are the engine's own (RgbLibUnlockParams)
+// RgbLibWallet connects lazily on the first online operation (rgb-lib goOnline);
+// wallet.goOnline(params) connects explicitly.
 const address = await wallet.getAddress();
 await wallet.createBackup({ backupPath, password }); // rgb-lib extension, typed
 await wallet.shutdown(); // rgb-lib extension: keeps data, reopen with init()
@@ -82,7 +77,7 @@ From the combined React Native package **`@utexo/rgb-sdk-rn`**, whose `UTEXOWall
 | ------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `new UTEXOWallet({ protocol: 'RGB_L1', params, keys })`                                          | `new UTEXOWallet({ engine: new RgbLibWallet(params, keys) })` with `RgbLibWallet` from `@utexo/rgb-lib-rn`, given the same `params` and `keys` the old options took |
 | `new UTEXOWallet({ protocol: 'RGB_LN', params, signer })`, or the legacy `(params, signer)` form | not yet: the RGB_LN engine comes in the RLN stage                                                                                                                   |
-| `wallet.goOnline(unlockParams)` (RGB_L1)                                                         | `wallet.unlock(unlockParams)`; `goOnline` exists only if the engine has it (`RgbLibWallet` keeps it, deprecated)                                                                                        |
+| `wallet.goOnline(unlockParams)` (RGB_L1)                                                         | unchanged for `RgbLibWallet` (and optional: it connects lazily); `wallet.unlock(params)` is the shared contract's name for the engine's connect step                |
 | subclass overrides of capabilities                                                               | `capabilities` comes from the engine                                                                                                                                |
 | `WebRgbProvider` from `@utexo/rgb-sdk-rn/webrgb`, `BurnOperations` from `@utexo/rgb-sdk-rn`      | `@utexo/rgb-sdk/webrgb`                                                                                                                                             |
 
@@ -92,7 +87,10 @@ From the archived Node SDK `@utexo/rgb-sdk@1.0.0-beta.9` (BDK and Node bindings,
 
 ## Tests
 
+In a checkout of the repository:
+
 ```bash
+npm install
 npm test
 ```
 
