@@ -88,6 +88,13 @@ export default [
     },
   },
   {
-    ignores: ['node_modules/', 'lib/', 'dist/', 'examples/'],
+    ignores: [
+      'node_modules/',
+      'lib/',
+      'dist/',
+      'examples/',
+      'tests/e2e/.out/',
+      'tests/e2e/.results/',
+    ],
   },
 ];
