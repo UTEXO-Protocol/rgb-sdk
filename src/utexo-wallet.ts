@@ -11,6 +11,7 @@ import { assertEngineContract } from '@utexo/rgb-sdk-core';
 import type {
   AddressRotationApi,
   AssetMetadataApi,
+  BackupBytesApi,
   BurnApi,
   ConsignmentApi,
   ConsignmentFileApi,
@@ -51,6 +52,9 @@ export const FORWARDED_EXTENSION_METHODS = [
   'reinit',
   // FileBackupApi
   'createBackup',
+  // BackupBytesApi
+  'exportBackup',
+  'restoreBackup',
   // WalletMaintenanceApi
   'drainTo',
   'deleteTransfers',
@@ -88,6 +92,7 @@ export type ForwardedExtensionMethod =
 // Every method of every core extension must be in the list above.
 type AllExtensionMethods = keyof (RestartableWalletApi<unknown> &
   FileBackupApi &
+  BackupBytesApi &
   WalletMaintenanceApi &
   BurnApi &
   ConsignmentApi &

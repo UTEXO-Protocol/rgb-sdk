@@ -2,6 +2,7 @@
 import { UTEXOWallet, UTEXOWalletError } from '../../src/index.js';
 import type { AnyEngine } from '../../src/index.js';
 import type {
+  BackupBytesApi,
   BurnApi,
   FileBackupApi,
   RestartableWalletApi,
@@ -25,6 +26,7 @@ interface Unlock {
 declare const rgbLike: SharedWalletApi<Unlock> &
   RestartableWalletApi<Unlock> &
   FileBackupApi &
+  BackupBytesApi &
   BurnApi &
   TxidLookupApi & {
     listOnchainTransfers(assetId?: string): Promise<WalletTransfer[]>;
@@ -48,6 +50,12 @@ assertType<
   Equal<ReturnType<typeof wallet.createBackup>, Promise<WalletBackupResponse>>
 >(true);
 assertType<Equal<typeof wallet.burn, BurnApi['burn']>>(true);
+assertType<Equal<typeof wallet.exportBackup, BackupBytesApi['exportBackup']>>(
+  true
+);
+void wallet.restoreBackup({ bytes: new Uint8Array(1), password: 'p' });
+// @ts-expect-error bytes, not a path
+void wallet.restoreBackup({ backupPath: '/b', password: 'p' });
 void wallet.shutdown();
 
 assertType<
@@ -75,6 +83,8 @@ void plain.unlock();
 void plain.createBackup({ backupPath: '/b', password: 'p' });
 // @ts-expect-error no RestartableWalletApi
 void plain.shutdown();
+// @ts-expect-error no BackupBytesApi
+void plain.exportBackup({ password: 'p' });
 // @ts-expect-error no goOnline
 void plain.goOnline();
 // @ts-expect-error no TxidLookupApi
