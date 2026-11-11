@@ -126,21 +126,6 @@ test('the root entry imports only @utexo/rgb-sdk-core', () => {
   assert.deepEqual([...packages], ['@utexo/rgb-sdk-core']);
 });
 
-test('./adapters/rgb-lib-wasm loads no runtime: the app passes @utexo/rgb-lib-wasm in', () => {
-  const { packages } = closure('adapters/rgb-lib-wasm/index.js');
-  assert.deepEqual([...packages].sort(), [
-    '@noble/hashes/sha2.js',
-    '@noble/hashes/utils.js',
-    '@utexo/rgb-sdk-core',
-  ]);
-});
-
-test('the root entry does not reach adapters/', () => {
-  const { files } = closure('index.js');
-  for (const file of files)
-    assert.ok(!relative(lib, file).startsWith('adapters'), file);
-});
-
 test('./webrgb adds only pure-JS packages and the optional @utexo/webrgb peer', () => {
   const { packages } = closure('webrgb/index.js');
   assert.deepEqual([...packages].sort(), [

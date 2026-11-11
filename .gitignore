@@ -2,5 +2,3 @@ node_modules/
 lib/
 *.tgz
 .DS_Store
-tests/e2e/.out/
-tests/e2e/.results/
