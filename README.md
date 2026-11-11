@@ -11,20 +11,20 @@ The package has no React Native, Node or browser imports. It runs wherever its e
 
 | Engine                                                                                  | Platform                    | Protocol                |
 | --------------------------------------------------------------------------------------- | --------------------------- | ----------------------- |
-| [`@utexo/rgb-lib-rn`](https://www.npmjs.com/package/@utexo/rgb-lib-rn) (`RgbLibWallet`) | React Native (iOS, Android) | RGB on-chain (`RGB_L1`) |
+| [`@utexo/rgb-sdk-rn`](https://www.npmjs.com/package/@utexo/rgb-sdk-rn) (`RgbLibWallet`) | React Native (iOS, Android) | RGB on-chain (`RGB_L1`) |
 
 ## Installation
 
 ```bash
 npm install @utexo/rgb-sdk @utexo/rgb-sdk-core
-npm install @utexo/rgb-lib-rn # an engine; follow its README for native setup
+npm install @utexo/rgb-sdk-rn # an engine; follow its README for native setup
 ```
 
 ## Quick start
 
 ```ts
 import { UTEXOWallet } from '@utexo/rgb-sdk';
-import { RgbLibWallet } from '@utexo/rgb-lib-rn';
+import { RgbLibWallet } from '@utexo/rgb-sdk-rn';
 
 // 1. Create the engine, then wrap it.
 const wallet = new UTEXOWallet({
@@ -112,7 +112,7 @@ const provider = new WebRgbProvider(wallet, {
 
 ## Related packages
 
-- [`@utexo/rgb-lib-rn`](https://www.npmjs.com/package/@utexo/rgb-lib-rn): the React Native engine.
+- [`@utexo/rgb-sdk-rn`](https://www.npmjs.com/package/@utexo/rgb-sdk-rn): the React Native engine.
 - [`@utexo/rgb-sdk-core`](https://www.npmjs.com/package/@utexo/rgb-sdk-core): shared types, errors, key helpers and the engine contract.
 
 ## License

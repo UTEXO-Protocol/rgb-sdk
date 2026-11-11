@@ -2,7 +2,7 @@
  * @utexo/rgb-sdk — the shared wallet facade.
  *
  * Platform-independent: no React Native, Node or browser imports. The app
- * installs an engine package (for example `@utexo/rgb-lib-rn`), creates the
+ * installs an engine package (for example `@utexo/rgb-sdk-rn`), creates the
  * engine and passes it in:
  *
  * ```ts
