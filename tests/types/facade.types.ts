@@ -2,13 +2,16 @@
 import { UTEXOWallet, UTEXOWalletError } from '../../src/index.js';
 import type { AnyEngine } from '../../src/index.js';
 import type {
-  BackupBytesApi,
+  BackupExportApi,
+  BackupRestoreApi,
   BurnApi,
   FileBackupApi,
   RestartableWalletApi,
   SharedWalletApi,
   Transaction,
   TxidLookupApi,
+  VssBackupApi,
+  VssRestoreApi,
   WalletBackupResponse,
   WalletTransfer,
 } from '@utexo/rgb-sdk-core';
@@ -26,7 +29,10 @@ interface Unlock {
 declare const rgbLike: SharedWalletApi<Unlock> &
   RestartableWalletApi<Unlock> &
   FileBackupApi &
-  BackupBytesApi &
+  BackupExportApi &
+  BackupRestoreApi &
+  VssBackupApi &
+  VssRestoreApi &
   BurnApi &
   TxidLookupApi & {
     listOnchainTransfers(assetId?: string): Promise<WalletTransfer[]>;
@@ -47,12 +53,20 @@ void wallet.reinit({ indexerUrl: 'tcp://x' });
 
 // Extensions with their exact types.
 assertType<
-  Equal<ReturnType<typeof wallet.createBackup>, Promise<WalletBackupResponse>>
+  Equal<
+    ReturnType<typeof wallet.exportBackupToFile>,
+    Promise<WalletBackupResponse>
+  >
 >(true);
 assertType<Equal<typeof wallet.burn, BurnApi['burn']>>(true);
-assertType<Equal<typeof wallet.exportBackup, BackupBytesApi['exportBackup']>>(
+assertType<Equal<typeof wallet.exportBackup, BackupExportApi['exportBackup']>>(
   true
 );
+assertType<Equal<ReturnType<typeof wallet.backupToVss>, Promise<number>>>(true);
+void wallet.restoreFromVss();
+void wallet.restoreFromVss({ overwrite: true });
+// @ts-expect-error not an extension of this engine
+void wallet.getVssBackupInfo();
 void wallet.restoreBackup({ bytes: new Uint8Array(1), password: 'p' });
 // @ts-expect-error bytes, not a path
 void wallet.restoreBackup({ backupPath: '/b', password: 'p' });
@@ -80,11 +94,13 @@ assertType<Equal<typeof wallet.engine, typeof rgbLike>>(true);
 const plain = new UTEXOWallet({ engine: bare });
 void plain.unlock();
 // @ts-expect-error no FileBackupApi
-void plain.createBackup({ backupPath: '/b', password: 'p' });
+void plain.exportBackupToFile({ filePath: '/b', password: 'p' });
 // @ts-expect-error no RestartableWalletApi
 void plain.shutdown();
-// @ts-expect-error no BackupBytesApi
+// @ts-expect-error no BackupExportApi
 void plain.exportBackup({ password: 'p' });
+// @ts-expect-error no VssRestoreApi
+void plain.restoreFromVss();
 // @ts-expect-error no goOnline
 void plain.goOnline();
 // @ts-expect-error no TxidLookupApi
@@ -152,7 +168,7 @@ class Named extends UTEXOWallet<typeof rgbLike> {
   readonly label = 'main';
 }
 const named = new Named({ engine: rgbLike });
-void named.createBackup({ backupPath: '/b', password: 'p' });
+void named.exportBackupToFile({ filePath: '/b', password: 'p' });
 void named.label;
 
 class Overriding extends UTEXOWallet<typeof rgbLike> {

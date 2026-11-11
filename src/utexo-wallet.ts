@@ -11,7 +11,8 @@ import { assertEngineContract } from '@utexo/rgb-sdk-core';
 import type {
   AddressRotationApi,
   AssetMetadataApi,
-  BackupBytesApi,
+  BackupExportApi,
+  BackupRestoreApi,
   BurnApi,
   ConsignmentApi,
   ConsignmentFileApi,
@@ -24,7 +25,9 @@ import type {
   SharedWalletApi,
   TxidLookupApi,
   VssBackupApi,
+  VssBackupInfoApi,
   VssFenceApi,
+  VssRestoreApi,
   WalletMaintenanceApi,
 } from '@utexo/rgb-sdk-core';
 import { UTEXOWalletError } from './errors.js';
@@ -51,8 +54,8 @@ export const FORWARDED_EXTENSION_METHODS = [
   'shutdown',
   'reinit',
   // FileBackupApi
-  'createBackup',
-  // BackupBytesApi
+  'exportBackupToFile',
+  // BackupExportApi, BackupRestoreApi
   'exportBackup',
   'restoreBackup',
   // WalletMaintenanceApi
@@ -64,9 +67,11 @@ export const FORWARDED_EXTENSION_METHODS = [
   'getConsignment',
   // ConsignmentFileApi
   'getConsignmentPath',
-  // VssBackupApi, VssFenceApi
-  'backupNow',
-  'vssClearFence',
+  // VssBackupApi, VssRestoreApi, VssBackupInfoApi, VssFenceApi
+  'backupToVss',
+  'restoreFromVss',
+  'getVssBackupInfo',
+  'clearVssFence',
   // MessageSigningApi
   'signMessage',
   'verifyMessage',
@@ -92,12 +97,15 @@ export type ForwardedExtensionMethod =
 // Every method of every core extension must be in the list above.
 type AllExtensionMethods = keyof (RestartableWalletApi<unknown> &
   FileBackupApi &
-  BackupBytesApi &
+  BackupExportApi &
+  BackupRestoreApi &
   WalletMaintenanceApi &
   BurnApi &
   ConsignmentApi &
   ConsignmentFileApi &
   VssBackupApi &
+  VssRestoreApi &
+  VssBackupInfoApi &
   VssFenceApi &
   MessageSigningApi &
   IndexerCheckApi &

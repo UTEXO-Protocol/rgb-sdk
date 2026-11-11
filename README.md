@@ -43,7 +43,7 @@ const { invoice } = await wallet.blindReceive({ minConfirmations: 1 });
 await wallet.destroy();
 ```
 
-The engine connects to the network by itself on the first online call. Engine-specific calls are typed too: with `RgbLibWallet`, `wallet.createBackup()`, `wallet.burn()` or `wallet.goOnline()` are available with the engine's own signatures.
+The engine connects to the network by itself on the first online call. Engine-specific calls are typed too: with `RgbLibWallet`, `wallet.exportBackupToFile()`, `wallet.burn()` or `wallet.goOnline()` are available with the engine's own signatures.
 
 ## How it works
 
