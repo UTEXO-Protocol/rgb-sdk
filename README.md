@@ -9,17 +9,16 @@ The package has no React Native, Node or browser imports. It runs wherever its e
 
 ## Engines
 
-| Engine                                                                                  | Platform                    | Protocol                |
-| --------------------------------------------------------------------------------------- | --------------------------- | ----------------------- |
-| [`@utexo/rgb-sdk-rn`](https://www.npmjs.com/package/@utexo/rgb-sdk-rn) (`RgbLibWallet`) | React Native (iOS, Android) | RGB on-chain (`RGB_L1`) |
+| Engine                                                                               | Platform                    | Protocol                |
+| ------------------------------------------------------------------------------------ | --------------------------- | ----------------------- |
+| [`@utexo/rgb-sdk-rn`](https://github.com/UTEXO-Protocol/rgb-sdk-rn) (`RgbLibWallet`) | React Native (iOS, Android) | RGB on-chain (`RGB_L1`) |
+| [`@utexo/rgb-sdk-web`](https://github.com/UTEXO-Protocol/rgb-sdk-web) (`RgbLibWeb`)  | Browser                     | RGB on-chain (`RGB_L1`) |
 
 ## Installation
 
-Not released yet. Once it is:
-
 ```bash
 npm install @utexo/rgb-sdk @utexo/rgb-sdk-core
-npm install @utexo/rgb-sdk-rn # an engine; follow its README for native setup
+npm install @utexo/rgb-sdk-rn # or @utexo/rgb-sdk-web; follow the engine's README
 ```
 
 ## Quick start
@@ -114,8 +113,9 @@ const provider = new WebRgbProvider(wallet, {
 
 ## Related packages
 
-- [`@utexo/rgb-sdk-rn`](https://www.npmjs.com/package/@utexo/rgb-sdk-rn): the React Native engine.
-- [`@utexo/rgb-sdk-core`](https://www.npmjs.com/package/@utexo/rgb-sdk-core): shared types, errors, key helpers and the engine contract.
+- [`@utexo/rgb-sdk-rn`](https://github.com/UTEXO-Protocol/rgb-sdk-rn): the React Native engine.
+- [`@utexo/rgb-sdk-web`](https://github.com/UTEXO-Protocol/rgb-sdk-web): the browser engine.
+- [`@utexo/rgb-sdk-core`](https://github.com/UTEXO-Protocol/rgb-sdk-core): shared types, errors, key helpers and the engine contract.
 
 ## License
 
