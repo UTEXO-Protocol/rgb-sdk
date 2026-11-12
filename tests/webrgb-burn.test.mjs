@@ -803,3 +803,51 @@ test('a local V1 burn exposes recovery metadata only after successful proof-shar
   assert.equal(await bridge.getTransferStatus(txid, args().assetId), null);
   assert.equal(f.calls.length, 1);
 });
+test('a wallet without getConsignment serves neither burnAsset nor getConsignment', async () => {
+  // e.g. RgbLibWeb: it burns, but rgb-lib-wasm beta.4 exports no consignment.
+  const f = fixture();
+  delete f.wallet.getConsignment;
+  f.wallet.getBfaCapabilities = async () => ({
+    burn: true,
+    consignment: false,
+    bfa: true,
+  });
+  const controller = f.controller();
+  assert.deepEqual(await controller.methods(), []);
+  await assert.rejects(controller.burnAsset(args()), {
+    code: 'METHOD_NOT_SUPPORTED',
+  });
+  await assert.rejects(
+    controller.getConsignment({ assetId: args().assetId, txid }),
+    { code: 'METHOD_NOT_SUPPORTED' }
+  );
+  // Capabilities alone do not list getConsignment without the method.
+  f.wallet.getBfaCapabilities = async () => ({
+    burn: true,
+    consignment: true,
+    bfa: true,
+  });
+  assert.deepEqual(await controller.methods(), []);
+  assert.equal(f.calls.length, 0);
+  assert.deepEqual(f.prompts, []);
+});
+test('reconciliation without getConsignment is refused and stays pending', async () => {
+  const f = fixture();
+  delete f.wallet.getConsignment;
+  await f.store.write({
+    origin: 'https://mint.example',
+    request: { ...args(), requestId: 'legacy-pending' },
+    state: 'pending',
+  });
+  await assert.rejects(
+    f.operations.reconcile(
+      'legacy-pending',
+      { txid, batchTransferIdx: 42 },
+      async () => true
+    ),
+    (e) =>
+      isEngineError(e, 'UNSUPPORTED_CAPABILITY') &&
+      e.operation === 'getConsignment'
+  );
+  assert.equal((await f.operations.records())[0].state, 'pending');
+});

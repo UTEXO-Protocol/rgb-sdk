@@ -98,11 +98,20 @@ The engine's README lists its error codes.
 
 ## WebRGB for dApps
 
-`@utexo/rgb-sdk/webrgb` serves a WebRGB session for one dApp origin over a `UTEXOWallet`. Install the optional peer first:
+WebRGB connects a dApp to a wallet. The two sides use different packages:
+
+| You build                            | Use                     | Imports                                                             |
+| ------------------------------------ | ----------------------- | ------------------------------------------------------------------- |
+| a dApp                               | `@utexo/webrgb` only    | `requestProvider`, `supports`, `toTransferArray`, `isProviderError` |
+| a wallet (extension, in-app browser) | `@utexo/rgb-sdk/webrgb` | `WebRgbProvider`, `BurnOperations`                                  |
+
+A dApp never imports a wallet SDK, so it works with any WebRGB wallet. Install the optional peer in the wallet:
 
 ```bash
 npm install @utexo/webrgb
 ```
+
+### The wallet side
 
 ```ts
 import { BurnOperations, WebRgbProvider } from '@utexo/rgb-sdk/webrgb';
@@ -110,6 +119,7 @@ import { BurnOperations, WebRgbProvider } from '@utexo/rgb-sdk/webrgb';
 // One burn journal per wallet, shared by all sessions. `store` saves records durably.
 const operations = new BurnOperations(wallet, store);
 
+// One provider per dApp origin.
 const provider = new WebRgbProvider(wallet, {
   origin: 'https://dapp.example.com',
   confirm: async ({ origin, method, params }) =>
@@ -118,10 +128,38 @@ const provider = new WebRgbProvider(wallet, {
 });
 ```
 
+- Take `origin` from the browser (for an extension, `sender.origin`), never from the dApp's message.
+- Keep keys where the dApp cannot reach them: in an extension, in the service worker, not in the page or the content script.
 - `confirm` is called before every action that needs the user's approval; return `true` to allow it.
-- `store` implements `BurnOperationStore`: `readAll()` and `write(record)`, which resolves only after the record is saved.
-- `getInfo().methods` lists the methods this wallet can serve. Burn methods are listed only when the engine can burn.
+- `sessionApproved: true` restores a connection the user approved earlier; `revoke()` ends it when the user disconnects the site.
+- `store` implements `BurnOperationStore`: `readAll()` and `write(record)`, which resolves only after the record is saved. Use storage that survives a restart.
+- `getInfo().methods` lists the methods this wallet can serve. `burnAsset` and `getConsignment` are listed only when the engine can burn and export consignments: a WebRGB burn always shares its proof. `RgbLibWeb` burns but has no consignment export yet, so over it they are not listed and reject with `METHOD_NOT_SUPPORTED`.
 - The app provides `crypto.getRandomValues` (used for burn operation IDs).
+
+A complete extension sketch (service worker, content script, page script, manifest) is in `examples/webrgb-extension/` of [`@utexo/rgb-sdk-web`](https://github.com/UTEXO-Protocol/rgb-sdk-web).
+
+### The dApp side
+
+```ts
+import { isProviderError, requestProvider, supports } from '@utexo/webrgb';
+
+export async function askForInvoice(assetId: string) {
+  try {
+    const rgb = await requestProvider({ enable: true }); // asks the user to connect
+    const info = await rgb.getInfo();
+    if (!supports(info, 'witnessReceive'))
+      throw new Error('This wallet cannot receive');
+    const { invoice } = await rgb.witnessReceive({ assetId, amount: 100 });
+    return invoice;
+  } catch (error) {
+    if (isProviderError(error) && error.code === 'USER_REJECTED') return null;
+    throw error;
+  }
+}
+```
+
+- Check `getInfo().methods` (or `supports()`) before a call: wallets serve different methods.
+- Read-only calls (`listAssets`, `listTransfers`, `getAssetBalance`) raise no prompt, so polling them is fine.
 
 ## Related packages
 

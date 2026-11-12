@@ -1,7 +1,8 @@
 /* eslint no-unused-vars: "off", "@typescript-eslint/no-unused-vars": "error" -- TypeScript signatures. */
 /**
  * WebRGB burn/proof methods. Every provider serves them; getInfo() lists them
- * only while the native build and signer report burn and consignment support.
+ * only while the native build and signer report burn and consignment support
+ * and the wallet has getConsignment().
  * RGB Lib signs with its native keys.
  *
  * Setup: share one BurnOperations service and durable BurnOperationStore per
@@ -140,9 +141,12 @@ export class WebRgbBurnController {
   }
   async methods(): Promise<string[]> {
     const caps = await this.wallet.getBfaCapabilities();
+    // A WebRGB burn shares its proof, so it needs the consignment too.
+    const consignment =
+      caps.consignment && typeof this.wallet.getConsignment === 'function';
     return [
-      ...(caps.burn && caps.consignment ? ['burnAsset'] : []),
-      ...(caps.consignment ? ['getConsignment'] : []),
+      ...(caps.burn && consignment ? ['burnAsset'] : []),
+      ...(consignment ? ['getConsignment'] : []),
     ];
   }
   async burnAsset(args: WebRgbBurnAssetArgs): Promise<WebRgbBurnAssetResult> {
@@ -380,7 +384,13 @@ export class WebRgbBurnController {
         'Only a saved burn consignment can be exported'
       );
     if (this.proof?.key !== key) {
-      const encoded = await this.wallet.getConsignment(args.assetId, args.txid);
+      const read = this.wallet.getConsignment;
+      if (!read)
+        throw new WebRgbError(
+          'METHOD_NOT_SUPPORTED',
+          'Native consignment access is unavailable'
+        );
+      const encoded = await read.call(this.wallet, args.assetId, args.txid);
       if (encoded.length > Math.ceil(MAX_CONSIGNMENT_BYTES / 3) * 4)
         throw new WebRgbError(
           'INTERNAL_ERROR',

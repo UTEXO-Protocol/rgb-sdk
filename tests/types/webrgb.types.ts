@@ -16,6 +16,8 @@ void webRgbProtocol;
 
 declare const burnEngine: SharedWalletApi<void> & BurnApi & ConsignmentApi;
 declare const bareEngine: SharedWalletApi<void>;
+// Burns without a consignment export, like RgbLibWeb.
+declare const burnOnlyEngine: SharedWalletApi<void> & BurnApi;
 const burn = { operations: new BurnOperations(burnEngine, null!) };
 const options = {
   origin: 'https://example.com',
@@ -27,7 +29,7 @@ const options = {
 new WebRgbProvider(new UTEXOWallet({ engine: burnEngine }), options);
 new WebRgbProvider(burnEngine, options);
 // Burn is a regular method: a wallet without burn() is not a WebRGB wallet.
-// @ts-expect-error WebRgbWallet needs burn() and getConsignment()
+// @ts-expect-error WebRgbWallet needs burn()
 new WebRgbProvider(new UTEXOWallet({ engine: bareEngine }), options);
 // @ts-expect-error burn options are required
 new WebRgbProvider(burnEngine, {
@@ -36,3 +38,9 @@ new WebRgbProvider(burnEngine, {
 });
 // @ts-expect-error BurnOperations needs burn()
 new BurnOperations(new UTEXOWallet({ engine: bareEngine }), null!);
+// getConsignment is optional: a wallet that only burns is a WebRGB wallet.
+new WebRgbProvider(new UTEXOWallet({ engine: burnOnlyEngine }), {
+  ...options,
+  burn: { operations: new BurnOperations(burnOnlyEngine, null!) },
+});
+new WebRgbProvider(burnOnlyEngine, options);

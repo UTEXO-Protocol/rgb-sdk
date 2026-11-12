@@ -115,7 +115,8 @@ interface BurnWallet {
   listTransfers(
     assetId: string
   ): Promise<{ txid?: string | null; kind: string }[]>;
-  getConsignment(assetId: string, txid: string): Promise<string>;
+  /** Needed only by `reconcile()`. */
+  getConsignment?(assetId: string, txid: string): Promise<string>;
 }
 interface Runtime {
   queue: Promise<unknown>;
@@ -279,6 +280,12 @@ export class BurnOperations {
         )
       )
         throw new Error('The transaction is not a burn of this asset');
+      if (!this.wallet.getConsignment)
+        throw new UTEXOWalletError(
+          'UNSUPPORTED_CAPABILITY',
+          'This wallet cannot export a consignment',
+          { operation: 'getConsignment', protocol: this.wallet.protocol }
+        );
       const proof = await this.wallet.getConsignment(
         record.params.assetId,
         result.txid
