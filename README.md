@@ -19,7 +19,7 @@ The package has no React Native, Node or browser imports. It runs wherever its e
 Not released yet. Once it is:
 
 ```bash
-npm install @utexo/rgb-sdk @utexo/rgb-sdk-core
+npm install @utexo/rgb-sdk @utexo/rgb-sdk-core@1.0.0-beta.10
 npm install @utexo/rgb-sdk-rn # or @utexo/rgb-sdk-web; follow the engine's README
 ```
 
