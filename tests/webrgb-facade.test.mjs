@@ -1,4 +1,4 @@
-// WebRGB over the facade: what used to be checked against RgbLibWallet in
+// WebRGB over the facade: what used to be checked against RgbLibRn in
 // @utexo/rgb-sdk-rn, now with a fake engine (the real one runs in the
 // acceptance app).
 import { test } from 'node:test';

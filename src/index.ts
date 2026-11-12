@@ -6,7 +6,7 @@
  * engine and passes it in:
  *
  * ```ts
- * const wallet = new UTEXOWallet({ engine: new RgbLibWallet(params, keys) });
+ * const wallet = new UTEXOWallet({ engine: new RgbLibRn(params, keys) });
  * ```
  */
 

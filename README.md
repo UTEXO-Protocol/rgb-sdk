@@ -9,10 +9,10 @@ The package has no React Native, Node or browser imports. It runs wherever its e
 
 ## Engines
 
-| Engine                                                                               | Platform                    | Protocol                |
-| ------------------------------------------------------------------------------------ | --------------------------- | ----------------------- |
-| [`@utexo/rgb-sdk-rn`](https://github.com/UTEXO-Protocol/rgb-sdk-rn) (`RgbLibWallet`) | React Native (iOS, Android) | RGB on-chain (`RGB_L1`) |
-| [`@utexo/rgb-sdk-web`](https://github.com/UTEXO-Protocol/rgb-sdk-web) (`RgbLibWeb`)  | Browser                     | RGB on-chain (`RGB_L1`) |
+| Engine                                                                              | Platform                    | Protocol                |
+| ----------------------------------------------------------------------------------- | --------------------------- | ----------------------- |
+| [`@utexo/rgb-sdk-rn`](https://github.com/UTEXO-Protocol/rgb-sdk-rn) (`RgbLibRn`)    | React Native (iOS, Android) | RGB on-chain (`RGB_L1`) |
+| [`@utexo/rgb-sdk-web`](https://github.com/UTEXO-Protocol/rgb-sdk-web) (`RgbLibWeb`) | Browser                     | RGB on-chain (`RGB_L1`) |
 
 ## Installation
 
@@ -25,11 +25,11 @@ npm install @utexo/rgb-sdk-rn # or @utexo/rgb-sdk-web; follow the engine's READM
 
 ```ts
 import { UTEXOWallet } from '@utexo/rgb-sdk';
-import { RgbLibWallet } from '@utexo/rgb-sdk-rn';
+import { RgbLibRn } from '@utexo/rgb-sdk-rn';
 
 // 1. Create the engine, then wrap it.
 const wallet = new UTEXOWallet({
-  engine: new RgbLibWallet({ network: 'signet', storageDirPath }, mnemonic),
+  engine: new RgbLibRn({ network: 'signet', storageDirPath }, mnemonic),
 });
 
 // 2. Open it.
@@ -44,7 +44,7 @@ const { invoice } = await wallet.blindReceive({ minConfirmations: 1 });
 await wallet.destroy();
 ```
 
-The engine connects to the network by itself on the first online call. Engine-specific calls are typed too: with `RgbLibWallet`, `wallet.exportBackupToFile()`, `wallet.burn()` or `wallet.goOnline()` are available with the engine's own signatures.
+The engine connects to the network by itself on the first online call. Engine-specific calls are typed too: with `RgbLibRn`, `wallet.exportBackupToFile()`, `wallet.burn()` or `wallet.goOnline()` are available with the engine's own signatures.
 
 ## How it works
 

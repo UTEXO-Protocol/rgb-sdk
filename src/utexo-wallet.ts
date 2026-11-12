@@ -185,7 +185,7 @@ void sharedListIsComplete;
 
 export interface UTEXOWalletOptions<E extends AnyEngine> {
   /**
-   * The engine, created by the app (for example `new RgbLibWallet(...)`).
+   * The engine, created by the app (for example `new RgbLibRn(...)`).
    * The facade owns its session from here on.
    */
   engine: E;
