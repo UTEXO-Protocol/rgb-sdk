@@ -171,7 +171,7 @@ const provider = new WebRgbProvider(wallet, {
 - `getInfo().methods` lists the methods this wallet can serve. `burnAsset` and `getConsignment` are listed only when the engine can burn and export consignments: a WebRGB burn always shares its proof. `RgbLibWeb` burns but has no consignment export yet, so over it they are not listed and reject with `METHOD_NOT_SUPPORTED`.
 - The app provides `crypto.getRandomValues` (used for burn operation IDs).
 
-A complete extension sketch (service worker, content script, page script, manifest) is in `examples/webrgb-extension/` of [`@utexo/rgb-sdk-web`](https://github.com/UTEXO-Protocol/rgb-sdk-web).
+A complete extension sketch (service worker, content script, page script, manifest) is in [`examples/webrgb-extension/`](examples/webrgb-extension/README.md).
 
 ### The dApp side
 

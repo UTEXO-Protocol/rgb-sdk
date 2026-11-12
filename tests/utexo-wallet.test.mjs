@@ -309,6 +309,96 @@ runEngineConformanceChecks({
   it,
   expect,
 });
+// Shaped like RgbLibWeb (@utexo/rgb-sdk-web): byte and VSS backup, burn.
+const webLike = [
+  'backupExport',
+  'backupRestore',
+  'vssBackup',
+  'vssRestore',
+  'vssBackupInfo',
+  'burn',
+];
+const webEngine = () => {
+  const engine = createFakeEngine({
+    getAddress: async () => 'bcrt1qfake',
+    getNetwork: () => 'regtest',
+    exportBackup: async ({ password }) =>
+      new TextEncoder().encode(`backup:${password}`),
+    restoreBackup: async (params) => {
+      engine.calls.push({ name: 'restoreBackup', args: [params] });
+    },
+    backupToVss: async () => 3,
+    restoreFromVss: async (options) => {
+      engine.calls.push({ name: 'restoreFromVss', args: [options] });
+    },
+    getVssBackupInfo: async () => ({
+      backupExists: false,
+      serverVersion: null,
+      backupRequired: true,
+      lastBackupError: null,
+    }),
+    getBfaCapabilities: async () => ({
+      burn: true,
+      consignment: false,
+      bfa: true,
+    }),
+    burn: async () => ({ txid: 'tx', batchTransferIdx: 1 }),
+  });
+  return engine;
+};
+const called = (engine, name) => engine.calls.filter((c) => c.name === name);
+
+describe('over a web-like engine', () => {
+  it('forwards shared calls', async () => {
+    const wallet = new UTEXOWallet({ engine: webEngine() });
+    await wallet.init();
+    assert.equal(await wallet.getAddress(), 'bcrt1qfake');
+    assert.equal(wallet.getNetwork(), 'regtest');
+  });
+
+  it('forwards exportBackup and restoreBackup', async () => {
+    const engine = webEngine();
+    const wallet = new UTEXOWallet({ engine });
+    const bytes = new Uint8Array([1, 2]);
+    await wallet.restoreBackup({ bytes, password: 'pw' });
+    assert.equal(called(engine, 'restoreBackup')[0].args[0].bytes, bytes);
+    const backup = await wallet.exportBackup({ password: 'pw' });
+    assert.equal(new TextDecoder().decode(backup), 'backup:pw');
+  });
+
+  it('forwards restoreFromVss, backupToVss and getVssBackupInfo', async () => {
+    const engine = webEngine();
+    const wallet = new UTEXOWallet({ engine });
+    await wallet.restoreFromVss({ overwrite: true });
+    assert.deepEqual(called(engine, 'restoreFromVss')[0].args, [
+      { overwrite: true },
+    ]);
+    assert.equal(await wallet.backupToVss(), 3);
+    assert.equal((await wallet.getVssBackupInfo()).backupExists, false);
+  });
+
+  it('has burn but no consignment methods', async () => {
+    const wallet = new UTEXOWallet({ engine: webEngine() });
+    assert.equal((await wallet.getBfaCapabilities()).consignment, false);
+    assert.equal('getConsignment' in wallet, false);
+    assert.equal('getConsignmentPath' in wallet, false);
+    assert.deepEqual(await wallet.burn({}), {
+      txid: 'tx',
+      batchTransferIdx: 1,
+    });
+  });
+});
+
+const webFacade = () => new UTEXOWallet({ engine: webEngine() });
+runEngineConformanceChecks({
+  name: 'UTEXOWallet over a web-like engine',
+  engineClass: { prototype: webFacade() },
+  createEngineSync: webFacade,
+  extensions: webLike,
+  describe,
+  it,
+  expect,
+});
 runEngineConformanceChecks({
   name: 'UTEXOWallet over a bare engine',
   engineClass: { prototype: new UTEXOWallet({ engine: createFakeEngine() }) },
