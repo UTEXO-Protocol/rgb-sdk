@@ -101,27 +101,6 @@ Optional methods, present on the facade only when the engine has them:
 
 On React Native a backup restores with `restoreBackupFromFile()` from `@utexo/rgb-sdk-rn`, before the wallet is created.
 
-## Check before you call
-
-Types show which methods an engine has: with `RgbLibRn` or `RgbLibWeb`, `wallet.burn()` is typed. Whether a call can run now is a run-time question:
-
-```ts
-if (!wallet.capabilities.canSignTransactions) {
-  // watch-only: reads work, sending and burning do not
-}
-
-if ((await wallet.getBfaCapabilities()).burn) {
-  const { txid } = await wallet.burn({
-    assetId,
-    amount: '100', // exact decimal string, smallest units
-    feeRate: 2,
-    minConfirmations: 1,
-  });
-}
-```
-
-A method the engine cannot run now rejects with `UNSUPPORTED_CAPABILITY`.
-
 ## Error handling
 
 Engine errors pass through unchanged. Each has a stable `code`, the `operation` and the `protocol`:
