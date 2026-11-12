@@ -31,7 +31,7 @@ import { RgbLibRn } from '@utexo/rgb-sdk-rn';
 
 // 1. Create the engine, then wrap it.
 const wallet = new UTEXOWallet({
-  engine: new RgbLibRn({ network: 'signet', storageDirPath }, mnemonic),
+  engine: new RgbLibRn({ network: 'utexo', storageDirPath }, mnemonic),
 });
 
 // 2. Open it.
@@ -52,7 +52,7 @@ The same in the browser, with `@utexo/rgb-sdk-web`:
 import { RgbLibWeb } from '@utexo/rgb-sdk-web';
 
 const wallet = new UTEXOWallet({
-  engine: new RgbLibWeb({ network: 'testnet', mnemonic, dataDir: 'my-app' }),
+  engine: new RgbLibWeb({ network: 'utexo', mnemonic, dataDir: 'my-app' }),
 });
 ```
 
@@ -65,6 +65,62 @@ The engine connects to the network by itself on the first online call. Engine-sp
 - **Shared API.** Every shared method forwards to the engine and returns its result or error unchanged, with the engine's own types.
 - **Extensions.** Optional engine methods (backup, burn, consignments, message signing and others) appear on the facade only if the engine has them. Anything else is on `wallet.engine`.
 - **One owner.** The facade owns the engine session: do not call `init()` or `destroy()` on `wallet.engine` yourself.
+
+## Wallet API
+
+Every engine has these methods, with the same names and types:
+
+| Group     | Methods                                                                                                    |
+| --------- | ---------------------------------------------------------------------------------------------------------- |
+| Lifecycle | `init()`, `unlock()`, `destroy()`, `isDisposed()`                                                          |
+| Network   | `getNetwork()`, `getNetworkInfo()`, `getWalletIdentity()`, `estimateFeeRate()`                             |
+| Bitcoin   | `getAddress()`, `getBtcBalance()`, `listUnspents()`, `createUtxos()`, `sendBtc()`                          |
+| Assets    | `listAssets()`, `getAssetBalance()`, `issueAssetNia()`, `issueAssetIfa()`, `inflate()`                     |
+| Invoices  | `onchainReceive()`, `witnessReceive()`, `blindReceive()`, `decodeRGBInvoice()`, `onchainSend()`            |
+| Transfers | `listTransfers()`, `listTransactions()`, `refresh()`, `refreshWallet()`, `syncWallet()`, `failTransfers()` |
+
+Amounts are in the asset's smallest units, fee rates in sat/vB.
+
+## Engine extensions
+
+Optional methods, present on the facade only when the engine has them:
+
+| Methods                                                     | `RgbLibRn` | `RgbLibWeb`                |
+| ----------------------------------------------------------- | ---------- | -------------------------- |
+| `burn()`, `getBfaCapabilities()`                            | yes        | yes                        |
+| `getConsignment()`, `getConsignmentPath()`                  | yes        | no (not in the WASM build) |
+| `exportBackup()`                                            | yes        | yes                        |
+| `restoreBackup()`                                           | no         | yes                        |
+| `exportBackupToFile()`                                      | yes        | no                         |
+| `backupToVss()`, `restoreFromVss()`, `getVssBackupInfo()`   | no         | yes                        |
+| `shutdown()`, `reinit()`                                    | yes        | no                         |
+| `drainTo()`, `deleteTransfers()`                            | yes        | no                         |
+| `issueAssetCfa()`, `issueAssetUda()`, `getAssetMetadata()`  | yes        | no                         |
+| `listTransfersByTxid()`, `listTransactionsByTxid()`         | yes        | no                         |
+| `checkIndexerUrl()`, `rotateVanillaAddress()`, `goOnline()` | yes        | `goOnline()` only          |
+
+On React Native a backup restores with `restoreBackupFromFile()` from `@utexo/rgb-sdk-rn`, before the wallet is created.
+
+## Check before you call
+
+Types show which methods an engine has: with `RgbLibRn` or `RgbLibWeb`, `wallet.burn()` is typed. Whether a call can run now is a run-time question:
+
+```ts
+if (!wallet.capabilities.canSignTransactions) {
+  // watch-only: reads work, sending and burning do not
+}
+
+if ((await wallet.getBfaCapabilities()).burn) {
+  const { txid } = await wallet.burn({
+    assetId,
+    amount: '100', // exact decimal string, smallest units
+    feeRate: 2,
+    minConfirmations: 1,
+  });
+}
+```
+
+A method the engine cannot run now rejects with `UNSUPPORTED_CAPABILITY`.
 
 ## Error handling
 
