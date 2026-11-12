@@ -16,6 +16,8 @@ The package has no React Native, Node or browser imports. It runs wherever its e
 
 ## Installation
 
+Not released yet. Once it is:
+
 ```bash
 npm install @utexo/rgb-sdk @utexo/rgb-sdk-core
 npm install @utexo/rgb-sdk-rn # or @utexo/rgb-sdk-web; follow the engine's README
@@ -38,10 +40,20 @@ await wallet.init();
 // 3. Use it.
 const address = await wallet.getAddress();
 const balance = await wallet.getBtcBalance();
-const { invoice } = await wallet.blindReceive({ minConfirmations: 1 });
+const { invoice } = await wallet.onchainReceive({ minConfirmations: 1 }); // witness invoice: needs no free UTXOs
 
 // 4. Close it.
 await wallet.destroy();
+```
+
+The same in the browser, with `@utexo/rgb-sdk-web`:
+
+```ts
+import { RgbLibWeb } from '@utexo/rgb-sdk-web';
+
+const wallet = new UTEXOWallet({
+  engine: new RgbLibWeb({ network: 'testnet', mnemonic, dataDir: 'my-app' }),
+});
 ```
 
 The engine connects to the network by itself on the first online call. Engine-specific calls are typed too: with `RgbLibRn`, `wallet.exportBackupToFile()`, `wallet.burn()` or `wallet.goOnline()` are available with the engine's own signatures.
