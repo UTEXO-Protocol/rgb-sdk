@@ -1,0 +1,14 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "lib": ["ES2022", "DOM"],
+    "types": ["chrome"],
+    // This package's own source, as an app imports the published one.
+    "paths": {
+      "@utexo/rgb-sdk": ["../../src/index.ts"],
+      "@utexo/rgb-sdk/webrgb": ["../../src/webrgb/index.ts"]
+    }
+  },
+  "include": ["."]
+}

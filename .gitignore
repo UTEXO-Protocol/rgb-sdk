@@ -1,13 +1,4 @@
-bdk-wasm/
-data/*
 node_modules/
-package-lock.json
-package-lock.docs.json
-.env
-dist/
-scripts/
-package.docs.json
-cli/data/*
-!cli/data/*.example.json
-.rgb-wallet/
-artifacts/
+lib/
+*.tgz
+.DS_Store

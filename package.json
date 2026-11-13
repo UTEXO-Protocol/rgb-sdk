@@ -1,120 +1,81 @@
 {
   "name": "@utexo/rgb-sdk",
-  "version": "1.0.0-beta.9",
-  "bin": {
-    "utexo": "cli/run.mjs"
-  },
-  "devDependencies": {
-    "@eslint/js": "^9.35.0",
-    "@types/jest": "^30.0.0",
-    "@types/node": "^22.17.2",
-    "@typescript-eslint/eslint-plugin": "^8.0.0",
-    "@typescript-eslint/parser": "^8.0.0",
-    "eslint": "^9.35.0",
-    "eslint-config-prettier": "^10.1.8",
-    "eslint-plugin-prettier": "^5.5.4",
-    "jest": "^30.2.0",
-    "prettier": "^3.0.0",
-    "ts-jest": "^29.4.5",
-    "tsup": "^8.5.0",
-    "typescript": "^5.9.2"
-  },
-  "type": "commonjs",
-  "scripts": {
-    "prettier": "prettier --write \"**/*.{js,ts,tsx}\"",
-    "lint": "eslint \"**/*.{js,ts,tsx}\"",
-    "dev": "tsc -w",
-    "build": "tsup",
-    "test": "npm run build && NODE_OPTIONS='--experimental-vm-modules' jest",
-    "test:signet": "npm run build && NODE_OPTIONS='--experimental-vm-modules' jest --config jest.signet.config.js --runInBand --verbose",
-    "test:signet:smoke": "npm run build && NODE_OPTIONS='--experimental-vm-modules' jest --config jest.signet.config.js --runInBand --verbose --runTestsByPath tests/signet/offline-receiver-smoke.test.ts",
-    "test:regtest": "npm run build && NODE_OPTIONS='--experimental-vm-modules' jest --config jest.regtest.config.js --runInBand --verbose",
-    "test:regtest:relay-only": "npm run build && NODE_OPTIONS='--experimental-vm-modules' jest --config jest.regtest.config.js --runInBand --verbose --runTestsByPath tests/regtest/relay-only-mode.test.ts",
-    "test:regtest:upload-guard": "npm run build && NODE_OPTIONS='--experimental-vm-modules' jest --config jest.regtest.config.js --runInBand --verbose --runTestsByPath tests/regtest/upload-guard.test.ts",
-    "test:regtest:smoke": "npm run build && NODE_OPTIONS='--experimental-vm-modules' jest --config jest.regtest.config.js --runInBand --verbose --runTestsByPath tests/regtest/offline-receiver.test.ts",
-    "test:regtest:offline-delayed-refresh": "npm run build && NODE_OPTIONS='--experimental-vm-modules' jest --config jest.regtest.config.js --runInBand --verbose --runTestsByPath tests/regtest/offline-receiver-delayed-refresh.test.ts",
-    "test:regtest:ack-guard": "npm run build && NODE_OPTIONS='--experimental-vm-modules' jest --config jest.regtest.config.js --runInBand --verbose --runTestsByPath tests/regtest/ack-guard.test.ts",
-    "test:regtest:witness": "npm run build && NODE_OPTIONS='--experimental-vm-modules' jest --config jest.regtest.config.js --runInBand --verbose --runTestsByPath tests/regtest/witness-receiver.test.ts",
-    "test:regtest:nack": "npm run build && NODE_OPTIONS='--experimental-vm-modules' jest --config jest.regtest.config.js --runInBand --verbose --runTestsByPath tests/regtest/invalid-consignment.test.ts",
-    "test:watch": "npm run build && NODE_OPTIONS='--experimental-vm-modules' jest --watch",
-    "test:coverage": "npm run build && NODE_OPTIONS='--experimental-vm-modules' jest --coverage",
-    "version:patch": "npm version patch && git push && git push --tags && npm publish --access public",
-    "version:minor": "npm version minor && git push && git push --tags && npm publish --access public",
-    "version:major": "npm version major && git push && git push --tags && npm publish --access public",
-    "example:complete": "node --experimental-wasm-modules example-flow.mjs",
-    "example:utexo": "node example-utexo-flow.mjs",
-    "example:new-wallet": "node examples/new-wallet.mjs",
-    "example:create-utxos-asset": "node examples/create-utxos-asset.mjs",
-    "example:read-wallet": "node examples/read-wallet.mjs",
-    "example:rotate-address": "node examples/rotate-address.mjs",
-    "example:transfer": "node examples/transfer.mjs",
-    "example:onchain": "node examples/onchain-flow.mjs",
-    "example:vss": "node examples/utexo-vss-backup-restore.mjs",
-    "example:file-backup": "node examples/utexo-file-backup-restore.mjs",
-    "utexo": "node cli/run.mjs",
-    "generate_keys": "node cli/generate_keys.mjs",
-    "test:signet:witness": "npm run build && NODE_OPTIONS='--experimental-vm-modules' jest --config jest.signet.config.js --runInBand --verbose --runTestsByPath tests/signet/witness-receiver-smoke.test.ts",
-    "test:signet:convergence": "npm run build && NODE_OPTIONS='--experimental-vm-modules' jest --config jest.signet.config.js --runInBand --verbose --runTestsByPath tests/signet/offline-receiver-refresh-convergence.test.ts",
-    "test:signet:two-refresh": "npm run build && NODE_OPTIONS='--experimental-vm-modules' jest --config jest.signet.config.js --runInBand --verbose --runTestsByPath tests/signet/offline-receiver-two-refresh-convergence.test.ts",
-    "test:signet:sequential": "npm run build && NODE_OPTIONS='--experimental-vm-modules' jest --config jest.signet.config.js --runInBand --verbose --runTestsByPath tests/signet/sequential-receives-smoke.test.ts",
-    "test:regtest:preconfirm": "npm run build && NODE_OPTIONS='--experimental-vm-modules' jest --config jest.regtest.config.js --runInBand --verbose --runTestsByPath tests/regtest/pre-confirmation-gating.test.ts",
-    "test:regtest:relay-witness": "npm run build && NODE_OPTIONS='--experimental-vm-modules' jest --config jest.regtest.config.js --runInBand --verbose --runTestsByPath tests/regtest/relay-only-witness-mode.test.ts",
-    "test:regtest:roundtrip": "npm run build && NODE_OPTIONS='--experimental-vm-modules' jest --config jest.regtest.config.js --runInBand --verbose --runTestsByPath tests/regtest/real-consignment-roundtrip.test.ts",
-    "test:regtest:expired": "npm run build && NODE_OPTIONS='--experimental-vm-modules' jest --config jest.regtest.config.js --runInBand --verbose --runTestsByPath tests/regtest/expired-invoice.test.ts",
-    "test:regtest:donation-false": "npm run build && NODE_OPTIONS='--experimental-vm-modules' jest --config jest.regtest.config.js --runInBand --verbose --runTestsByPath tests/regtest/donation-false.test.ts",
-    "test:regtest:proxy-down": "npm run build && NODE_OPTIONS='--experimental-vm-modules' jest --config jest.regtest.config.js --runInBand --verbose --runTestsByPath tests/regtest/proxy-down-during-send.test.ts",
-    "test:regtest:restart-mid": "npm run build && NODE_OPTIONS='--experimental-vm-modules' jest --config jest.regtest.config.js --runInBand --verbose --runTestsByPath tests/regtest/restart-mid-flow.test.ts",
-    "test:regtest:send-batch": "npm run build && NODE_OPTIONS='--experimental-vm-modules' jest --config jest.regtest.config.js --runInBand --verbose --runTestsByPath tests/regtest/send-batch-same-receiver.test.ts",
-    "test:regtest:sequential-sends": "npm run build && NODE_OPTIONS='--experimental-vm-modules' jest --config jest.regtest.config.js --runInBand --verbose --runTestsByPath tests/regtest/sequential-sends-same-receiver.test.ts",
-    "test:regtest:restart-after-ack": "npm run build && NODE_OPTIONS='--experimental-vm-modules' jest --config jest.regtest.config.js --runInBand --verbose --runTestsByPath tests/regtest/restart-after-ack-before-settled.test.ts",
-    "test:regtest:expiry-race": "npm run build && NODE_OPTIONS='--experimental-vm-modules' jest --config jest.regtest.config.js --runInBand --verbose --runTestsByPath tests/regtest/expiry-race-near-boundary.test.ts",
-    "test:regtest:witness-donation-false": "npm run build && NODE_OPTIONS='--experimental-vm-modules' jest --config jest.regtest.config.js --runInBand --verbose --runTestsByPath tests/regtest/witness-donation-false.test.ts",
-    "test:regtest:sequential-receives": "npm run build && NODE_OPTIONS='--experimental-vm-modules' jest --config jest.regtest.config.js --runInBand --verbose --runTestsByPath tests/regtest/sequential-receives-same-wallet.test.ts"
-  },
-  "files": [
-    "dist",
-    "README.md",
-    "cli"
-  ],
+  "version": "2.0.0-alpha.0",
+  "description": "Optional UTEXOWallet facade over one RGB wallet engine (React Native or web), built on the @utexo/rgb-sdk-core contract",
+  "license": "Apache-2.0",
+  "type": "module",
+  "main": "./lib/index.js",
+  "types": "./lib/index.d.ts",
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.mjs",
-      "require": "./dist/index.cjs"
-    }
+      "types": "./lib/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./webrgb": {
+      "types": "./lib/webrgb/index.d.ts",
+      "default": "./lib/webrgb/index.js"
+    },
+    "./package.json": "./package.json"
   },
-  "main": "./dist/index.cjs",
-  "module": "./dist/index.mjs",
-  "types": "./dist/index.d.ts",
-  "dependencies": {
-    "@bitcoindevkit/bdk-wallet-node": "^0.2.0",
-    "@noble/hashes": "^2.0.1",
-    "@scure/btc-signer": "^2.0.1",
-    "@utexo/rgb-lib": "0.3.0-beta.16.dev",
-    "@utexo/rgb-sdk-core": "1.0.0-beta.3",
-    "axios": "^1.8.4",
-    "bare-node-runtime": "^1.1.4",
-    "bitcoinjs-lib": "^6.1.7",
-    "form-data": "^4.0.0",
-    "ripemd160": "^2.0.3"
+  "files": [
+    "lib",
+    "src",
+    "!**/*.tsbuildinfo"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "clean": "rm -rf lib",
+    "build": "rm -rf lib && tsc -p tsconfig.build.json",
+    "prepare": "npm run build",
+    "typecheck": "tsc -p tsconfig.json",
+    "lint": "eslint \"**/*.{js,mjs,cjs,ts,tsx}\"",
+    "prettier": "prettier --write \"**/*.{js,mjs,cjs,ts,tsx}\"",
+    "test:unit": "npm run build && node --test tests/*.test.mjs",
+    "test": "npm run typecheck && npm run lint && npm run test:unit && npm run typecheck:examples",
+    "typecheck:examples": "tsc -p examples/webrgb-extension/tsconfig.json"
   },
-  "optionalDependencies": {
-    "@utexo/rgb-lib-darwin-arm64": "0.3.0-beta.16.dev",
-    "@utexo/rgb-lib-linux-arm64": "0.3.0-beta.16.dev",
-    "@utexo/rgb-lib-linux-x64": "0.3.0-beta.16.dev"
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/UTEXO-Protocol/rgb-sdk.git"
   },
   "keywords": [
     "rgb",
     "rgb-protocol",
     "bitcoin",
-    "sdk",
-    "bdk",
-    "wasm",
-    "taproot",
-    "assets",
-    "blockchain"
+    "wallet",
+    "react-native",
+    "web",
+    "sdk"
   ],
-  "license": "MIT",
+  "peerDependencies": {
+    "@utexo/rgb-sdk-core": "^1.0.0-beta.10",
+    "@utexo/webrgb": "^0.1.3"
+  },
+  "peerDependenciesMeta": {
+    "@utexo/webrgb": {
+      "optional": true
+    }
+  },
+  "dependencies": {
+    "@noble/hashes": "^2.0.1",
+    "@scure/base": "^2.0.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.35.0",
+    "@types/chrome": "0.0.268",
+    "@types/node": "^22.17.2",
+    "@typescript-eslint/eslint-plugin": "^8.0.0",
+    "@typescript-eslint/parser": "^8.0.0",
+    "@utexo/rgb-sdk-core": "1.0.0-beta.10",
+    "@utexo/rgb-sdk-web": "1.0.0-beta.13",
+    "@utexo/webrgb": "0.1.3",
+    "@utexo/webrgb-walletconnect": "0.1.3",
+    "eslint": "^9.35.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-prettier": "^5.5.4",
+    "prettier": "^3.0.0",
+    "typescript": "^5.9.2"
+  },
   "prettier": {
     "quoteProps": "consistent",
     "singleQuote": true,
