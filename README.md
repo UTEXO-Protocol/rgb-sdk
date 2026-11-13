@@ -20,7 +20,12 @@ Not released yet. Once it is:
 
 ```bash
 npm install @utexo/rgb-sdk @utexo/rgb-sdk-core@1.0.0-beta.10
-npm install @utexo/rgb-sdk-rn # or @utexo/rgb-sdk-web; follow the engine's README
+
+# React Native
+npm install @utexo/rgb-sdk-rn@1.0.0-beta.41
+
+# Browser
+npm install @utexo/rgb-sdk-web@1.0.0-beta.13
 ```
 
 ## Quick start
