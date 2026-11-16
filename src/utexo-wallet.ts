@@ -21,6 +21,7 @@ import type {
   FileIssuanceApi,
   IndexerCheckApi,
   MessageSigningApi,
+  ReceivedMintApi,
   RestartableWalletApi,
   SharedWalletApi,
   TxidLookupApi,
@@ -79,6 +80,8 @@ export const FORWARDED_EXTENSION_METHODS = [
   'checkIndexerUrl',
   // AssetMetadataApi
   'getAssetMetadata',
+  // ReceivedMintApi
+  'getReceivedMint',
   // FileIssuanceApi
   'issueAssetCfa',
   'issueAssetUda',
@@ -110,6 +113,7 @@ type AllExtensionMethods = keyof (RestartableWalletApi<unknown> &
   MessageSigningApi &
   IndexerCheckApi &
   AssetMetadataApi &
+  ReceivedMintApi &
   FileIssuanceApi &
   TxidLookupApi &
   AddressRotationApi);

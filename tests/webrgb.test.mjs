@@ -389,6 +389,7 @@ test('burn methods are regular provider methods, listed only when native burn wo
     ...WEBRGB_READ_METHODS,
     'burnAsset',
     'getConsignment',
+    'getReceivedMint',
   ]);
   for (const method of WEBRGB_METHODS)
     assert.equal(typeof provider[method], 'function', method);

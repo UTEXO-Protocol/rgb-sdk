@@ -94,6 +94,7 @@ Optional methods, present on the facade only when the engine has them:
 | ----------------------------------------------------------- | ---------- | -------------------------- |
 | `burn()`, `getBfaCapabilities()`                            | yes        | yes                        |
 | `getConsignment()`, `getConsignmentPath()`                  | yes        | no (not in the WASM build) |
+| `getReceivedMint()`                                         | yes        | yes                        |
 | `exportBackup()`                                            | yes        | yes                        |
 | `restoreBackup()`                                           | no         | yes                        |
 | `exportBackupToFile()`                                      | yes        | no                         |
@@ -174,6 +175,7 @@ const provider = new WebRgbProvider(wallet, {
 - `sessionApproved: true` restores a connection the user approved earlier; `revoke()` ends it when the user disconnects the site.
 - `store` implements `BurnOperationStore`: `readAll()` and `write(record)`, which resolves only after the record is saved. Use storage that survives a restart.
 - `getInfo().methods` lists the methods this wallet can serve. `burnAsset` and `getConsignment` are listed only when the engine can burn and export consignments: a WebRGB burn always shares its proof. `RgbLibWeb` burns but has no consignment export yet, so over it they are not listed and reject with `METHOD_NOT_SUPPORTED`.
+- `getReceivedMint({ invoice })` is listed when the engine has `getReceivedMint()`. It does not prompt. It accepts only an invoice this wallet created (the stored invoice must match exactly), refreshes incoming transfers only, and returns the checked mint with the asset, network and witness txid, or `null` while none is ready. A failed or expired receive, a foreign invoice and an invalid result reject. The engine needs the chain's `evmRpcUrls` entry to check a mint.
 - The app provides `crypto.getRandomValues` (used for burn operation IDs).
 
 A complete extension sketch (service worker, content script, page script, manifest) is in [`examples/webrgb-extension/`](examples/webrgb-extension/README.md).

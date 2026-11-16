@@ -10,6 +10,8 @@ import type {
   RgbWitnessReceiveResult,
   RgbSignMessageResult,
   RgbGetConsignmentArgs,
+  RgbGetReceivedMintArgs,
+  RgbReceivedMint,
 } from '@utexo/webrgb';
 import { WebRgbError, walletCall } from './errors.js';
 import {
@@ -19,6 +21,7 @@ import {
 } from './burn.js';
 import type { BurnDestinationRoute } from './burn-destination.js';
 import type { WebRgbWallet } from './wallet.js';
+import { getReceivedMint, receivedMintInvoice } from './received-mint.js';
 
 export const WEBRGB_READ_METHODS = [
   'enable',
@@ -32,11 +35,12 @@ export const WEBRGB_READ_METHODS = [
   'getTransferStatus',
   'decodeRgbInvoice',
 ] as const;
-/** Every method the provider serves: the read methods plus burn and proof export. */
+/** Every method the provider serves: the read methods plus burn, proof export and mint validation. */
 export const WEBRGB_METHODS = [
   ...WEBRGB_READ_METHODS,
   'burnAsset',
   'getConsignment',
+  'getReceivedMint',
 ] as const;
 type SupportedProvider = Pick<
   RgbProvider,
@@ -203,6 +207,23 @@ export class WebRgbProvider implements SupportedProvider {
     return walletCall(() => this.burnController.getConsignment(args));
   }
 
+  /**
+   * The checked BFA mint paying an invoice this wallet created, or `null`
+   * while none is ready. No prompt; refreshes incoming transfers only.
+   */
+  async getReceivedMint(
+    args: RgbGetReceivedMintArgs
+  ): Promise<RgbReceivedMint | null> {
+    this.requireEnabled();
+    const invoice = receivedMintInvoice(args);
+    const revision = this.revision;
+    return getReceivedMint(this.wallet, invoice, () => {
+      this.requireEnabled();
+      if (revision !== this.revision)
+        throw new WebRgbError('NOT_ENABLED', 'Session changed');
+    });
+  }
+
   async getInfo(): Promise<WebRgbInfo> {
     this.requireEnabled();
     const burnMethods = await this.burnController.methods();
@@ -220,6 +241,7 @@ export class WebRgbProvider implements SupportedProvider {
           ? ['signMessage']
           : []),
         ...burnMethods,
+        ...(this.wallet.getReceivedMint ? ['getReceivedMint' as const] : []),
       ],
     };
   }
