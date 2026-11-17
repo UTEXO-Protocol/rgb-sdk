@@ -1,63 +1,53 @@
-import { base58check } from '@scure/base';
-import { sha256 } from '@noble/hashes/sha2.js';
-import { bytesToHex } from '@noble/hashes/utils.js';
-import type { RgbBurnRecipient } from '@utexo/webrgb';
+/**
+ * Read-only support for burns saved by earlier SDK releases. New burns always
+ * commit a `burnDestination` (burn-destination.ts); nothing here creates one.
+ */
+import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
+import { burnCommitment, burnDestinationPreimage } from './burn-destination.js';
 
-const tronBase58 = base58check(sha256);
-const tronChains = new Set([
-  'tron:728126428',
-  'tron:2494104990',
-  'tron:3448148188',
-]);
-
-export function encodeEvmBurnRecipient(address: string): string {
-  if (!/^0x[0-9a-fA-F]{40}$/.test(address) || /^0x0{40}$/i.test(address))
-    throw new Error('A nonzero 20-byte EVM recipient address is required');
-  return address.slice(2).toLowerCase().padStart(64, '0');
+/** The payout chain and native address of an older journal record. */
+export interface LegacyBurnPayout {
+  chainId: string;
+  address: string;
 }
 
-/** Strip the Tron version byte and checksum; BFA commits to a 32-byte account. */
-export function encodeTronBurnRecipient(address: string): string {
-  if (
-    typeof address !== 'string' ||
-    !/^T[1-9A-HJ-NP-Za-km-z]{33}$/.test(address)
-  )
-    throw new Error('A Tron Base58Check recipient address is required');
-  const payload = tronBase58.decode(address);
-  if (
-    payload.length !== 21 ||
-    payload[0] !== 0x41 ||
-    payload.subarray(1).every((byte) => byte === 0)
-  )
-    throw new Error('A nonzero Tron recipient address is required');
-  return bytesToHex(payload.subarray(1)).padStart(64, '0');
+/** The V1 destination object earlier releases stored next to `payout`. */
+export interface LegacyBurnDestinationV1 {
+  version: 1;
+  destinationChainId: number;
+  dstEid: number;
+  recipient: `0x${string}`;
 }
 
-export function normalizeBurnRecipient(
-  recipient: RgbBurnRecipient
-): RgbBurnRecipient {
+/**
+ * The value an older record committed as `burn_reason`: the V1 commitment
+ * when it stored a V1 destination, otherwise the padded account (12 zero
+ * bytes and the 20 account bytes; Tron without its version byte and checksum).
+ */
+export function legacyBurnReason(
+  payout: LegacyBurnPayout,
+  destination?: LegacyBurnDestinationV1
+): string {
+  // Validates the chain ID and native address; dstEid is checked below.
+  const { destinationChainId, recipientBytes } = burnDestinationPreimage({
+    ...payout,
+    dstEid: destination?.dstEid ?? 0,
+  });
+  if (!destination)
+    return bytesToHex(recipientBytes.slice(-20)).padStart(64, '0');
   if (
-    typeof recipient?.chainId !== 'string' ||
-    typeof recipient.address !== 'string'
+    destination.version !== 1 ||
+    typeof destination.recipient !== 'string' ||
+    !/^0x(?:[\da-f]{2}){1,32}$/i.test(destination.recipient) ||
+    BigInt(destination.destinationChainId) !== destinationChainId ||
+    destination.recipient.slice(2).toLowerCase() !== bytesToHex(recipientBytes)
   )
-    throw new Error('Invalid payout chain or address');
-  if (/^eip155:[1-9][0-9]*$/.test(recipient.chainId)) {
-    encodeEvmBurnRecipient(recipient.address);
-    return {
-      chainId: recipient.chainId,
-      address: recipient.address.toLowerCase(),
-    };
-  }
-  if (tronChains.has(recipient.chainId)) {
-    encodeTronBurnRecipient(recipient.address);
-    return { ...recipient };
-  }
-  throw new Error('Unsupported payout chain');
-}
-
-export function encodeBurnRecipient(recipient: RgbBurnRecipient): string {
-  const normalized = normalizeBurnRecipient(recipient);
-  return normalized.chainId.startsWith('tron:')
-    ? encodeTronBurnRecipient(normalized.address)
-    : encodeEvmBurnRecipient(normalized.address);
+    throw new Error(
+      'Burn destination does not match the payout chain and address'
+    );
+  return burnCommitment({
+    destinationChainId,
+    dstEid: destination.dstEid,
+    recipientBytes: hexToBytes(destination.recipient.slice(2)),
+  });
 }

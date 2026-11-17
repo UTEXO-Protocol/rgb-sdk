@@ -10,7 +10,8 @@
 import { UTEXOWallet } from '@utexo/rgb-sdk';
 import { BurnOperations, WebRgbProvider } from '@utexo/rgb-sdk/webrgb';
 import type {
-  BurnOperationRecord,
+  AnyBurnOperationRecord,
+  BurnDestinationRoute,
   BurnOperationStore,
   WebRgbApproval,
 } from '@utexo/rgb-sdk/webrgb';
@@ -61,7 +62,7 @@ function wallet(): Promise<Wallet> {
 const burnStore: BurnOperationStore = {
   async readAll() {
     const { burns = {} } = await chrome.storage.local.get('burns');
-    return Object.values(burns as Record<string, BurnOperationRecord>);
+    return Object.values(burns as Record<string, AnyBurnOperationRecord>);
   },
   async write(record) {
     const { burns = {} } = await chrome.storage.local.get('burns');
@@ -70,6 +71,11 @@ const burnStore: BurnOperationStore = {
     });
   },
 };
+// The chain and endpoint pairs your bridge deployment pays out on. A dApp's
+// burnDestination must name one exactly; without routes burnAsset is not offered.
+const BURN_ROUTES: BurnDestinationRoute[] = [
+  { chainId: 'eip155:42161', dstEid: 0 },
+];
 let burnsReady: Promise<BurnOperations> | undefined;
 const burnOperations = () =>
   (burnsReady ??= wallet().then((w) => new BurnOperations(w, burnStore)));
@@ -105,7 +111,10 @@ function providerFor(origin: string): Promise<WebRgbProvider> {
         // Restores a connection approved before the worker restarted.
         sessionApproved: (await approvedOrigins()).includes(origin),
         confirm: askUser,
-        burn: { operations: await burnOperations() },
+        burn: {
+          operations: await burnOperations(),
+          destinationRoutes: BURN_ROUTES,
+        },
       }))();
     provider.catch(() => providers.delete(origin));
     providers.set(origin, provider);

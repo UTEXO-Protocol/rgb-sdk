@@ -39,6 +39,11 @@ wallet's `getInfo().methods` lists neither `burnAsset` nor `getConsignment`,
 and both reject with `METHOD_NOT_SUPPORTED`. They appear once the runtime
 exports consignments; no code here changes.
 
+A burn names one `burnDestination: { chainId, address, dstEid }`. The wallet
+checks it against `BURN_ROUTES` in `background.ts`, the pairs your bridge
+deployment pays out on, before it asks the user. There is no address-only
+fallback: without routes, `burnAsset` is not listed.
+
 ## Build
 
 Bundle `background.ts`, `content.ts` and `inpage.ts` to `.js` files next to

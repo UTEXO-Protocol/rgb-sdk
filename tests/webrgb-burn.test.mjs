@@ -10,8 +10,7 @@ import { WebRgbProvider } from '../lib/webrgb/index.js';
 import { validateBurnParams } from '@utexo/rgb-sdk-core';
 import {
   burnDestinationHash,
-  createBurnDestination,
-  encodeEvmBurnRecipient,
+  burnDestinationReason,
 } from '../lib/webrgb/index.js';
 import {
   BurnOperations,
@@ -19,15 +18,38 @@ import {
 } from '../lib/webrgb/burn-operations.js';
 
 const txid = 'ab'.repeat(32);
+const evmAddress = `0x${'12'.repeat(20)}`;
+const ROUTES = [
+  { chainId: 'eip155:42161', dstEid: 0 },
+  { chainId: 'eip155:1', dstEid: 30101 },
+  { chainId: 'tron:728126428', dstEid: 30420 },
+];
+const destination = () => ({
+  chainId: 'eip155:42161',
+  address: evmAddress,
+  dstEid: 0,
+});
 const args = () => ({
   network: 'utexo',
   assetId: 'rgb:asset',
   amount: '18446744073709551615',
-  burnRecipient: { chainId: 'eip155:42161', address: `0x${'12'.repeat(20)}` },
+  burnDestination: destination(),
   feeRate: 2,
   minConfirmations: 3,
 });
-function fixture(destinationRoutes) {
+const nativeParams = (amount = '1') => ({
+  assetId: 'rgb:asset',
+  amount,
+  burnRecipient: burnDestinationReason(destination()),
+  feeRate: 2,
+  minConfirmations: 3,
+});
+const metadata = () => ({
+  origin: 'https://mint.example',
+  network: 'utexo',
+  burnDestination: destination(),
+});
+function fixture(destinationRoutes = ROUTES) {
   let records = [],
     enabled = true,
     approve = true;
@@ -99,32 +121,55 @@ function fixture(destinationRoutes) {
     },
   };
 }
-test('u64 burn precision and EVM recipient padding never use JS numbers', () => {
-  const params = {
-    assetId: 'rgb:asset',
-    amount: args().amount,
-    burnRecipient: encodeEvmBurnRecipient(args().burnRecipient.address),
-    feeRate: 2,
-    minConfirmations: 3,
-  };
-  assert.equal(params.burnRecipient, '0'.repeat(24) + '12'.repeat(20));
+test('u64 burn precision and the destination commitment never use JS numbers', async () => {
+  const params = nativeParams(args().amount);
+  assert.match(params.burnRecipient, /^[0-9a-f]{64}$/);
   validateBurnParams(params);
   for (const amount of ['18446744073709551616', 1, '01', '0', '-1'])
     assert.throws(() => validateBurnParams({ ...params, amount }));
   assert.throws(() => validateBurnParams({ ...params, feeRate: 1.5 }));
-  assert.throws(() => encodeEvmBurnRecipient(`0x${'0'.repeat(40)}`));
+  for (const amount of ['18446744073709551616', 1, '01', '0', '-1', '1e3']) {
+    const f = fixture();
+    await assert.rejects(f.controller().burnAsset({ ...args(), amount }), {
+      code: 'INVALID_PARAMS',
+    });
+    assert.equal(f.prompts.length, 0);
+  }
+  for (const feeRate of [0, 1.5, '2']) {
+    const f = fixture();
+    await assert.rejects(f.controller().burnAsset({ ...args(), feeRate }), {
+      code: 'INVALID_PARAMS',
+    });
+  }
 });
 test('SDK generates a private journal ID before native burn and returns no ID', async () => {
   const f = fixture();
   const request = {
     ...args(),
-    burnRecipient: { ...args().burnRecipient, chainId: 'eip155:1' },
+    burnDestination: {
+      chainId: 'eip155:1',
+      address: evmAddress,
+      dstEid: 30101,
+    },
   };
   const result = await f.controller().burnAsset(request);
   const [record] = await f.store.readAll();
-  assert.deepEqual(result.burnRecipient, request.burnRecipient);
-  assert.deepEqual(record.metadata.payout, request.burnRecipient);
-  assert.deepEqual(f.prompts[0].params.burnRecipient, request.burnRecipient);
+  assert.deepEqual(result.burnDestination, request.burnDestination);
+  assert.equal(result.burnRecipient, undefined);
+  assert.equal(record.version, 3);
+  assert.deepEqual(record.metadata, {
+    origin: 'https://mint.example',
+    network: 'utexo',
+    burnDestination: request.burnDestination,
+  });
+  assert.deepEqual(
+    f.prompts[0].params.burnDestination,
+    request.burnDestination
+  );
+  assert.equal(
+    f.calls[0].burnRecipient,
+    burnDestinationReason(request.burnDestination)
+  );
   assert.match(record.id, /^[0-9a-f]{32}$/);
   assert.equal(record.state, 'complete');
   assert.equal(result.requestId, undefined);
@@ -137,15 +182,17 @@ test('SDK generates a private journal ID before native burn and returns no ID', 
 });
 test('each new approved burn has a unique wallet-generated ID, even with identical arguments', async () => {
   const f = fixture();
-  const callerId = 'caller-controlled-id';
+  await assert.rejects(
+    f.controller().burnAsset({ ...args(), requestId: 'caller-controlled-id' }),
+    { code: 'INVALID_PARAMS' }
+  );
   await Promise.all([
-    f.controller().burnAsset({ ...args(), requestId: callerId }),
-    f.controller().burnAsset({ ...args(), requestId: callerId }),
+    f.controller().burnAsset(args()),
+    f.controller().burnAsset(args()),
   ]);
   const records = await f.store.readAll();
   assert.equal(records.length, 2);
   assert.equal(new Set(records.map((r) => r.id)).size, 2);
-  assert.ok(records.every((r) => r.id !== callerId));
   assert.equal(f.calls.length, 2);
   assert.equal(f.prompts.length, 2);
 });
@@ -212,7 +259,7 @@ test('refusal, malformed chain and revoked session do not burn', async () => {
   await assert.rejects(
     f.controller().burnAsset({
       ...args(),
-      burnRecipient: { ...args().burnRecipient, chainId: 'eip155:0' },
+      burnDestination: { ...destination(), chainId: 'eip155:0' },
     }),
     { code: 'INVALID_PARAMS' }
   );
@@ -277,7 +324,7 @@ test('provider advertises and dispatches getConsignment with complete Base64 dat
     origin: 'https://mint.example',
     sessionApproved: true,
     confirm: async () => true,
-    burn: { operations: f.operations },
+    burn: { operations: f.operations, destinationRoutes: ROUTES },
   });
   const methods = (await provider.getInfo()).methods;
   assert.ok(methods.includes('getConsignment'));
@@ -293,10 +340,19 @@ test('provider advertises and dispatches getConsignment with complete Base64 dat
   assert.equal(proof.nextOffset, undefined);
   assert.equal(provider.request, undefined);
 });
+const legacyRequest = (requestId) => ({
+  network: 'utexo',
+  assetId: 'rgb:asset',
+  amount: args().amount,
+  burnRecipient: { chainId: 'eip155:42161', address: evmAddress },
+  feeRate: 2,
+  minConfirmations: 3,
+  requestId,
+});
 test('existing journal records remain usable without leaking old request IDs', async () => {
   const f = fixture();
   const requestId = 'legacy-request-00001';
-  const request = { ...args(), requestId };
+  const request = legacyRequest(requestId);
   await f.store.write({
     origin: 'https://mint.example',
     request,
@@ -319,6 +375,9 @@ test('existing journal records remain usable without leaking old request IDs', a
   assert.equal(status.status, 'Settled');
   assert.equal(status.transfer.amountBaseUnits, args().amount);
   assert.equal(status.transfer.requestId, undefined);
+  // An address-only record has no endpoint: it reports what it committed.
+  assert.deepEqual(status.transfer.burnRecipient, request.burnRecipient);
+  assert.equal(status.transfer.burnDestination, undefined);
   assert.equal(await controller.getTransferStatus(requestId), null);
   const proof = await controller.getConsignment({
     assetId: args().assetId,
@@ -373,21 +432,7 @@ test('revocation during either journal write cancels before native invocation', 
     assert.equal(f.calls.length, 0);
     assert.equal((await f.operations.records())[0].state, 'cancelled');
     // Reconnect with a new authorization context on the same wallet/store.
-    await f.operations.execute(
-      {
-        assetId: 'rgb:asset',
-        amount: '1',
-        burnRecipient: encodeEvmBurnRecipient(args().burnRecipient.address),
-        feeRate: 2,
-        minConfirmations: 3,
-      },
-      {
-        origin: 'https://mint.example',
-        network: 'utexo',
-        payout: args().burnRecipient,
-      },
-      () => {}
-    );
+    await f.operations.execute(nativeParams(), metadata(), () => {});
     assert.equal(f.calls.length, 1);
   }
 });
@@ -443,21 +488,7 @@ test('BurnOperations refuses a wallet without burn before writing a record', asy
     bfa: true,
   });
   await assert.rejects(
-    f.operations.execute(
-      {
-        assetId: args().assetId,
-        amount: '1',
-        burnRecipient: encodeEvmBurnRecipient(args().burnRecipient.address),
-        feeRate: 2,
-        minConfirmations: 3,
-      },
-      {
-        origin: 'https://mint.example',
-        network: 'utexo',
-        payout: args().burnRecipient,
-      },
-      () => {}
-    ),
+    f.operations.execute(nativeParams(), metadata(), () => {}),
     (e) => isEngineError(e, 'UNSUPPORTED_CAPABILITY') && e.operation === 'burn'
   );
   assert.deepEqual(await f.operations.records(), []);
@@ -467,7 +498,7 @@ test('reconciliation requires a matching burn and independently verified proof',
   const f = fixture();
   await f.store.write({
     origin: 'https://mint.example',
-    request: { ...args(), requestId: 'legacy-pending' },
+    request: legacyRequest('legacy-pending'),
     state: 'pending',
   });
   const result = { txid, batchTransferIdx: 42 };
@@ -494,30 +525,64 @@ test('reconciliation requires a matching burn and independently verified proof',
   );
 });
 test('invalid journal records fail closed instead of losing unresolved burns', () => {
-  for (const record of [null, {}, { version: 2, id: 'x', state: 'complete' }])
+  for (const record of [
+    null,
+    {},
+    { version: 2, id: 'x', state: 'complete' },
+    { version: 3, id: 'x', state: 'complete' },
+    {
+      version: 3,
+      id: 'x',
+      state: 'pending',
+      params: nativeParams(),
+      metadata: {
+        ...metadata(),
+        burnDestination: { ...destination(), dstEid: 1 },
+      },
+    },
+    {
+      version: 3,
+      id: 'x',
+      state: 'pending',
+      params: nativeParams(),
+      metadata: {
+        ...metadata(),
+        burnDestination: { ...destination(), version: 1 },
+      },
+    },
+  ])
     assert.throws(() => normalizeBurnRecord(record));
 });
-
 const tronAddress = 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t';
 const tronAccount = 'a614f803b6fd780986a42c78ec9c7f77e6ded13c';
 const tronArgs = () => ({
   ...args(),
-  burnRecipient: { chainId: 'tron:728126428', address: tronAddress },
+  burnDestination: {
+    chainId: 'tron:728126428',
+    address: tronAddress,
+    dstEid: 30420,
+  },
 });
-test('Tron burn preserves native address in approval/result/journal and encodes only account bytes', async () => {
+test('Tron burn preserves the native address in approval/result/journal and commits the 21-byte payload', async () => {
   const f = fixture();
   const result = await f.controller().burnAsset(tronArgs());
-  assert.deepEqual(result.burnRecipient, tronArgs().burnRecipient);
-  assert.deepEqual(f.prompts[0].params.burnRecipient, tronArgs().burnRecipient);
-  assert.equal(f.calls[0].burnRecipient, '0'.repeat(24) + tronAccount);
+  assert.deepEqual(result.burnDestination, tronArgs().burnDestination);
+  assert.deepEqual(
+    f.prompts[0].params.burnDestination,
+    tronArgs().burnDestination
+  );
+  assert.equal(
+    f.calls[0].burnRecipient,
+    burnDestinationReason(tronArgs().burnDestination)
+  );
   const [record] = await f.operations.records();
-  assert.deepEqual(record.metadata.payout, tronArgs().burnRecipient);
+  assert.deepEqual(record.metadata.burnDestination, tronArgs().burnDestination);
   assert.equal(record.state, 'complete');
   // A new operation service/provider can read the same durable journal without reburning.
   const restarted = new BurnOperations(f.wallet, f.store);
   assert.deepEqual(await restarted.records(), [record]);
   const status = await f.controller().getTransferStatus(txid);
-  assert.deepEqual(status.transfer.burnRecipient, tronArgs().burnRecipient);
+  assert.deepEqual(status.transfer.burnDestination, tronArgs().burnDestination);
   assert.equal(
     (await f.controller().getConsignment({ assetId: 'rgb:asset', txid }))
       .encoding,
@@ -540,16 +605,23 @@ test('Tron validates checksum, case, version, nonzero account and chain before p
     { chainId: 'tron:728126428', address: wrongVersion },
     { chainId: 'tron:728126428', address: '0x' + tronAccount },
     { chainId: 'tron:728126428', address: '41' + tronAccount },
-    { chainId: 'tron:1', address: tronAddress },
     { chainId: 'tron:0728126428', address: tronAddress },
     { chainId: 'tron:0x2b6653dc', address: tronAddress },
     { chainId: 'eip155:1', address: tronAddress },
     { chainId: 'cosmos:cosmoshub-4', address: tronAddress },
   ];
-  for (const burnRecipient of recipients) {
-    const f = fixture();
+  for (const recipient of recipients) {
+    // Route the chain when it is routable, so only the address can fail.
+    const f = fixture(
+      /^(eip155|tron):[1-9][0-9]*$/.test(recipient.chainId)
+        ? [...ROUTES, { chainId: recipient.chainId, dstEid: 1 }]
+        : ROUTES
+    );
     await assert.rejects(
-      f.controller().burnAsset({ ...args(), burnRecipient }),
+      f.controller().burnAsset({
+        ...args(),
+        burnDestination: { ...recipient, dstEid: 1 },
+      }),
       { code: 'INVALID_PARAMS' }
     );
     assert.equal(f.prompts.length, 0);
@@ -557,15 +629,37 @@ test('Tron validates checksum, case, version, nonzero account and chain before p
     assert.equal((await f.store.readAll()).length, 0);
   }
 });
-test('Tron testnets preserve their approved chain identity', async () => {
+test('a burn needs the exact configured chain and endpoint pair', async () => {
+  // Tron testnets are served only when the deployment lists them.
   for (const chainId of ['tron:2494104990', 'tron:3448148188']) {
-    const f = fixture();
+    const unlisted = fixture();
+    await assert.rejects(
+      unlisted.controller().burnAsset({
+        ...args(),
+        burnDestination: { chainId, address: tronAddress, dstEid: 30420 },
+      }),
+      { code: 'INVALID_PARAMS' }
+    );
+    assert.equal(unlisted.prompts.length, 0);
+    const f = fixture([{ chainId, dstEid: 40420 }]);
     const result = await f.controller().burnAsset({
-      ...tronArgs(),
-      burnRecipient: { chainId, address: tronAddress },
+      ...args(),
+      burnDestination: { chainId, address: tronAddress, dstEid: 40420 },
     });
-    assert.equal(result.burnRecipient.chainId, chainId);
-    assert.equal(f.calls[0].burnRecipient, '0'.repeat(24) + tronAccount);
+    assert.equal(result.burnDestination.chainId, chainId);
+  }
+  for (const changed of [
+    { ...destination(), dstEid: 30101 },
+    { ...destination(), chainId: 'eip155:137' },
+    { chainId: 'eip155:1', address: evmAddress, dstEid: 0 },
+  ]) {
+    const f = fixture();
+    await assert.rejects(
+      f.controller().burnAsset({ ...args(), burnDestination: changed }),
+      { code: 'INVALID_PARAMS' }
+    );
+    assert.equal(f.prompts.length, 0);
+    assert.equal(f.calls.length, 0);
   }
 });
 test('Tron journal rejects mismatched or corrupted recipient metadata', async () => {
@@ -585,8 +679,8 @@ test('Tron journal rejects mismatched or corrupted recipient metadata', async ()
       ...record,
       metadata: {
         ...record.metadata,
-        payout: {
-          ...record.metadata.payout,
+        burnDestination: {
+          ...record.metadata.burnDestination,
           address: tronAddress.toLowerCase(),
         },
       },
@@ -620,7 +714,7 @@ test('provider advertises Tron only while native burn works', async () => {
     origin: 'https://mint.example',
     sessionApproved: true,
     confirm: async () => true,
-    burn: { operations: f.operations },
+    burn: { operations: f.operations, destinationRoutes: ROUTES },
   });
   assert.deepEqual((await provider.getInfo()).burnRecipientNamespaces, [
     'eip155',
@@ -633,13 +727,13 @@ test('provider advertises Tron only while native burn works', async () => {
   assert.equal((await provider.getInfo()).burnRecipientNamespaces, undefined);
 });
 
-test('WalletConnect exposes recipient namespaces and preserves Tron recipients on the RGB session', async (t) => {
+test('WalletConnect exposes recipient namespaces and carries the Tron destination unchanged', async (t) => {
   const f = fixture();
   const provider = new WebRgbProvider(f.wallet, {
     origin: 'https://mint.example',
     sessionApproved: true,
     confirm: async () => true,
-    burn: { operations: f.operations },
+    burn: { operations: f.operations, destinationRoutes: ROUTES },
   });
   const session = {
     topic: 'burn-session',
@@ -673,77 +767,93 @@ test('WalletConnect exposes recipient namespaces and preserves Tron recipients o
     'tron',
   ]);
   const result = await remote.burnAsset(tronArgs());
-  assert.deepEqual(result.burnRecipient, tronArgs().burnRecipient);
+  assert.deepEqual(result.burnDestination, tronArgs().burnDestination);
   assert.equal(f.calls.length, 1);
-  assert.equal(f.calls[0].burnRecipient, '0'.repeat(24) + tronAccount);
+  assert.equal(
+    f.calls[0].burnRecipient,
+    burnDestinationReason(tronArgs().burnDestination)
+  );
 });
 
-const v1Routes = [
-  { chainId: 'eip155:42161', dstEid: 0 },
-  { chainId: 'eip155:1', dstEid: 30101 },
-  { chainId: 'tron:728126428', dstEid: 30420 },
-];
-test('V1 destination commitments match independent go-ethereum ABI vectors from utexo-bridge-fe', () => {
+test('the commitment is unchanged: go-ethereum ABI vectors from utexo-bridge-fe and the SPEC example', async () => {
+  const { base58check } = await import('@scure/base');
+  const { sha256 } = await import('@noble/hashes/sha2.js');
+  const { hexToBytes } = await import('@noble/hashes/utils.js');
   const { vectors } = JSON.parse(
     readFileSync(
       new URL('./fixtures/burn-destination-vectors.json', import.meta.url)
     )
   );
-  for (const vector of vectors)
-    assert.equal(burnDestinationHash(vector), vector.hash, vector.name);
-  const destination = createBurnDestination(args().burnRecipient, v1Routes);
+  let checked = 0;
+  for (const vector of vectors) {
+    const bytes = hexToBytes(vector.recipient.slice(2));
+    // Only native EVM (20 bytes) and Tron (0x41 + 20 bytes) payouts have an address.
+    const native =
+      bytes.length === 20
+        ? {
+            chainId: `eip155:${vector.destinationChainId}`,
+            address: vector.recipient,
+          }
+        : bytes.length === 21 && bytes[0] === 0x41
+          ? {
+              chainId: `tron:${vector.destinationChainId}`,
+              address: base58check(sha256).encode(bytes),
+            }
+          : undefined;
+    if (!native) continue;
+    checked += 1;
+    assert.equal(
+      burnDestinationHash({ ...native, dstEid: vector.dstEid }),
+      vector.hash,
+      vector.name
+    );
+  }
+  assert.equal(checked, 3);
+  assert.equal(
+    burnDestinationHash({
+      chainId: 'eip155:137',
+      address: '0x1111111111111111111111111111111111111111',
+      dstEid: 30109,
+    }),
+    '0x7234950dd3dc71ccd10bc2b721230f7393ef7782176c1b296669cfda97850a6b'
+  );
   for (const invalid of [
     null,
     {},
-    { ...destination, version: 2 },
-    { ...destination, destinationChainId: Number.MAX_SAFE_INTEGER + 1 },
-    { ...destination, dstEid: -1 },
-    { ...destination, dstEid: 2 ** 32 },
-    { ...destination, recipient: '0x123' },
-    { ...destination, recipient: '0x12' },
+    { ...destination(), dstEid: -1 },
+    { ...destination(), dstEid: 2 ** 32 },
+    { ...destination(), dstEid: 1.5 },
+    { ...destination(), chainId: 'eip155:18446744073709551616' },
+    { ...destination(), chainId: 'eip155:01' },
+    { ...destination(), address: '0x123' },
+    { ...destination(), address: `0x${'0'.repeat(40)}` },
   ])
     assert.throws(() => burnDestinationHash(invalid));
-  assert.throws(() => createBurnDestination(args().burnRecipient, []), /route/);
-  const tron = createBurnDestination(
-    {
-      chainId: 'tron:728126428',
-      address: 'TJRabPrwbZy45sbavfcjinPJC18kjpRTv8',
-    },
-    v1Routes
-  );
-  assert.equal(tron.recipient, '0x415cbdd86a2fa8dc4bddd8a8f69dba48572eec07fb');
 });
-test('RGB_L1 advertises V1, commits the approved hash and recovers destination metadata after restart', async () => {
-  const f = fixture(v1Routes);
+test('RGB_L1 lists burn without route fields, commits the approved hash and recovers the destination after restart', async () => {
+  const f = fixture();
   f.wallet.protocol = 'RGB_L1';
   const provider = new WebRgbProvider(f.wallet, {
     origin: 'https://mint.example',
     sessionApproved: true,
     confirm: async () => true,
-    burn: { operations: f.operations, destinationRoutes: v1Routes },
+    burn: { operations: f.operations, destinationRoutes: ROUTES },
   });
   const info = await provider.getInfo();
   assert.equal(info.protocol, 'RGB_L1');
-  assert.equal(info.burnDestinationVersion, 1);
-  assert.deepEqual(info.burnDestinationRoutes, v1Routes);
+  assert.equal('burnDestinationVersion' in info, false);
+  assert.equal('burnDestinationRoutes' in info, false);
   assert.ok(info.methods.includes('burnAsset'));
   assert.ok(info.methods.includes('getConsignment'));
   assert.ok(!info.methods.includes('signMessage'));
-  const destination = createBurnDestination(args().burnRecipient, v1Routes);
-  const result = await provider.burnAsset({
-    ...args(),
-    burnDestination: destination,
-  });
-  assert.deepEqual(result.burnDestination, destination);
-  assert.equal(
-    f.calls[0].burnRecipient,
-    burnDestinationHash(destination).slice(2)
-  );
+  const result = await provider.burnAsset(args());
+  assert.deepEqual(result.burnDestination, destination());
+  assert.equal(f.calls[0].burnRecipient, burnDestinationReason(destination()));
   const [record] = await new BurnOperations(f.wallet, f.store).records();
-  assert.deepEqual(record.metadata.burnDestination, destination);
+  assert.deepEqual(record.metadata.burnDestination, destination());
   assert.deepEqual(normalizeBurnRecord(record), record);
   const status = await f.controller().getTransferStatus(txid, args().assetId);
-  assert.deepEqual(status.transfer.burnDestination, destination);
+  assert.deepEqual(status.transfer.burnDestination, destination());
   const altered = structuredClone(record);
   altered.metadata.burnDestination.dstEid++;
   assert.throws(() => normalizeBurnRecord(altered));
@@ -754,37 +864,139 @@ test('RGB_L1 advertises V1, commits the approved hash and recovers destination m
     'Recovery and proof reads never repeat the burn'
   );
 });
-test('V1 rejects route or payout substitutions before approval and never silently falls back to legacy encoding', async () => {
-  const destination = createBurnDestination(args().burnRecipient, v1Routes);
-  for (const changed of [
-    { ...destination, dstEid: 1 },
-    { ...destination, destinationChainId: 1 },
-    { ...destination, recipient: `0x${'34'.repeat(20)}` },
+const withoutDestination = () => {
+  const request = args();
+  delete request.burnDestination;
+  return request;
+};
+test('legacy or mixed destination fields reject before approval, and there is no address-only fallback', async () => {
+  const legacyV1 = {
+    version: 1,
+    destinationChainId: 42161,
+    dstEid: 0,
+    recipient: evmAddress,
+  };
+  for (const request of [
+    { ...args(), burnDestination: undefined },
+    withoutDestination(),
+    {
+      ...withoutDestination(),
+      burnRecipient: { chainId: 'eip155:42161', address: evmAddress },
+    },
+    {
+      ...args(),
+      burnRecipient: { chainId: 'eip155:42161', address: evmAddress },
+    },
+    { ...args(), burnDestination: legacyV1 },
+    { ...args(), burnDestination: { ...destination(), version: 1 } },
+    { ...args(), burnDestination: { ...destination(), recipient: evmAddress } },
+    {
+      ...args(),
+      burnDestination: { chainId: 'eip155:42161', address: evmAddress },
+    },
+    { ...args(), burnDestination: { ...destination(), dstEid: '0' } },
+    {
+      ...args(),
+      burnDestination: { ...destination(), address: '1'.repeat(64) },
+    },
   ]) {
-    const f = fixture(v1Routes);
-    await assert.rejects(
-      f.controller().burnAsset({ ...args(), burnDestination: changed }),
-      { code: 'INVALID_PARAMS' }
-    );
+    const f = fixture();
+    await assert.rejects(f.controller().burnAsset(request), {
+      code: 'INVALID_PARAMS',
+    });
     assert.equal(f.prompts.length, 0);
     assert.equal(f.calls.length, 0);
   }
-  await assert.rejects(
-    fixture()
-      .controller()
-      .burnAsset({ ...args(), burnDestination: destination }),
-    { code: 'INVALID_PARAMS' }
+  // Without configured routes the wallet cannot serve burnAsset at all.
+  const unrouted = fixture(null);
+  assert.deepEqual(await unrouted.controller().methods(), ['getConsignment']);
+  await assert.rejects(unrouted.controller().burnAsset(args()), {
+    code: 'METHOD_NOT_SUPPORTED',
+  });
+  assert.equal(unrouted.calls.length, 0);
+  assert.throws(() => fixture([]).controller(), /routes/);
+  assert.throws(
+    () => fixture([ROUTES[0], ROUTES[0]]).controller(),
+    /duplicate/
   );
-  const f = fixture(v1Routes);
-  const result = await f.controller().burnAsset(args());
-  assert.deepEqual(
-    result.burnDestination,
-    destination,
-    'Configured wallets also use V1 for local/older callers'
+  assert.throws(
+    () => fixture([{ chainId: 'tron:728126428', dstEid: 0 }]).controller(),
+    /route/
   );
 });
-test('a local V1 burn exposes recovery metadata only after successful proof-sharing consent', async () => {
-  const f = fixture(v1Routes);
+test('EVM addresses keep their case; a mixed-case address must be a valid EIP-55 checksum', async () => {
+  const checksummed = '0x5aAeb6053F3E94C9b9A09f33669435E7Ef1BeAed';
+  const f = fixture();
+  const result = await f.controller().burnAsset({
+    ...args(),
+    burnDestination: { ...destination(), address: checksummed },
+  });
+  assert.equal(result.burnDestination.address, checksummed);
+  assert.equal(
+    f.calls[0].burnRecipient,
+    burnDestinationReason({
+      ...destination(),
+      address: checksummed.toLowerCase(),
+    })
+  );
+  const broken = fixture();
+  await assert.rejects(
+    broken.controller().burnAsset({
+      ...args(),
+      burnDestination: {
+        ...destination(),
+        address: '0x5aaeb6053F3E94C9b9A09f33669435E7Ef1BeAed',
+      },
+    }),
+    { code: 'INVALID_PARAMS' }
+  );
+  assert.equal(broken.prompts.length, 0);
+});
+test('a V1 record saved by an earlier release stays readable and is never rewritten', async () => {
+  const f = fixture();
+  const saved = {
+    version: 2,
+    id: 'f'.repeat(32),
+    params: {
+      ...nativeParams(args().amount),
+      burnRecipient: burnDestinationHash(destination()).slice(2),
+    },
+    metadata: {
+      origin: 'https://mint.example',
+      network: 'utexo',
+      payout: { chainId: 'eip155:42161', address: evmAddress },
+      burnDestination: {
+        version: 1,
+        destinationChainId: 42161,
+        dstEid: 0,
+        recipient: evmAddress,
+      },
+    },
+    state: 'complete',
+    result: { txid, batchTransferIdx: 42 },
+  };
+  await f.store.write(saved);
+  const before = JSON.stringify(await f.store.readAll());
+  const controller = f.controller();
+  const status = await controller.getTransferStatus(txid, args().assetId);
+  assert.deepEqual(status.transfer.burnDestination, destination());
+  await controller.getConsignment({ assetId: args().assetId, txid });
+  await f.operations.retryPersistence();
+  assert.equal(JSON.stringify(await f.store.readAll()), before);
+  // A corrupted older record still fails closed.
+  assert.throws(() =>
+    normalizeBurnRecord({
+      ...saved,
+      metadata: {
+        ...saved.metadata,
+        burnDestination: { ...saved.metadata.burnDestination, dstEid: 1 },
+      },
+    })
+  );
+  assert.equal(f.calls.length, 0);
+});
+test('a local burn exposes recovery metadata only after successful proof-sharing consent', async () => {
+  const f = fixture();
   const result = await f.controller('local:wallet').burnAsset(args());
   const bridge = f.controller();
   assert.equal(await bridge.getTransferStatus(txid, args().assetId), null);
@@ -836,7 +1048,7 @@ test('reconciliation without getConsignment is refused and stays pending', async
   delete f.wallet.getConsignment;
   await f.store.write({
     origin: 'https://mint.example',
-    request: { ...args(), requestId: 'legacy-pending' },
+    request: legacyRequest('legacy-pending'),
     state: 'pending',
   });
   await assert.rejects(

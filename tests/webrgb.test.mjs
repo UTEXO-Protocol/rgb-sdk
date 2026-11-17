@@ -79,7 +79,10 @@ function fixture(options = {}) {
   };
   const provider = new WebRgbProvider(wallet, {
     origin: 'https://mint.example',
-    burn: { operations: new BurnOperations(wallet, store) },
+    burn: {
+      operations: new BurnOperations(wallet, store),
+      destinationRoutes: [{ chainId: 'eip155:42161', dstEid: 0 }],
+    },
     confirm: async (request) => {
       prompts.push(request);
       return true;
@@ -387,6 +390,10 @@ test('burn methods are regular provider methods, listed only when native burn wo
   const { provider, wallet } = fixture({ sessionApproved: true });
   assert.deepEqual(WEBRGB_METHODS, [
     ...WEBRGB_READ_METHODS,
+    'createUtxos',
+    'getBtcBalance',
+    'refresh',
+    'getAssetMetadata',
     'burnAsset',
     'getConsignment',
     'getReceivedMint',
