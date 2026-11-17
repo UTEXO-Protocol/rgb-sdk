@@ -21,7 +21,7 @@
  *   network: wallet.getNetwork(),
  *   assetId,
  *   amount: '100', // decimal base units; never convert u64 amounts to JS numbers
- *   burnDestination: { chainId: 'eip155:42161', address: evmAddress, dstEid: 0 },
+ *   burnDestination: { version: 1, chainId: 'eip155:42161', address: evmAddress, dstEid: 0 },
  * });
  * const proof = await provider.getConsignment({ assetId, txid: burn.txid });
  * provider.revoke(); // on session expiry/disconnect
@@ -68,7 +68,6 @@ import {
   normalizeBurnRoutes,
   type BurnDestinationRoute,
 } from './burn-destination.js';
-import type { AnyBurnOperationRecord } from './burn-operations.js';
 
 const U64 = /^[1-9][0-9]{0,19}$/;
 const U64_MAX = 18446744073709551615n;
@@ -95,22 +94,6 @@ export type WebRgbBurnAssetArgs = RgbBurnAssetArgs;
 /** @deprecated Use `RgbBurnAssetResult` from `@utexo/webrgb`. */
 export type WebRgbBurnAssetResult = RgbBurnAssetResult;
 
-/** The approved destination of a record, or the payout of an older one. */
-function recordDestination(record: AnyBurnOperationRecord) {
-  if (record.version === 3)
-    return { burnDestination: record.metadata.burnDestination };
-  const { payout, burnDestination } = record.metadata;
-  // An older V1 record names its endpoint; an address-only one has none.
-  return burnDestination
-    ? {
-        burnDestination: {
-          chainId: payout.chainId,
-          address: payout.address,
-          dstEid: burnDestination.dstEid,
-        },
-      }
-    : { burnRecipient: { ...payout } };
-}
 interface Host {
   origin: string;
   enabled(): boolean;
@@ -303,7 +286,7 @@ export class WebRgbBurnController {
         amount: Number.isSafeInteger(Number(record.params.amount))
           ? Number(record.params.amount)
           : undefined,
-        ...recordDestination(record),
+        burnDestination: { ...record.metadata.burnDestination },
         txid: record.result.txid,
         batchTransferIdx: record.result.batchTransferIdx,
         status: transfer?.status ?? 'WaitingConfirmations',

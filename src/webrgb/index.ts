@@ -22,15 +22,11 @@ export type {
   BurnDestinationRoute,
   BurnDestinationPreimage,
 } from './burn-destination.js';
-export type { LegacyBurnPayout, LegacyBurnDestinationV1 } from './recipient.js';
 export { WebRgbError } from './errors.js';
 export { BurnOperations, normalizeBurnRecord } from './burn-operations.js';
 export type {
-  AnyBurnOperationRecord,
   BurnOperationMetadata,
   BurnOperationRecord,
   BurnOperationStore,
-  LegacyBurnOperationMetadata,
-  LegacyBurnOperationRecord,
 } from './burn-operations.js';
 export type { WebRgbWallet, WebRgbBurnWallet } from './wallet.js';

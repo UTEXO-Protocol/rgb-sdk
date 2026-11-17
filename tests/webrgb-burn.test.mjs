@@ -25,6 +25,7 @@ const ROUTES = [
   { chainId: 'tron:728126428', dstEid: 30420 },
 ];
 const destination = () => ({
+  version: 1,
   chainId: 'eip155:42161',
   address: evmAddress,
   dstEid: 0,
@@ -147,6 +148,7 @@ test('SDK generates a private journal ID before native burn and returns no ID', 
   const request = {
     ...args(),
     burnDestination: {
+      version: 1,
       chainId: 'eip155:1',
       address: evmAddress,
       dstEid: 30101,
@@ -156,7 +158,7 @@ test('SDK generates a private journal ID before native burn and returns no ID', 
   const [record] = await f.store.readAll();
   assert.deepEqual(result.burnDestination, request.burnDestination);
   assert.equal(result.burnRecipient, undefined);
-  assert.equal(record.version, 3);
+  assert.equal('version' in record, false);
   assert.deepEqual(record.metadata, {
     origin: 'https://mint.example',
     network: 'utexo',
@@ -340,53 +342,6 @@ test('provider advertises and dispatches getConsignment with complete Base64 dat
   assert.equal(proof.nextOffset, undefined);
   assert.equal(provider.request, undefined);
 });
-const legacyRequest = (requestId) => ({
-  network: 'utexo',
-  assetId: 'rgb:asset',
-  amount: args().amount,
-  burnRecipient: { chainId: 'eip155:42161', address: evmAddress },
-  feeRate: 2,
-  minConfirmations: 3,
-  requestId,
-});
-test('existing journal records remain usable without leaking old request IDs', async () => {
-  const f = fixture();
-  const requestId = 'legacy-request-00001';
-  const request = legacyRequest(requestId);
-  await f.store.write({
-    origin: 'https://mint.example',
-    request,
-    state: 'pending',
-  });
-  await assert.rejects(f.controller().burnAsset(args()), /unresolved outcome/);
-  await f.store.write({
-    origin: 'https://mint.example',
-    request,
-    state: 'complete',
-    result: {
-      ...request,
-      txid,
-      batchTransferIdx: 42,
-      status: 'WaitingConfirmations',
-    },
-  });
-  const controller = f.controller();
-  const status = await controller.getTransferStatus(txid);
-  assert.equal(status.status, 'Settled');
-  assert.equal(status.transfer.amountBaseUnits, args().amount);
-  assert.equal(status.transfer.requestId, undefined);
-  // An address-only record has no endpoint: it reports what it committed.
-  assert.deepEqual(status.transfer.burnRecipient, request.burnRecipient);
-  assert.equal(status.transfer.burnDestination, undefined);
-  assert.equal(await controller.getTransferStatus(requestId), null);
-  const proof = await controller.getConsignment({
-    assetId: args().assetId,
-    txid,
-  });
-  assert.deepEqual(base64.decode(proof.data), f.proof);
-  assert.equal(f.calls.length, 0);
-  assert.equal(f.prompts.length, 0);
-});
 test('unsupported native build does not advertise or execute burn', async () => {
   const f = fixture();
   f.wallet.getBfaCapabilities = async () => ({
@@ -494,21 +449,23 @@ test('BurnOperations refuses a wallet without burn before writing a record', asy
   assert.deepEqual(await f.operations.records(), []);
   assert.equal(f.calls.length, 0);
 });
+const pendingRecord = () => ({
+  id: 'pending-id',
+  params: nativeParams(args().amount),
+  metadata: metadata(),
+  state: 'pending',
+});
 test('reconciliation requires a matching burn and independently verified proof', async () => {
   const f = fixture();
-  await f.store.write({
-    origin: 'https://mint.example',
-    request: legacyRequest('legacy-pending'),
-    state: 'pending',
-  });
+  await f.store.write(pendingRecord());
   const result = { txid, batchTransferIdx: 42 };
   await assert.rejects(
-    f.operations.reconcile('legacy-pending', result, async () => false),
+    f.operations.reconcile('pending-id', result, async () => false),
     /does not match/
   );
   assert.equal((await f.operations.records())[0].state, 'pending');
   await f.operations.reconcile(
-    'legacy-pending',
+    'pending-id',
     result,
     async (record, native, proof) => {
       assert.equal(record.params.amount, args().amount);
@@ -529,9 +486,7 @@ test('invalid journal records fail closed instead of losing unresolved burns', (
     null,
     {},
     { version: 2, id: 'x', state: 'complete' },
-    { version: 3, id: 'x', state: 'complete' },
     {
-      version: 3,
       id: 'x',
       state: 'pending',
       params: nativeParams(),
@@ -541,13 +496,12 @@ test('invalid journal records fail closed instead of losing unresolved burns', (
       },
     },
     {
-      version: 3,
       id: 'x',
       state: 'pending',
       params: nativeParams(),
       metadata: {
         ...metadata(),
-        burnDestination: { ...destination(), version: 1 },
+        burnDestination: { ...destination(), version: 2 },
       },
     },
   ])
@@ -558,6 +512,7 @@ const tronAccount = 'a614f803b6fd780986a42c78ec9c7f77e6ded13c';
 const tronArgs = () => ({
   ...args(),
   burnDestination: {
+    version: 1,
     chainId: 'tron:728126428',
     address: tronAddress,
     dstEid: 30420,
@@ -620,7 +575,7 @@ test('Tron validates checksum, case, version, nonzero account and chain before p
     await assert.rejects(
       f.controller().burnAsset({
         ...args(),
-        burnDestination: { ...recipient, dstEid: 1 },
+        burnDestination: { version: 1, ...recipient, dstEid: 1 },
       }),
       { code: 'INVALID_PARAMS' }
     );
@@ -636,7 +591,12 @@ test('a burn needs the exact configured chain and endpoint pair', async () => {
     await assert.rejects(
       unlisted.controller().burnAsset({
         ...args(),
-        burnDestination: { chainId, address: tronAddress, dstEid: 30420 },
+        burnDestination: {
+          version: 1,
+          chainId,
+          address: tronAddress,
+          dstEid: 30420,
+        },
       }),
       { code: 'INVALID_PARAMS' }
     );
@@ -644,14 +604,19 @@ test('a burn needs the exact configured chain and endpoint pair', async () => {
     const f = fixture([{ chainId, dstEid: 40420 }]);
     const result = await f.controller().burnAsset({
       ...args(),
-      burnDestination: { chainId, address: tronAddress, dstEid: 40420 },
+      burnDestination: {
+        version: 1,
+        chainId,
+        address: tronAddress,
+        dstEid: 40420,
+      },
     });
     assert.equal(result.burnDestination.chainId, chainId);
   }
   for (const changed of [
     { ...destination(), dstEid: 30101 },
     { ...destination(), chainId: 'eip155:137' },
-    { chainId: 'eip155:1', address: evmAddress, dstEid: 0 },
+    { version: 1, chainId: 'eip155:1', address: evmAddress, dstEid: 0 },
   ]) {
     const f = fixture();
     await assert.rejects(
@@ -791,11 +756,13 @@ test('the commitment is unchanged: go-ethereum ABI vectors from utexo-bridge-fe 
     const native =
       bytes.length === 20
         ? {
+            version: 1,
             chainId: `eip155:${vector.destinationChainId}`,
             address: vector.recipient,
           }
         : bytes.length === 21 && bytes[0] === 0x41
           ? {
+              version: 1,
               chainId: `tron:${vector.destinationChainId}`,
               address: base58check(sha256).encode(bytes),
             }
@@ -811,6 +778,7 @@ test('the commitment is unchanged: go-ethereum ABI vectors from utexo-bridge-fe 
   assert.equal(checked, 3);
   assert.equal(
     burnDestinationHash({
+      version: 1,
       chainId: 'eip155:137',
       address: '0x1111111111111111111111111111111111111111',
       dstEid: 30109,
@@ -869,6 +837,26 @@ const withoutDestination = () => {
   delete request.burnDestination;
   return request;
 };
+test('a missing or unsupported destination version rejects before approval', async () => {
+  const { version, ...unversioned } = destination();
+  assert.equal(version, 1);
+  for (const burnDestination of [
+    unversioned,
+    ...[undefined, null, '1', 0, 2, 1.5, true].map((value) => ({
+      ...destination(),
+      version: value,
+    })),
+  ]) {
+    const f = fixture();
+    await assert.rejects(
+      f.controller().burnAsset({ ...args(), burnDestination }),
+      { code: 'INVALID_PARAMS' }
+    );
+    assert.equal(f.prompts.length, 0);
+    assert.equal(f.calls.length, 0);
+    assert.throws(() => burnDestinationHash(burnDestination));
+  }
+});
 test('legacy or mixed destination fields reject before approval, and there is no address-only fallback', async () => {
   const legacyV1 = {
     version: 1,
@@ -888,11 +876,14 @@ test('legacy or mixed destination fields reject before approval, and there is no
       burnRecipient: { chainId: 'eip155:42161', address: evmAddress },
     },
     { ...args(), burnDestination: legacyV1 },
-    { ...args(), burnDestination: { ...destination(), version: 1 } },
     { ...args(), burnDestination: { ...destination(), recipient: evmAddress } },
     {
       ...args(),
-      burnDestination: { chainId: 'eip155:42161', address: evmAddress },
+      burnDestination: {
+        chainId: 'eip155:42161',
+        address: evmAddress,
+        dstEid: 0,
+      },
     },
     { ...args(), burnDestination: { ...destination(), dstEid: '0' } },
     {
@@ -952,48 +943,39 @@ test('EVM addresses keep their case; a mixed-case address must be a valid EIP-55
   );
   assert.equal(broken.prompts.length, 0);
 });
-test('a V1 record saved by an earlier release stays readable and is never rewritten', async () => {
-  const f = fixture();
-  const saved = {
-    version: 2,
-    id: 'f'.repeat(32),
-    params: {
-      ...nativeParams(args().amount),
-      burnRecipient: burnDestinationHash(destination()).slice(2),
-    },
-    metadata: {
+test('records in an earlier SDK format are not read: the journal fails closed', async () => {
+  const legacy = [
+    {
       origin: 'https://mint.example',
-      network: 'utexo',
-      payout: { chainId: 'eip155:42161', address: evmAddress },
-      burnDestination: {
-        version: 1,
-        destinationChainId: 42161,
-        dstEid: 0,
-        recipient: evmAddress,
+      state: 'pending',
+      request: {
+        requestId: 'old',
+        network: 'utexo',
+        assetId: 'rgb:asset',
+        amount: '5',
+        burnRecipient: { chainId: 'eip155:42161', address: evmAddress },
       },
     },
-    state: 'complete',
-    result: { txid, batchTransferIdx: 42 },
-  };
-  await f.store.write(saved);
-  const before = JSON.stringify(await f.store.readAll());
-  const controller = f.controller();
-  const status = await controller.getTransferStatus(txid, args().assetId);
-  assert.deepEqual(status.transfer.burnDestination, destination());
-  await controller.getConsignment({ assetId: args().assetId, txid });
-  await f.operations.retryPersistence();
-  assert.equal(JSON.stringify(await f.store.readAll()), before);
-  // A corrupted older record still fails closed.
-  assert.throws(() =>
-    normalizeBurnRecord({
-      ...saved,
+    {
+      version: 2,
+      id: 'old',
+      params: nativeParams(),
       metadata: {
-        ...saved.metadata,
-        burnDestination: { ...saved.metadata.burnDestination, dstEid: 1 },
+        origin: 'https://mint.example',
+        network: 'utexo',
+        payout: { chainId: 'eip155:42161', address: evmAddress },
       },
-    })
-  );
-  assert.equal(f.calls.length, 0);
+      state: 'complete',
+      result: { txid, batchTransferIdx: 42 },
+    },
+  ];
+  for (const record of legacy) {
+    assert.throws(() => normalizeBurnRecord(record));
+    const f = fixture();
+    await f.store.write({ ...record, id: 'old' });
+    await assert.rejects(f.controller().burnAsset(args()));
+    assert.equal(f.calls.length, 0);
+  }
 });
 test('a local burn exposes recovery metadata only after successful proof-sharing consent', async () => {
   const f = fixture();
@@ -1046,14 +1028,10 @@ test('a wallet without getConsignment serves neither burnAsset nor getConsignmen
 test('reconciliation without getConsignment is refused and stays pending', async () => {
   const f = fixture();
   delete f.wallet.getConsignment;
-  await f.store.write({
-    origin: 'https://mint.example',
-    request: legacyRequest('legacy-pending'),
-    state: 'pending',
-  });
+  await f.store.write(pendingRecord());
   await assert.rejects(
     f.operations.reconcile(
-      'legacy-pending',
+      'pending-id',
       { txid, batchTransferIdx: 42 },
       async () => true
     ),

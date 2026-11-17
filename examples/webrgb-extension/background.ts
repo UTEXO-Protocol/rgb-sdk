@@ -10,7 +10,7 @@
 import { UTEXOWallet } from '@utexo/rgb-sdk';
 import { BurnOperations, WebRgbProvider } from '@utexo/rgb-sdk/webrgb';
 import type {
-  AnyBurnOperationRecord,
+  BurnOperationRecord,
   BurnDestinationRoute,
   BurnOperationStore,
   WebRgbApproval,
@@ -62,7 +62,7 @@ function wallet(): Promise<Wallet> {
 const burnStore: BurnOperationStore = {
   async readAll() {
     const { burns = {} } = await chrome.storage.local.get('burns');
-    return Object.values(burns as Record<string, AnyBurnOperationRecord>);
+    return Object.values(burns as Record<string, BurnOperationRecord>);
   },
   async write(record) {
     const { burns = {} } = await chrome.storage.local.get('burns');

@@ -8,94 +8,39 @@ import {
   burnDestinationReason,
   normalizeBurnDestination,
 } from './burn-destination.js';
-import {
-  legacyBurnReason,
-  type LegacyBurnDestinationV1,
-  type LegacyBurnPayout,
-} from './recipient.js';
 
 /** Wallet-owned context, retained across transport sessions and app restarts. */
 export interface BurnOperationMetadata {
   origin: string;
   network: string;
-  /** The approved destination; `params.burnRecipient` is its commitment. */
+  /** The approved destination (SPEC §4.1); `params.burnRecipient` is its commitment. */
   burnDestination: RgbBurnDestination;
 }
-/** Context of a burn saved by an earlier release. Kept as saved, never rewritten. */
-export interface LegacyBurnOperationMetadata {
-  origin: string;
-  network: string;
-  payout: LegacyBurnPayout;
-  burnDestination?: LegacyBurnDestinationV1;
-}
-type JournalState = 'prepared' | 'pending' | 'complete' | 'cancelled';
 export interface BurnOperationRecord {
-  version: 3;
   id: string;
   params: BurnParams;
   metadata: BurnOperationMetadata;
   /** Journal states, never RGB transfer statuses. */
-  state: JournalState;
+  state: 'prepared' | 'pending' | 'complete' | 'cancelled';
   result?: BurnResult;
   error?: string;
 }
-/** A record saved by an earlier release; read and resolved, never re-encoded. */
-export interface LegacyBurnOperationRecord {
-  version: 2;
-  id: string;
-  params: BurnParams;
-  metadata: LegacyBurnOperationMetadata;
-  state: JournalState;
-  result?: BurnResult;
-  error?: string;
-}
-export type AnyBurnOperationRecord =
-  BurnOperationRecord | LegacyBurnOperationRecord;
 export interface BurnOperationStore {
-  /** May return records of earlier releases; they keep their IDs and commitments. */
   readAll(): Promise<unknown[]>;
   /** Resolve only after the record is durably saved. Upsert by id. */
-  write(record: AnyBurnOperationRecord): Promise<void>;
+  write(record: BurnOperationRecord): Promise<void>;
 }
 
-export function normalizeBurnRecord(value: unknown): AnyBurnOperationRecord {
-  if (!value || typeof value !== 'object')
-    throw new Error('Invalid burn journal record');
-  const raw = value as Record<string, any>;
-  let record: AnyBurnOperationRecord;
-  if (raw.version === 3 || raw.version === 2) {
-    record = raw as AnyBurnOperationRecord;
-  } else {
-    const request = raw.request;
-    if (!request || !/^0x[0-9a-fA-F]{40}$/.test(request.burnRecipient?.address))
-      throw new Error('Invalid legacy burn journal record');
-    record = {
-      version: 2,
-      id: request.requestId,
-      params: {
-        assetId: request.assetId,
-        amount: request.amount,
-        burnRecipient: request.burnRecipient.address
-          .slice(2)
-          .toLowerCase()
-          .padStart(64, '0'),
-        feeRate: request.feeRate ?? 2,
-        minConfirmations: request.minConfirmations ?? 3,
-      },
-      metadata: {
-        origin: raw.origin,
-        network: request.network,
-        payout: request.burnRecipient,
-      },
-      state: raw.state,
-      result: raw.result && {
-        txid: raw.result.txid,
-        batchTransferIdx: raw.result.batchTransferIdx,
-      },
-    };
-  }
-  validateBurnParams(record.params);
+/**
+ * Validates a stored record: its destination as SPEC §4.1 defines it, and its
+ * native `burn_reason` as that destination's commitment. Anything else,
+ * including a record in an earlier SDK format, fails closed.
+ */
+export function normalizeBurnRecord(value: unknown): BurnOperationRecord {
+  const record = value as BurnOperationRecord | null;
   if (
+    !record ||
+    typeof record !== 'object' ||
     !record.id ||
     typeof record.id !== 'string' ||
     (record.error !== undefined && typeof record.error !== 'string') ||
@@ -104,17 +49,13 @@ export function normalizeBurnRecord(value: unknown): AnyBurnOperationRecord {
     typeof record.metadata.network !== 'string'
   )
     throw new Error('Invalid burn journal record');
-  const committedRecipient =
-    record.version === 3
-      ? burnDestinationReason(
-          normalizeBurnDestination(record.metadata.burnDestination)
-        )
-      : legacyBurnReason(
-          record.metadata.payout,
-          record.metadata.burnDestination
-        );
-  if (committedRecipient !== record.params.burnRecipient?.toLowerCase())
-    throw new Error('Burn journal recipient does not match payout metadata');
+  validateBurnParams(record.params);
+  if (
+    burnDestinationReason(
+      normalizeBurnDestination(record.metadata.burnDestination)
+    ) !== record.params.burnRecipient?.toLowerCase()
+  )
+    throw new Error('Burn journal recipient does not match its destination');
   if (record.state === 'complete') validateResult(record.result);
   return record;
 }
@@ -143,7 +84,7 @@ interface BurnWallet {
 }
 interface Runtime {
   queue: Promise<unknown>;
-  unsaved: Map<string, AnyBurnOperationRecord>;
+  unsaved: Map<string, BurnOperationRecord>;
 }
 // One queue per native wallet object, even if sessions wrap the store differently.
 const runtimes = new WeakMap<BurnWallet, Runtime>();
@@ -170,10 +111,10 @@ export class BurnOperations {
     this.runtime.queue = result.catch(() => undefined);
     return result;
   }
-  async records(): Promise<AnyBurnOperationRecord[]> {
+  async records(): Promise<BurnOperationRecord[]> {
     return (await this.store.readAll()).map(normalizeBurnRecord);
   }
-  private async save(record: AnyBurnOperationRecord): Promise<void> {
+  private async save(record: BurnOperationRecord): Promise<void> {
     // Retain a known result even if storage fails; saving it again never burns.
     this.runtime.unsaved.set(record.id, record);
     await this.store.write(record);
@@ -221,7 +162,6 @@ export class BurnOperations {
         );
       assertAuthorized();
       let record: BurnOperationRecord = {
-        version: 3,
         id: bytesToHex(randomBytes(16)),
         params: request,
         metadata: context,
@@ -283,7 +223,7 @@ export class BurnOperations {
     id: string,
     result: BurnResult,
     verify: (
-      record: AnyBurnOperationRecord,
+      record: BurnOperationRecord,
       result: BurnResult,
       consignment: string
     ) => Promise<boolean>

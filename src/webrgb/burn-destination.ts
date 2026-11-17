@@ -95,8 +95,8 @@ function endpoint(value: unknown): number {
 }
 
 /**
- * Validates `{ chainId, address, dstEid }` exactly: no other field, a native
- * address for the chain's namespace. Returns a copy with the same values.
+ * Validates `{ version: 1, chainId, address, dstEid }` exactly: no other field,
+ * a native address for the chain's namespace. Returns a copy with the same values.
  */
 export function normalizeBurnDestination(value: unknown): RgbBurnDestination {
   const record = value as Record<string, unknown> | null;
@@ -104,23 +104,29 @@ export function normalizeBurnDestination(value: unknown): RgbBurnDestination {
     !record ||
     typeof record !== 'object' ||
     Array.isArray(record) ||
-    Object.keys(record).sort().join() !== 'address,chainId,dstEid'
+    Object.keys(record).sort().join() !== 'address,chainId,dstEid,version'
   )
     throw new Error(
-      'burnDestination must be exactly { chainId, address, dstEid }'
+      'burnDestination must be exactly { version, chainId, address, dstEid }'
     );
   burnDestinationPreimage(record as unknown as RgbBurnDestination);
   return {
+    version: 1,
     chainId: record.chainId as string,
     address: record.address as string,
     dstEid: record.dstEid as number,
   };
 }
 
-/** The SPEC §4.1 preimage; validates the chain ID, address and endpoint. */
+/**
+ * The SPEC §4.1 preimage; validates the version, chain ID, address and endpoint.
+ * `version: 1` selects the `UtexoBurnDestinationV1` type string; no default.
+ */
 export function burnDestinationPreimage(
   destination: RgbBurnDestination
 ): BurnDestinationPreimage {
+  if (destination?.version !== 1)
+    throw new Error('Unsupported burn destination version');
   const { namespace, reference } = chainReference(destination?.chainId);
   const dstEid = endpoint(destination.dstEid);
   if (typeof destination.address !== 'string')
