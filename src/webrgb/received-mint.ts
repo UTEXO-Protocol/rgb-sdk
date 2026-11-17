@@ -82,32 +82,14 @@ async function ownedReceive(
 }
 
 /**
- * The asset the receive belongs to: the invoice's own asset, or, for an
- * any-asset invoice, the BFA asset whose transfers include the receive.
- */
-async function receiveAsset(
-  wallet: WebRgbWallet,
-  recipientId: string,
-  invoiceAsset: string | undefined
-): Promise<string> {
-  const assets = await walletCall(() => wallet.listAssets());
-  const candidates = invoiceAsset
-    ? [invoiceAsset]
-    : (assets.bfa ?? []).map((asset) => asset.assetId);
-  for (const assetId of candidates) {
-    const transfers = await walletCall(() => wallet.listTransfers(assetId));
-    if (transfers.some((t) => t.recipientId === recipientId)) return assetId;
-  }
-  throw new WebRgbError(
-    'INTERNAL_ERROR',
-    'The received mint is not linked to a wallet asset'
-  );
-}
-
-/**
  * `getReceivedMint({ invoice })`: binds the engine's checked mint to an
  * invoice this wallet created. Refreshes incoming transfers only. `null`
  * only while no checked mint is ready; failures reject.
+ *
+ * rgb-lib checks the mint before its EVM lock is paid, but links the receive
+ * to its asset and witness transaction only once the lock is found. So the
+ * invoice has to name the asset, and `txid` is present only once the history
+ * has it (`lockId` already commits to it).
  */
 export async function getReceivedMint(
   wallet: WebRgbWallet,
@@ -129,7 +111,13 @@ export async function getReceivedMint(
       'The invoice is for another network'
     );
   }
-  const { recipientId } = decoded;
+  const { recipientId, assetId } = decoded;
+  if (!assetId) {
+    throw new WebRgbError(
+      'INVALID_PARAMS',
+      'getReceivedMint requires an invoice for a specific asset'
+    );
+  }
   await ownedReceive(wallet, invoice, recipientId);
   assertActive();
 
@@ -157,21 +145,19 @@ export async function getReceivedMint(
     return null;
   }
   const checked = commitment(mint);
-  const txid = receive.txid;
-  if (!txid || !HEX64.test(txid)) {
+  const { txid } = receive;
+  if (txid && !HEX64.test(txid)) {
     throw new WebRgbError(
       'INTERNAL_ERROR',
-      'The received mint has no witness transaction'
+      'The received mint has an invalid witness transaction ID'
     );
   }
-  const assetId = await receiveAsset(wallet, recipientId, decoded.assetId);
-  assertActive();
   return {
     invoice,
     recipientId,
     assetId,
     network,
-    txid,
+    ...(txid ? { txid } : {}),
     opid: checked.opid,
     lockId: checked.lockId,
     amount: checked.amount,

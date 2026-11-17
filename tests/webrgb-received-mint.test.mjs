@@ -36,9 +36,6 @@ function fixture({ mint = MINT, transfers, decoded, lookup = true } = {}) {
   const wallet = {
     getNetwork: () => 'regtest',
     isDisposed: () => false,
-    listAssets: async () => ({
-      bfa: [{ assetId: 'rgb:other' }, { assetId: 'rgb:bfa' }],
-    }),
     listTransfers: async (assetId) => {
       calls.push(['listTransfers', assetId]);
       if (assetId === undefined) return all;
@@ -122,10 +119,41 @@ test('returns the commitment bound to the owned invoice, without a prompt', asyn
   );
 });
 
-test('an any-asset invoice takes the asset from the wallet transfers', async () => {
-  const { provider } = fixture();
-  const result = await provider.getReceivedMint({ invoice: ANY_INVOICE });
+test('before the lock is paid the receive has no txid: the result omits it', async () => {
+  // rgb-lib saves the checked mint but sets the txid (and, for an any-asset
+  // invoice, the asset) only once the EVM lock is found.
+  const { provider } = fixture({
+    transfers: [
+      receive('bcrt:utxob:owned', INVOICE, {
+        status: 'WaitingCounterparty',
+        txid: null,
+      }),
+    ],
+  });
+  const result = await provider.getReceivedMint({ invoice: INVOICE });
+  assert.equal('txid' in result, false);
   assert.equal(result.assetId, 'rgb:bfa');
+  assert.equal(result.lockId, MINT.lockId);
+});
+
+test('an invalid txid in the history rejects', async () => {
+  const { provider } = fixture({
+    transfers: [receive('bcrt:utxob:owned', INVOICE, { txid: 'nothex' })],
+  });
+  await assert.rejects(provider.getReceivedMint({ invoice: INVOICE }), {
+    code: 'INTERNAL_ERROR',
+  });
+});
+
+test('an any-asset invoice rejects before the engine lookup', async () => {
+  const { provider, calls } = fixture();
+  await assert.rejects(provider.getReceivedMint({ invoice: ANY_INVOICE }), {
+    code: 'INVALID_PARAMS',
+  });
+  assert.equal(
+    calls.some((c) => c[0] === 'getReceivedMint'),
+    false
+  );
 });
 
 test('null only while no checked mint is ready', async () => {
