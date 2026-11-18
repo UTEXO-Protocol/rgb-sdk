@@ -704,6 +704,7 @@ test('WalletConnect exposes recipient namespaces and carries the Tron destinatio
     topic: 'burn-session',
     expiry: Math.floor(Date.now() / 1000) + 3600,
     sessionProperties: { webrgb: 'webrgb:1' },
+    peer: { metadata: { url: 'https://wallet.example' } },
     namespaces: {
       rgb: {
         accounts: ['rgb:utexo:test-wallet'],
@@ -713,6 +714,7 @@ test('WalletConnect exposes recipient namespaces and carries the Tron destinatio
     },
   };
   const client = Object.assign(new EventEmitter(), {
+    core: { relayer: new EventEmitter() },
     session: { get: () => session },
     request: async ({ topic, chainId, request }) => {
       assert.equal(topic, session.topic);
