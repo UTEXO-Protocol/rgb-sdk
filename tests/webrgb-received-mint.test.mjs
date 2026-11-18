@@ -26,7 +26,13 @@ function receive(recipientId, invoiceString, extra = {}) {
   };
 }
 
-function fixture({ mint = MINT, transfers, decoded, lookup = true } = {}) {
+function fixture({
+  mint = MINT,
+  transfers,
+  decoded,
+  lookup = true,
+  network = 'regtest',
+} = {}) {
   const calls = [];
   const prompts = [];
   const all = transfers ?? [
@@ -34,7 +40,7 @@ function fixture({ mint = MINT, transfers, decoded, lookup = true } = {}) {
     receive('bcrt:utxob:any', ANY_INVOICE),
   ];
   const wallet = {
-    getNetwork: () => 'regtest',
+    getNetwork: () => network,
     isDisposed: () => false,
     listTransfers: async (assetId) => {
       calls.push(['listTransfers', assetId]);
@@ -235,6 +241,24 @@ test('a foreign or altered invoice rejects before the engine lookup', async () =
   }
   const other = fixture({
     decoded: { network: 'mainnet', recipientId: 'bcrt:utxob:owned' },
+  });
+  await assert.rejects(other.provider.getReceivedMint({ invoice: INVOICE }), {
+    code: 'INVALID_PARAMS',
+  });
+});
+
+test('a utexo wallet accepts its invoices, which rgb-lib decodes as signet', async () => {
+  const owned = { recipientId: 'bcrt:utxob:owned', assetId: 'rgb:bfa' };
+  const { provider } = fixture({
+    network: 'utexo',
+    decoded: { ...owned, network: 'signet' },
+  });
+  const result = await provider.getReceivedMint({ invoice: INVOICE });
+  assert.equal(result.network, 'utexo');
+
+  const other = fixture({
+    network: 'utexo',
+    decoded: { ...owned, network: 'mainnet' },
   });
   await assert.rejects(other.provider.getReceivedMint({ invoice: INVOICE }), {
     code: 'INVALID_PARAMS',

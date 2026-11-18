@@ -36,6 +36,11 @@ export function receivedMintInvoice(value: unknown): string {
   return args.invoice;
 }
 
+/** rgb-lib runs the utexo network as signet, so its invoices decode as signet. */
+function invoiceChain(network: string): string {
+  return network === 'utexo' ? 'signet' : network;
+}
+
 function u64(value: string): boolean {
   return DECIMAL.test(value) && BigInt(value) <= U64_MAX;
 }
@@ -133,7 +138,7 @@ export async function getReceivedMint(
   }
   const network = wallet.getNetwork();
   const decoded = await walletCall(() => wallet.decodeRGBInvoice({ invoice }));
-  if (decoded.network !== network) {
+  if (invoiceChain(decoded.network) !== invoiceChain(network)) {
     throw new WebRgbError(
       'INVALID_PARAMS',
       'The invoice is for another network'
