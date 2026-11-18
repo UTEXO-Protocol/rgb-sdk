@@ -329,6 +329,17 @@ export class WebRgbProvider implements SupportedProvider {
         integer(raw.minConfirmations ?? this.floor, 'minConfirmations', 0, 255)
       ),
     };
+    // Checked before the prompt: a dApp falling back to an any-asset invoice
+    // must not make the user approve twice.
+    if (
+      params.assetId !== undefined &&
+      !(await this.listAssets()).some((asset) => asset.id === params.assetId)
+    ) {
+      throw new WebRgbError(
+        'ASSET_NOT_FOUND',
+        'This wallet does not know the asset'
+      );
+    }
     const revision = this.revision;
     if (
       !(await this.options.confirm({

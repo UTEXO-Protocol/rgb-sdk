@@ -5,6 +5,7 @@ import { WebRgbError, walletCall } from './errors.js';
 import type { WebRgbWallet } from './wallet.js';
 
 const HEX64 = /^[0-9a-f]{64}$/;
+const ASSET_ID = /^rgb:\S+$/;
 const ADDRESS = /^0x[0-9a-f]{40}$/;
 const DECIMAL = /^(0|[1-9][0-9]{0,19})$/;
 const U64_MAX = 18446744073709551615n;
@@ -42,6 +43,7 @@ function u64(value: string): boolean {
 /** Checks the engine result has the public commitment shape. */
 function commitment(mint: ReceivedMint): ReceivedMint {
   if (
+    (mint.assetId !== undefined && !ASSET_ID.test(mint.assetId)) ||
     !HEX64.test(mint.opid) ||
     !HEX64.test(mint.lockId) ||
     ![mint.amount, mint.beforeBlock, mint.evmChainId].every(u64) ||
@@ -53,6 +55,32 @@ function commitment(mint: ReceivedMint): ReceivedMint {
     );
   }
   return { ...mint, bridgeContract: mint.bridgeContract.toLowerCase() };
+}
+
+/**
+ * The receipt's asset. The engine's comes from the consignment it checked. An
+ * engine without one can still answer for an invoice naming the asset, as
+ * rgb-lib refuses a consignment for another asset; an any-asset invoice then
+ * has nothing proving the asset.
+ */
+function receiptAsset(
+  checked: string | undefined,
+  invoiceAsset: string | null | undefined
+): string {
+  if (checked && invoiceAsset && checked !== invoiceAsset) {
+    throw new WebRgbError(
+      'INVALID_PARAMS',
+      'The received mint is for another asset than the invoice'
+    );
+  }
+  const assetId = checked ?? invoiceAsset;
+  if (!assetId) {
+    throw new WebRgbError(
+      'INVALID_PARAMS',
+      'This wallet cannot prove the asset of a mint for an any-asset invoice'
+    );
+  }
+  return assetId;
 }
 
 type Receive = WalletTransfer & { recipientId: string };
@@ -87,9 +115,9 @@ async function ownedReceive(
  * only while no checked mint is ready; failures reject.
  *
  * rgb-lib checks the mint before its EVM lock is paid, but links the receive
- * to its asset and witness transaction only once the lock is found. So the
- * invoice has to name the asset, and `txid` is present only once the history
- * has it (`lockId` already commits to it).
+ * to its asset and witness transaction only once the lock is found. So
+ * `assetId` comes from the checked consignment, not the history, and `txid` is
+ * present only once the history has it (`lockId` already commits to it).
  */
 export async function getReceivedMint(
   wallet: WebRgbWallet,
@@ -111,13 +139,7 @@ export async function getReceivedMint(
       'The invoice is for another network'
     );
   }
-  const { recipientId, assetId } = decoded;
-  if (!assetId) {
-    throw new WebRgbError(
-      'INVALID_PARAMS',
-      'getReceivedMint requires an invoice for a specific asset'
-    );
-  }
+  const { recipientId, assetId: invoiceAsset } = decoded;
   await ownedReceive(wallet, invoice, recipientId);
   assertActive();
 
@@ -145,6 +167,7 @@ export async function getReceivedMint(
     return null;
   }
   const checked = commitment(mint);
+  const assetId = receiptAsset(checked.assetId, invoiceAsset);
   const { txid } = receive;
   if (txid && !HEX64.test(txid)) {
     throw new WebRgbError(

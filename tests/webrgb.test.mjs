@@ -296,6 +296,18 @@ for (const [method, args] of [
   });
 }
 
+test('a receive naming an unknown asset rejects before the prompt', async () => {
+  const { provider, calls, prompts } = fixture({ sessionApproved: true });
+  await assert.rejects(provider.blindReceive({ assetId: 'rgb:unknown' }), {
+    code: 'ASSET_NOT_FOUND',
+  });
+  assert.equal(prompts.length, 0);
+  assert.equal(calls.length, 0);
+  await provider.blindReceive({ assetId: 'rgb:a' });
+  assert.equal(prompts.length, 1);
+  assert.equal(calls[0].assetId, 'rgb:a');
+});
+
 test('WalletConnect forwards witnessReceive and signMessage and recovers after lost authorization', async () => {
   const { provider, calls, prompts } = fixture({ sessionApproved: true });
   const methods = ['enable', 'getInfo', 'witnessReceive', 'signMessage'];

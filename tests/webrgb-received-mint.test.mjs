@@ -145,15 +145,43 @@ test('an invalid txid in the history rejects', async () => {
   });
 });
 
-test('an any-asset invoice rejects before the engine lookup', async () => {
-  const { provider, calls } = fixture();
+test('an any-asset invoice takes the asset of the checked consignment', async () => {
+  const { provider } = fixture({ mint: { ...MINT, assetId: 'rgb:first' } });
+  const result = await provider.getReceivedMint({ invoice: ANY_INVOICE });
+  assert.equal(result.assetId, 'rgb:first');
+  assert.equal(result.invoice, ANY_INVOICE);
+  assert.equal(result.recipientId, 'bcrt:utxob:any');
+});
+
+test('an any-asset invoice rejects when the engine cannot prove the asset', async () => {
+  const { provider } = fixture();
   await assert.rejects(provider.getReceivedMint({ invoice: ANY_INVOICE }), {
     code: 'INVALID_PARAMS',
   });
+});
+
+test('an any-asset invoice stays pending until a mint is checked', async () => {
+  const { provider } = fixture({ mint: null });
+  assert.equal(await provider.getReceivedMint({ invoice: ANY_INVOICE }), null);
+});
+
+test('the consignment asset has to match an invoice naming one', async () => {
+  const same = fixture({ mint: { ...MINT, assetId: 'rgb:bfa' } });
   assert.equal(
-    calls.some((c) => c[0] === 'getReceivedMint'),
-    false
+    (await same.provider.getReceivedMint({ invoice: INVOICE })).assetId,
+    'rgb:bfa'
   );
+  const other = fixture({ mint: { ...MINT, assetId: 'rgb:other' } });
+  await assert.rejects(other.provider.getReceivedMint({ invoice: INVOICE }), {
+    code: 'INVALID_PARAMS',
+  });
+});
+
+test('an invalid engine asset rejects', async () => {
+  const { provider } = fixture({ mint: { ...MINT, assetId: 'not-an-asset' } });
+  await assert.rejects(provider.getReceivedMint({ invoice: ANY_INVOICE }), {
+    code: 'INTERNAL_ERROR',
+  });
 });
 
 test('null only while no checked mint is ready', async () => {
