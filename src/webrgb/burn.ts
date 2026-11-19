@@ -21,20 +21,20 @@
  *   network: wallet.getNetwork(),
  *   assetId,
  *   amount: '100', // decimal base units; never convert u64 amounts to JS numbers
- *   burnRecipient: { chainId: 'eip155:42161', address: evmAddress },
+ *   burnDestination: { version: 1, chainId: 'eip155:42161', address: evmAddress, dstEid: 0 },
  * });
  * const proof = await provider.getConsignment({ assetId, txid: burn.txid });
  * provider.revoke(); // on session expiry/disconnect
  *
- * Flow: check getInfo().methods, validate the asset/network/payout parameters,
- * then confirm the asset, amount, payout chain/address, BTC fee, confirmations,
- * and proof sharing. The host serializes approval dialogs. The operation service
- * serializes burns, persists prepared -> pending before invoking native burn,
- * and saves the result as complete. Failure before invocation cancels the record.
- * Set destinationRoutes to the bridge deployment's payout routes to commit a V1
- * hash of the chain, route and recipient in the proof. Without it, legacy burns
- * encode 12 zero bytes followed by 20 account bytes. Tron addresses retain
- * Base58Check casing in prompts and stored metadata.
+ * Flow: check getInfo().methods, validate the asset, network, destination and
+ * route, then confirm the asset, amount, payout chain/address/endpoint, BTC fee,
+ * confirmations and proof sharing. The host serializes approval dialogs. The
+ * operation service serializes burns, persists prepared -> pending before
+ * invoking native burn, and saves the result as complete. Failure before
+ * invocation cancels the record. The native burn commits the SPEC §4.1 hash of
+ * the destination as `burn_reason`; `destinationRoutes` lists the chain and
+ * endpoint pairs the bridge deployment pays out on. Without routes, burnAsset
+ * is not offered: there is no address-only fallback.
  *
  * Proof export returns Base64, byte length, and a Keccak-256 digest (16 MiB limit).
  * Local paths stay inside the wallet; another origin's proof needs fresh consent.
@@ -54,7 +54,6 @@ import type {
   RgbGetConsignmentResult,
   RgbTransferStatusResult,
 } from '@utexo/webrgb';
-import { encodeBurnRecipient, normalizeBurnRecipient } from './recipient.js';
 import {
   validateBurnParams,
   validateConsignmentLookup,
@@ -63,25 +62,38 @@ import type { BurnOperations } from './burn-operations.js';
 import { WebRgbError } from './errors.js';
 import type { WebRgbWallet } from './wallet.js';
 import {
-  burnDestinationHash,
-  createBurnDestination,
-  validateBurnDestination,
-  type BurnDestination,
+  burnDestinationReason,
+  isBurnRoute,
+  normalizeBurnDestination,
+  normalizeBurnRoutes,
   type BurnDestinationRoute,
 } from './burn-destination.js';
+
+const U64 = /^[1-9][0-9]{0,19}$/;
+const U64_MAX = 18446744073709551615n;
+const BURN_ARGS = new Set([
+  'network',
+  'assetId',
+  'amount',
+  'burnDestination',
+  'feeRate',
+  'minConfirmations',
+]);
 
 const MAX_CONSIGNMENT_BYTES = 16 * 1024 * 1024;
 export interface WebRgbBurnOptions {
   operations: BurnOperations;
-  /** Enable V1 commitments for these deployment-verified payout routes. */
+  /**
+   * The chain and endpoint pairs the bridge deployment pays out on. A burn
+   * must name one of them exactly; without routes burnAsset is not offered.
+   */
   destinationRoutes?: readonly BurnDestinationRoute[];
 }
-export type WebRgbBurnAssetArgs = RgbBurnAssetArgs & {
-  burnDestination?: BurnDestination;
-};
-export type WebRgbBurnAssetResult = RgbBurnAssetResult & {
-  burnDestination?: BurnDestination;
-};
+/** @deprecated Use `RgbBurnAssetArgs` from `@utexo/webrgb`. */
+export type WebRgbBurnAssetArgs = RgbBurnAssetArgs;
+/** @deprecated Use `RgbBurnAssetResult` from `@utexo/webrgb`. */
+export type WebRgbBurnAssetResult = RgbBurnAssetResult;
+
 interface Host {
   origin: string;
   enabled(): boolean;
@@ -103,37 +115,8 @@ export class WebRgbBurnController {
     private host: Host,
     private options: WebRgbBurnOptions
   ) {
-    if (options.destinationRoutes) {
-      const chains = new Set<string>();
-      this.destinationRoutes = options.destinationRoutes.map(
-        ({ chainId, dstEid }) => {
-          if (
-            !/^(eip155|tron):[1-9][0-9]*$/.test(chainId) ||
-            !Number.isSafeInteger(Number(chainId.split(':')[1])) ||
-            !Number.isInteger(dstEid) ||
-            dstEid < 0 ||
-            dstEid > 0xffffffff ||
-            (chainId.startsWith('tron:') && dstEid === 0) ||
-            chains.has(chainId)
-          )
-            throw new Error('Invalid or duplicate V1 payout route');
-          chains.add(chainId);
-          return { chainId, dstEid };
-        }
-      );
-      if (!this.destinationRoutes.length)
-        throw new Error('V1 payout routes cannot be empty');
-    }
-  }
-  destinationCapabilities() {
-    return this.destinationRoutes
-      ? {
-          burnDestinationVersion: 1 as const,
-          burnDestinationRoutes: this.destinationRoutes.map((route) => ({
-            ...route,
-          })),
-        }
-      : {};
+    if (options.destinationRoutes)
+      this.destinationRoutes = normalizeBurnRoutes(options.destinationRoutes);
   }
   private requireEnabled() {
     if (!this.host.enabled())
@@ -145,28 +128,44 @@ export class WebRgbBurnController {
     const consignment =
       caps.consignment && typeof this.wallet.getConsignment === 'function';
     return [
-      ...(caps.burn && consignment ? ['burnAsset'] : []),
+      ...(caps.burn && consignment && this.destinationRoutes
+        ? ['burnAsset']
+        : []),
       ...(consignment ? ['getConsignment'] : []),
     ];
   }
-  async burnAsset(args: WebRgbBurnAssetArgs): Promise<WebRgbBurnAssetResult> {
+  async burnAsset(args: RgbBurnAssetArgs): Promise<RgbBurnAssetResult> {
     this.requireEnabled();
     if (!(await this.methods()).includes('burnAsset'))
       throw new WebRgbError(
         'METHOD_NOT_SUPPORTED',
         'Native burn is unavailable'
       );
+    const raw = args as unknown as Record<string, unknown> | null;
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw))
+      throw new WebRgbError('INVALID_PARAMS', 'Expected burn parameters');
+    const extra = Object.keys(raw).find((key) => !BURN_ARGS.has(key));
+    if (extra)
+      throw new WebRgbError(
+        'INVALID_PARAMS',
+        `Unsupported burn parameter: ${extra}`
+      );
+    if (args.network !== this.wallet.getNetwork())
+      throw new WebRgbError('INVALID_PARAMS', 'Invalid RGB network');
     if (
-      !args ||
-      args.network !== this.wallet.getNetwork() ||
-      !args.burnRecipient ||
-      typeof args.burnRecipient.address !== 'string' ||
-      typeof args.burnRecipient.chainId !== 'string'
+      typeof args.amount !== 'string' ||
+      !U64.test(args.amount) ||
+      BigInt(args.amount) > U64_MAX
     )
       throw new WebRgbError(
         'INVALID_PARAMS',
-        'Invalid RGB network or payout chain'
+        'amount must be a canonical positive u64 decimal string'
       );
+    if (
+      args.feeRate !== undefined &&
+      (!Number.isSafeInteger(args.feeRate) || args.feeRate < 1)
+    )
+      throw new WebRgbError('INVALID_PARAMS', 'Invalid fee rate');
     if (
       args.minConfirmations !== undefined &&
       (!Number.isInteger(args.minConfirmations) ||
@@ -174,45 +173,26 @@ export class WebRgbBurnController {
         args.minConfirmations > 255)
     )
       throw new WebRgbError('INVALID_PARAMS', 'Invalid confirmation count');
+    let burnDestination: RgbBurnAssetArgs['burnDestination'];
     let recipient: string;
-    const request: WebRgbBurnAssetArgs = {
+    try {
+      burnDestination = normalizeBurnDestination(args.burnDestination);
+      if (!isBurnRoute(burnDestination, this.destinationRoutes!))
+        throw new Error('Unsupported payout route');
+      recipient = burnDestinationReason(burnDestination);
+    } catch (error) {
+      throw new WebRgbError('INVALID_PARAMS', (error as Error).message);
+    }
+    const request = {
       network: args.network,
       assetId: args.assetId,
       amount: args.amount,
-      burnRecipient: { ...args.burnRecipient },
+      burnDestination,
       feeRate: args.feeRate ?? 2,
       minConfirmations: Math.max(3, args.minConfirmations ?? 3),
     };
     try {
-      request.burnRecipient = normalizeBurnRecipient(request.burnRecipient);
-      if (this.destinationRoutes) {
-        const expected = createBurnDestination(
-          request.burnRecipient,
-          this.destinationRoutes
-        );
-        if (args.burnDestination !== undefined) {
-          const supplied = validateBurnDestination(
-            args.burnDestination,
-            request.burnRecipient
-          );
-          if (supplied.dstEid !== expected.dstEid)
-            throw new Error(
-              'Burn destination route does not match wallet configuration'
-            );
-        }
-        request.burnDestination = expected;
-        recipient = burnDestinationHash(expected).slice(2);
-      } else {
-        if (args.burnDestination !== undefined)
-          throw new Error('V1 burn destinations are not configured');
-        recipient = encodeBurnRecipient(request.burnRecipient);
-      }
-      validateBurnParams({
-        ...request,
-        burnRecipient: recipient,
-        feeRate: request.feeRate!,
-        minConfirmations: request.minConfirmations!,
-      });
+      validateBurnParams({ ...request, burnRecipient: recipient });
     } catch (error) {
       throw new WebRgbError('INVALID_PARAMS', (error as Error).message);
     }
@@ -245,16 +225,13 @@ export class WebRgbBurnController {
         assetId: request.assetId,
         amount: request.amount,
         burnRecipient: recipient,
-        feeRate: request.feeRate!,
-        minConfirmations: request.minConfirmations!,
+        feeRate: request.feeRate,
+        minConfirmations: request.minConfirmations,
       },
       {
         origin: this.host.origin,
         network: request.network,
-        payout: request.burnRecipient,
-        ...(request.burnDestination && {
-          burnDestination: request.burnDestination,
-        }),
+        burnDestination: request.burnDestination,
       },
       () => this.requireEnabled()
     );
@@ -263,12 +240,9 @@ export class WebRgbBurnController {
       txid: record.result!.txid,
       assetId: request.assetId,
       amount: request.amount,
-      burnRecipient: request.burnRecipient,
-      ...(request.burnDestination && {
-        burnDestination: request.burnDestination,
-      }),
+      burnDestination: { ...request.burnDestination },
       status: 'WaitingConfirmations',
-      minConfirmations: request.minConfirmations!,
+      minConfirmations: request.minConfirmations,
     };
   }
   async getTransferStatus(
@@ -312,10 +286,7 @@ export class WebRgbBurnController {
         amount: Number.isSafeInteger(Number(record.params.amount))
           ? Number(record.params.amount)
           : undefined,
-        burnRecipient: record.metadata.payout,
-        ...(record.metadata.burnDestination && {
-          burnDestination: record.metadata.burnDestination,
-        }),
+        burnDestination: { ...record.metadata.burnDestination },
         txid: record.result.txid,
         batchTransferIdx: record.result.batchTransferIdx,
         status: transfer?.status ?? 'WaitingConfirmations',

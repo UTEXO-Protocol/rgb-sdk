@@ -79,7 +79,10 @@ function fixture(options = {}) {
   };
   const provider = new WebRgbProvider(wallet, {
     origin: 'https://mint.example',
-    burn: { operations: new BurnOperations(wallet, store) },
+    burn: {
+      operations: new BurnOperations(wallet, store),
+      destinationRoutes: [{ chainId: 'eip155:42161', dstEid: 0 }],
+    },
     confirm: async (request) => {
       prompts.push(request);
       return true;
@@ -293,6 +296,18 @@ for (const [method, args] of [
   });
 }
 
+test('a receive naming an unknown asset rejects before the prompt', async () => {
+  const { provider, calls, prompts } = fixture({ sessionApproved: true });
+  await assert.rejects(provider.blindReceive({ assetId: 'rgb:unknown' }), {
+    code: 'ASSET_NOT_FOUND',
+  });
+  assert.equal(prompts.length, 0);
+  assert.equal(calls.length, 0);
+  await provider.blindReceive({ assetId: 'rgb:a' });
+  assert.equal(prompts.length, 1);
+  assert.equal(calls[0].assetId, 'rgb:a');
+});
+
 test('WalletConnect forwards witnessReceive and signMessage and recovers after lost authorization', async () => {
   const { provider, calls, prompts } = fixture({ sessionApproved: true });
   const methods = ['enable', 'getInfo', 'witnessReceive', 'signMessage'];
@@ -300,6 +315,7 @@ test('WalletConnect forwards witnessReceive and signMessage and recovers after l
     topic: 'test-session',
     expiry: Math.floor(Date.now() / 1000) + 3600,
     sessionProperties: { webrgb: 'webrgb:1' },
+    peer: { metadata: { url: 'https://wallet.example' } },
     namespaces: {
       rgb: {
         accounts: ['rgb:utexo:test-wallet'],
@@ -310,6 +326,7 @@ test('WalletConnect forwards witnessReceive and signMessage and recovers after l
   };
   const requests = [];
   const client = Object.assign(new EventEmitter(), {
+    core: { relayer: new EventEmitter() },
     session: { get: () => session },
     request: async ({ topic, chainId, request }) => {
       assert.equal(topic, session.topic);
@@ -341,11 +358,15 @@ test('WalletConnect forwards witnessReceive and signMessage and recovers after l
       ['witnessReceive', 'signMessage']
     );
     provider.revoke();
-    await assert.rejects(remote.getInfo(), { code: 'NOT_ENABLED' });
+    // An invoice request is never replayed after the wallet loses authorization.
+    await assert.rejects(remote.witnessReceive({ amount: 5 }), {
+      code: 'NOT_ENABLED',
+    });
     assert.equal(remote.enabled, false);
-    await remote.enable();
-    assert.equal(remote.enabled, true);
+    assert.equal(calls.length, 2);
+    // A read recovers through exactly one new enable handshake.
     assert.deepEqual((await remote.getInfo()).methods, methods);
+    assert.equal(remote.enabled, true);
     assert.equal(
       requests.filter((request) => request.method === 'rgb_enable').length,
       2
@@ -387,8 +408,13 @@ test('burn methods are regular provider methods, listed only when native burn wo
   const { provider, wallet } = fixture({ sessionApproved: true });
   assert.deepEqual(WEBRGB_METHODS, [
     ...WEBRGB_READ_METHODS,
+    'createUtxos',
+    'getBtcBalance',
+    'refresh',
+    'getAssetMetadata',
     'burnAsset',
     'getConsignment',
+    'getReceivedMint',
   ]);
   for (const method of WEBRGB_METHODS)
     assert.equal(typeof provider[method], 'function', method);

@@ -3,22 +3,20 @@ import { bytesToHex, randomBytes } from '@noble/hashes/utils.js';
 import type { BurnParams, BurnResult } from '@utexo/rgb-sdk-core';
 import { UTEXOWalletError } from '../errors.js';
 import { validateBurnParams } from '@utexo/rgb-sdk-core';
-import { encodeBurnRecipient } from './recipient.js';
+import type { RgbBurnDestination } from '@utexo/webrgb';
 import {
-  burnDestinationHash,
-  validateBurnDestination,
-  type BurnDestination,
+  burnDestinationReason,
+  normalizeBurnDestination,
 } from './burn-destination.js';
 
 /** Wallet-owned context, retained across transport sessions and app restarts. */
 export interface BurnOperationMetadata {
   origin: string;
   network: string;
-  payout: { chainId: string; address: string };
-  burnDestination?: BurnDestination;
+  /** The approved destination (SPEC §4.1); `params.burnRecipient` is its commitment. */
+  burnDestination: RgbBurnDestination;
 }
 export interface BurnOperationRecord {
-  version: 2;
   id: string;
   params: BurnParams;
   metadata: BurnOperationMetadata;
@@ -28,70 +26,36 @@ export interface BurnOperationRecord {
   error?: string;
 }
 export interface BurnOperationStore {
-  /** May return v1 records; normalizeBurnRecord preserves their internal IDs. */
   readAll(): Promise<unknown[]>;
   /** Resolve only after the record is durably saved. Upsert by id. */
   write(record: BurnOperationRecord): Promise<void>;
 }
 
+/**
+ * Validates a stored record: its destination as SPEC §4.1 defines it, and its
+ * native `burn_reason` as that destination's commitment. Anything else,
+ * including a record in an earlier SDK format, fails closed.
+ */
 export function normalizeBurnRecord(value: unknown): BurnOperationRecord {
-  if (!value || typeof value !== 'object')
-    throw new Error('Invalid burn journal record');
-  const raw = value as Record<string, any>;
-  let record: BurnOperationRecord;
-  if (raw.version === 2) {
-    record = raw as BurnOperationRecord;
-  } else {
-    const request = raw.request;
-    if (!request || !/^0x[0-9a-fA-F]{40}$/.test(request.burnRecipient?.address))
-      throw new Error('Invalid legacy burn journal record');
-    record = {
-      version: 2,
-      id: request.requestId,
-      params: {
-        assetId: request.assetId,
-        amount: request.amount,
-        burnRecipient: request.burnRecipient.address
-          .slice(2)
-          .toLowerCase()
-          .padStart(64, '0'),
-        feeRate: request.feeRate ?? 2,
-        minConfirmations: request.minConfirmations ?? 3,
-      },
-      metadata: {
-        origin: raw.origin,
-        network: request.network,
-        payout: request.burnRecipient,
-      },
-      state: raw.state,
-      result: raw.result && {
-        txid: raw.result.txid,
-        batchTransferIdx: raw.result.batchTransferIdx,
-      },
-    };
-  }
-  validateBurnParams(record.params);
+  const record = value as BurnOperationRecord | null;
   if (
+    !record ||
+    typeof record !== 'object' ||
     !record.id ||
     typeof record.id !== 'string' ||
     (record.error !== undefined && typeof record.error !== 'string') ||
     !['prepared', 'pending', 'complete', 'cancelled'].includes(record.state) ||
     typeof record.metadata?.origin !== 'string' ||
-    typeof record.metadata.network !== 'string' ||
-    typeof record.metadata.payout?.chainId !== 'string'
+    typeof record.metadata.network !== 'string'
   )
     throw new Error('Invalid burn journal record');
-  const committedRecipient =
-    record.metadata.burnDestination === undefined
-      ? encodeBurnRecipient(record.metadata.payout)
-      : burnDestinationHash(
-          validateBurnDestination(
-            record.metadata.burnDestination,
-            record.metadata.payout
-          )
-        ).slice(2);
-  if (committedRecipient !== record.params.burnRecipient?.toLowerCase())
-    throw new Error('Burn journal recipient does not match payout metadata');
+  validateBurnParams(record.params);
+  if (
+    burnDestinationReason(
+      normalizeBurnDestination(record.metadata.burnDestination)
+    ) !== record.params.burnRecipient?.toLowerCase()
+  )
+    throw new Error('Burn journal recipient does not match its destination');
   if (record.state === 'complete') validateResult(record.result);
   return record;
 }
@@ -174,12 +138,10 @@ export class BurnOperations {
   ): Promise<BurnOperationRecord> {
     // Copy before entering the queue: caller mutations cannot change approved data.
     const request = { ...params };
-    const context = {
-      ...metadata,
-      payout: { ...metadata.payout },
-      ...(metadata.burnDestination && {
-        burnDestination: { ...metadata.burnDestination },
-      }),
+    const context: BurnOperationMetadata = {
+      origin: metadata.origin,
+      network: metadata.network,
+      burnDestination: { ...metadata.burnDestination },
     };
     return this.exclusive(async () => {
       validateBurnParams(request);
@@ -200,7 +162,6 @@ export class BurnOperations {
         );
       assertAuthorized();
       let record: BurnOperationRecord = {
-        version: 2,
         id: bytesToHex(randomBytes(16)),
         params: request,
         metadata: context,

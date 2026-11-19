@@ -1,15 +1,21 @@
 import type {
+  AssetMetadataApi,
   BurnApi,
   ConsignmentApi,
+  ReceivedMintApi,
   SharedWalletApi,
   WalletProtocol,
 } from '@utexo/rgb-sdk-core';
 
 /**
  * What WebRGB reads from a wallet: a `UTEXOWallet` or an engine.
+ * `getReceivedMint` is optional: without it, `getInfo()` does not list it.
  * `getConsignment` is optional: without it (e.g. `RgbLibWeb`), `getInfo()`
  * lists neither `burnAsset` nor `getConsignment`, and both reject with
  * `METHOD_NOT_SUPPORTED`, since a WebRGB burn always shares its proof.
+ * `createUtxos`, `getBtcBalance`, `refresh` and `getAssetMetadata` are listed
+ * only when the wallet has the matching method; `listUnspents` adds the count
+ * of free colorable UTXOs to `getBtcBalance`.
  */
 export type WebRgbWallet = Pick<
   SharedWalletApi<unknown>,
@@ -29,7 +35,15 @@ export type WebRgbWallet = Pick<
   readonly protocol?: WalletProtocol;
   signMessage?: (message: string) => Promise<string>;
 } & BurnApi &
-  Partial<Pick<ConsignmentApi, 'getConsignment'>>;
+  Partial<
+    Pick<
+      SharedWalletApi<unknown>,
+      'createUtxos' | 'getBtcBalance' | 'listUnspents' | 'refresh'
+    >
+  > &
+  Partial<Pick<ConsignmentApi, 'getConsignment'>> &
+  Partial<ReceivedMintApi> &
+  Partial<AssetMetadataApi>;
 
 /** @deprecated Every `WebRgbWallet` has `burn()` now; use `WebRgbWallet`. */
 export type WebRgbBurnWallet = WebRgbWallet;

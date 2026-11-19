@@ -44,7 +44,10 @@ test('WebRGB over an RGB_L1 facade advertises only verified capabilities', async
         return true;
       },
     }),
-    burn: { operations: new BurnOperations(wallet, memoryStore()) },
+    burn: {
+      operations: new BurnOperations(wallet, memoryStore()),
+      destinationRoutes: [{ chainId: 'eip155:42161', dstEid: 0 }],
+    },
   });
   const info = await provider.getInfo();
   assert.equal(info.protocol, 'RGB_L1');
@@ -53,7 +56,8 @@ test('WebRGB over an RGB_L1 facade advertises only verified capabilities', async
   assert.ok(info.methods.includes('burnAsset'));
   assert.ok(info.methods.includes('getConsignment'));
   assert.deepEqual(info.burnRecipientNamespaces, ['eip155', 'tron']);
-  assert.equal(info.burnDestinationVersion, undefined);
+  assert.equal('burnDestinationVersion' in info, false);
+  assert.equal('burnDestinationRoutes' in info, false);
   await assert.rejects(provider.signMessage('test'), {
     code: 'METHOD_NOT_SUPPORTED',
   });

@@ -2,6 +2,7 @@ export {
   WebRgbProvider,
   WEBRGB_METHODS,
   WEBRGB_READ_METHODS,
+  WEBRGB_WALLET_METHODS,
 } from './provider.js';
 export type { WebRgbOptions, WebRgbApproval, WebRgbInfo } from './provider.js';
 export type {
@@ -10,20 +11,18 @@ export type {
   WebRgbBurnAssetResult,
 } from './burn.js';
 export {
-  createBurnDestination,
   burnDestinationHash,
+  burnDestinationReason,
+  burnDestinationPreimage,
+  normalizeBurnDestination,
+  normalizeBurnRoutes,
+  isBurnRoute,
 } from './burn-destination.js';
 export type {
-  BurnDestination,
   BurnDestinationRoute,
+  BurnDestinationPreimage,
 } from './burn-destination.js';
 export { WebRgbError } from './errors.js';
-export {
-  encodeEvmBurnRecipient,
-  encodeTronBurnRecipient,
-  encodeBurnRecipient,
-  normalizeBurnRecipient,
-} from './recipient.js';
 export { BurnOperations, normalizeBurnRecord } from './burn-operations.js';
 export type {
   BurnOperationMetadata,

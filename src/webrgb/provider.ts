@@ -10,15 +10,19 @@ import type {
   RgbWitnessReceiveResult,
   RgbSignMessageResult,
   RgbGetConsignmentArgs,
+  RgbGetReceivedMintArgs,
+  RgbReceivedMint,
+  RgbBurnAssetArgs,
+  RgbCreateUtxosArgs,
+  RgbCreateUtxosResult,
+  RgbBtcBalance,
+  RgbBtcBalanceSide,
+  RgbAssetMetadata,
 } from '@utexo/webrgb';
 import { WebRgbError, walletCall } from './errors.js';
-import {
-  WebRgbBurnController,
-  type WebRgbBurnOptions,
-  type WebRgbBurnAssetArgs,
-} from './burn.js';
-import type { BurnDestinationRoute } from './burn-destination.js';
+import { WebRgbBurnController, type WebRgbBurnOptions } from './burn.js';
 import type { WebRgbWallet } from './wallet.js';
+import { getReceivedMint, receivedMintInvoice } from './received-mint.js';
 
 export const WEBRGB_READ_METHODS = [
   'enable',
@@ -32,12 +36,26 @@ export const WEBRGB_READ_METHODS = [
   'getTransferStatus',
   'decodeRgbInvoice',
 ] as const;
-/** Every method the provider serves: the read methods plus burn and proof export. */
+/** Optional methods, listed only when the wallet has the native method. */
+export const WEBRGB_WALLET_METHODS = [
+  'createUtxos',
+  'getBtcBalance',
+  'refresh',
+  'getAssetMetadata',
+] as const;
+/** Every method the provider serves: the read methods, the optional wallet methods, burn, proof export and mint validation. */
 export const WEBRGB_METHODS = [
   ...WEBRGB_READ_METHODS,
+  ...WEBRGB_WALLET_METHODS,
   'burnAsset',
   'getConsignment',
+  'getReceivedMint',
 ] as const;
+const U64_MAX = 18446744073709551615n;
+/** rgb-lib defaults, resolved here so the prompt and result show the values used. */
+const UTXO_NUM = 5;
+const UTXO_SIZE = 1000;
+const FEE_RATE = 2;
 type SupportedProvider = Pick<
   RgbProvider,
   (typeof WEBRGB_METHODS)[number] | 'enabled' | 'signMessage'
@@ -50,6 +68,7 @@ export interface WebRgbApproval {
     | 'blindReceive'
     | 'witnessReceive'
     | 'signMessage'
+    | 'createUtxos'
     | 'burnAsset'
     | 'getConsignment';
   params: Readonly<Record<string, unknown>>;
@@ -66,10 +85,8 @@ export interface WebRgbOptions {
   /** The wallet's shared burn operation service and payout routes. */
   burn: WebRgbBurnOptions;
 }
-export type WebRgbInfo = RgbInfo & {
-  burnDestinationVersion?: 1;
-  burnDestinationRoutes?: BurnDestinationRoute[];
-};
+/** @deprecated Use `RgbInfo`: payout routes are no longer advertised. */
+export type WebRgbInfo = RgbInfo;
 function integer(
   value: unknown,
   name: string,
@@ -194,13 +211,30 @@ export class WebRgbProvider implements SupportedProvider {
       throw new WebRgbError('NOT_ENABLED', 'Connect the wallet first');
   }
 
-  async burnAsset(args: WebRgbBurnAssetArgs) {
+  async burnAsset(args: RgbBurnAssetArgs) {
     this.requireEnabled();
     return walletCall(() => this.burnController.burnAsset(args));
   }
   async getConsignment(args: RgbGetConsignmentArgs) {
     this.requireEnabled();
     return walletCall(() => this.burnController.getConsignment(args));
+  }
+
+  /**
+   * The checked BFA mint paying an invoice this wallet created, or `null`
+   * while none is ready. No prompt; refreshes incoming transfers only.
+   */
+  async getReceivedMint(
+    args: RgbGetReceivedMintArgs
+  ): Promise<RgbReceivedMint | null> {
+    this.requireEnabled();
+    const invoice = receivedMintInvoice(args);
+    const revision = this.revision;
+    return getReceivedMint(this.wallet, invoice, () => {
+      this.requireEnabled();
+      if (revision !== this.revision)
+        throw new WebRgbError('NOT_ENABLED', 'Session changed');
+    });
   }
 
   async getInfo(): Promise<WebRgbInfo> {
@@ -212,14 +246,17 @@ export class WebRgbProvider implements SupportedProvider {
       protocol: this.wallet.protocol ?? 'RGB_LN',
       ...(burnMethods.includes('burnAsset') && {
         burnRecipientNamespaces: ['eip155', 'tron'],
-        ...this.burnController.destinationCapabilities(),
       }),
       methods: [
         ...WEBRGB_READ_METHODS,
+        ...WEBRGB_WALLET_METHODS.filter(
+          (method) => typeof this.wallet[method] === 'function'
+        ),
         ...(this.wallet.protocol !== 'RGB_L1' && this.wallet.signMessage
           ? ['signMessage']
           : []),
         ...burnMethods,
+        ...(this.wallet.getReceivedMint ? ['getReceivedMint' as const] : []),
       ],
     };
   }
@@ -292,6 +329,17 @@ export class WebRgbProvider implements SupportedProvider {
         integer(raw.minConfirmations ?? this.floor, 'minConfirmations', 0, 255)
       ),
     };
+    // Checked before the prompt: a dApp falling back to an any-asset invoice
+    // must not make the user approve twice.
+    if (
+      params.assetId !== undefined &&
+      !(await this.listAssets()).some((asset) => asset.id === params.assetId)
+    ) {
+      throw new WebRgbError(
+        'ASSET_NOT_FOUND',
+        'This wallet does not know the asset'
+      );
+    }
     const revision = this.revision;
     if (
       !(await this.options.confirm({
@@ -311,6 +359,152 @@ export class WebRgbProvider implements SupportedProvider {
       recipientId: result.recipientId,
       expirationTimestamp: result.expirationTimestamp ?? undefined,
       minConfirmations: params.minConfirmations,
+    };
+  }
+  async createUtxos(
+    args: RgbCreateUtxosArgs = {}
+  ): Promise<RgbCreateUtxosResult> {
+    this.requireEnabled();
+    const create = this.wallet.createUtxos?.bind(this.wallet);
+    if (!create)
+      throw new WebRgbError(
+        'METHOD_NOT_SUPPORTED',
+        'This wallet cannot create UTXOs'
+      );
+    const raw = object(args);
+    const extra = Object.keys(raw).find(
+      (key) => !['num', 'size', 'feeRate'].includes(key)
+    );
+    if (extra)
+      throw new WebRgbError(
+        'INVALID_PARAMS',
+        `Unsupported parameter: ${extra}`
+      );
+    const params = {
+      num: integer(raw.num ?? UTXO_NUM, 'num', 1, 255),
+      size: integer(raw.size ?? UTXO_SIZE, 'size', 1, 0xffffffff),
+      feeRate: integer(raw.feeRate ?? FEE_RATE, 'feeRate'),
+    };
+    const revision = this.revision;
+    if (
+      !(await this.options.confirm({
+        origin: this.options.origin,
+        method: 'createUtxos',
+        params: Object.freeze({ ...params }),
+      }))
+    )
+      throw new WebRgbError('USER_REJECTED', 'UTXO creation declined');
+    this.requireEnabled();
+    if (revision !== this.revision)
+      throw new WebRgbError('NOT_ENABLED', 'Session changed');
+    // Spends bitcoin: one attempt, never retried here.
+    const created = await walletCall(() => create({ ...params, upTo: false }));
+    return { created, size: params.size, feeRate: params.feeRate };
+  }
+  async getBtcBalance(): Promise<RgbBtcBalance> {
+    this.requireEnabled();
+    const read = this.wallet.getBtcBalance?.bind(this.wallet);
+    if (!read)
+      throw new WebRgbError(
+        'METHOD_NOT_SUPPORTED',
+        'This wallet cannot report its bitcoin balance'
+      );
+    const balance = await walletCall(() => read());
+    const side = (value: RgbBtcBalanceSide): RgbBtcBalanceSide => {
+      const result = {
+        settled: value?.settled,
+        future: value?.future,
+        spendable: value?.spendable,
+      };
+      if (
+        !Object.values(result).every(
+          (sats) => Number.isSafeInteger(sats) && sats >= 0
+        )
+      )
+        throw new WebRgbError('INTERNAL_ERROR', 'Invalid bitcoin balance');
+      return result;
+    };
+    let freeColorableUtxos: number | null = null;
+    if (this.wallet.listUnspents) {
+      // The local state the balance read just synced; only a count leaves here.
+      const unspents = await walletCall(() =>
+        this.wallet.listUnspents!({ skipSync: true })
+      );
+      freeColorableUtxos = unspents.filter(
+        (unspent) =>
+          unspent.utxo.colorable &&
+          unspent.utxo.exists &&
+          unspent.rgbAllocations.length === 0 &&
+          unspent.pendingBlinded === 0
+      ).length;
+    }
+    return {
+      vanilla: side(balance.vanilla),
+      colored: side(balance.colored),
+      freeColorableUtxos,
+    };
+  }
+  async refresh(assetId?: string): Promise<{ refreshed: boolean }> {
+    this.requireEnabled();
+    const run = this.wallet.refresh?.bind(this.wallet);
+    if (!run)
+      throw new WebRgbError(
+        'METHOD_NOT_SUPPORTED',
+        'This wallet cannot refresh transfers'
+      );
+    optionalAsset(assetId);
+    const { transfers } = await walletCall(() => run());
+    // Refresh reports a failed transfer in its result, not as an error.
+    let scope: Set<number> | undefined;
+    if (assetId !== undefined) {
+      const history = await walletCall(() =>
+        this.wallet.listTransfers(assetId)
+      );
+      scope = new Set(history.map((transfer) => transfer.batchTransferIdx));
+    }
+    let refreshed = false;
+    for (const [idx, transfer] of Object.entries(transfers)) {
+      if (scope && !scope.has(Number(idx))) continue;
+      if (transfer.failure)
+        throw new WebRgbError(
+          'INTERNAL_ERROR',
+          `Transfer ${idx} failed to refresh: ${transfer.failure.name}: ${transfer.failure.message}`
+        );
+      if (transfer.updatedStatus !== undefined) refreshed = true;
+    }
+    return { refreshed };
+  }
+  async getAssetMetadata(assetId: string): Promise<RgbAssetMetadata> {
+    this.requireEnabled();
+    const read = this.wallet.getAssetMetadata?.bind(this.wallet);
+    if (!read)
+      throw new WebRgbError(
+        'METHOD_NOT_SUPPORTED',
+        'This wallet cannot read asset metadata'
+      );
+    if (!optionalAsset(assetId))
+      throw new WebRgbError('INVALID_PARAMS', 'assetId is required');
+    const metadata = await walletCall(() => read(assetId));
+    const supply = metadata.initialSupply;
+    if (
+      typeof supply !== 'string' ||
+      !/^(0|[1-9][0-9]{0,19})$/.test(supply) ||
+      BigInt(supply) > U64_MAX ||
+      !Number.isSafeInteger(metadata.timestamp) ||
+      !Number.isSafeInteger(metadata.precision)
+    )
+      throw new WebRgbError('INTERNAL_ERROR', 'Invalid asset metadata');
+    return {
+      assetId,
+      schema: metadata.assetSchema.toLowerCase() as RgbAssetMetadata['schema'],
+      ticker: metadata.ticker ?? null,
+      name: metadata.name,
+      details: metadata.details ?? null,
+      precision: metadata.precision,
+      issuedSupply: supply,
+      timestamp: metadata.timestamp,
+      // The engines expose no public media digest: never a local path.
+      media: null,
     };
   }
   async listAssets() {

@@ -12,6 +12,25 @@ export class WebRgbError extends Error {
   }
 }
 
+/**
+ * rgb-lib's `InsufficientAllocationSlots` ("Insufficient allocations"): no
+ * output can take another allocation. Both engines report it as
+ * `INSUFFICIENT_FUNDS` and keep the native error as the cause.
+ */
+function noAllocationSlot(error: unknown): boolean {
+  const failure = error as {
+    code?: unknown;
+    message?: unknown;
+    cause?: { code?: unknown; message?: unknown };
+  } | null;
+  return (
+    failure?.code === 'INSUFFICIENT_FUNDS' &&
+    (failure.cause?.code === 'RGB_LIB_InsufficientAllocationSlots' ||
+      failure.message === 'Insufficient allocations' ||
+      failure.cause?.message === 'Insufficient allocations')
+  );
+}
+
 /** Native errors are implementation details; expose only the WebRGB contract. */
 export async function walletCall<T>(action: () => Promise<T>): Promise<T> {
   try {
@@ -42,6 +61,12 @@ export async function walletCall<T>(action: () => Promise<T>): Promise<T> {
       code === 'FEE_RATE_UNSUPPORTED'
     )
       mapped = 'INVALID_PARAMS';
+    else if (
+      code === 'NoAvailableUtxos' ||
+      code === 'NO_AVAILABLE_UTXOS' ||
+      noAllocationSlot(error)
+    )
+      mapped = 'NO_AVAILABLE_UTXOS';
     else if (
       code === 'METHOD_NOT_SUPPORTED' ||
       code === 'UnsupportedInExternalSignerMode' ||
