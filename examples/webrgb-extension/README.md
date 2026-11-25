@@ -33,11 +33,15 @@ complete extension: you add the vault (`readMnemonic`), the approval page
 
 ## Burn over this engine
 
-`RgbLibWeb` burns (`wallet.burn()`), but `@utexo/rgb-lib-wasm` 1.0.0-beta.4
-has no consignment export. A WebRGB burn always shares its proof, so this
-wallet's `getInfo().methods` lists neither `burnAsset` nor `getConsignment`,
-and both reject with `METHOD_NOT_SUPPORTED`. They appear once the runtime
-exports consignments; no code here changes.
+`RgbLibWeb` burns (`wallet.burn()`) and, from 1.0.0-beta.15
+(`@utexo/rgb-lib-wasm` 1.0.0-beta.5), exports the burn consignment. A WebRGB
+burn always shares its proof, so over an earlier `RgbLibWeb` this wallet's
+`getInfo().methods` lists neither `burnAsset` nor `getConsignment`, and both
+reject with `METHOD_NOT_SUPPORTED`. No code here changes between the two.
+
+Events (`on`/`off`) are served by `WebRgbProvider` in the service worker but
+not carried to the page in this sketch, so `inpage.ts` removes them from
+`getInfo().methods`; dApps poll `getTransferStatus()`.
 
 A burn names one `burnDestination: { version: 1, chainId, address, dstEid }`. The wallet
 checks it against `BURN_ROUTES` in `background.ts`, the pairs your bridge

@@ -1,5 +1,6 @@
 import type {
   AssetMetadataApi,
+  IPsbtSigning,
   BurnApi,
   ConsignmentApi,
   ReceivedMintApi,
@@ -15,7 +16,9 @@ import type {
  * `METHOD_NOT_SUPPORTED`, since a WebRGB burn always shares its proof.
  * `createUtxos`, `getBtcBalance`, `refresh` and `getAssetMetadata` are listed
  * only when the wallet has the matching method; `listUnspents` adds the count
- * of free colorable UTXOs to `getBtcBalance`.
+ * of free colorable UTXOs to `getBtcBalance`. `cancelReceive` is listed
+ * only with `failTransfers`, and `signPsbt` only with `psbt` and
+ * `listUnspents`, which it needs to refuse inputs holding RGB assets.
  */
 export type WebRgbWallet = Pick<
   SharedWalletApi<unknown>,
@@ -38,10 +41,15 @@ export type WebRgbWallet = Pick<
   Partial<
     Pick<
       SharedWalletApi<unknown>,
-      'createUtxos' | 'getBtcBalance' | 'listUnspents' | 'refresh'
+      | 'createUtxos'
+      | 'getBtcBalance'
+      | 'listUnspents'
+      | 'refresh'
+      | 'failTransfers'
     >
-  > &
-  Partial<Pick<ConsignmentApi, 'getConsignment'>> &
+  > & {
+    readonly psbt?: IPsbtSigning;
+  } & Partial<Pick<ConsignmentApi, 'getConsignment'>> &
   Partial<ReceivedMintApi> &
   Partial<AssetMetadataApi>;
 

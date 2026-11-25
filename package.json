@@ -49,7 +49,7 @@
   ],
   "peerDependencies": {
     "@utexo/rgb-sdk-core": "^1.0.0-beta.11",
-    "@utexo/webrgb": "^0.1.7"
+    "@utexo/webrgb": "^0.2.0"
   },
   "peerDependenciesMeta": {
     "@utexo/webrgb": {
@@ -67,9 +67,9 @@
     "@typescript-eslint/eslint-plugin": "^8.0.0",
     "@typescript-eslint/parser": "^8.0.0",
     "@utexo/rgb-sdk-core": "1.0.0-beta.11",
-    "@utexo/rgb-sdk-web": "1.0.0-beta.14",
-    "@utexo/webrgb": "0.1.7",
-    "@utexo/webrgb-walletconnect": "0.1.7",
+    "@utexo/rgb-sdk-web": "^1.0.0-beta.15",
+    "@utexo/webrgb": "0.2.0",
+    "@utexo/webrgb-walletconnect": "0.2.0",
     "eslint": "^9.35.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-prettier": "^5.5.4",

@@ -16,16 +16,14 @@ The package has no React Native, Node or browser imports. It runs wherever its e
 
 ## Installation
 
-Not released yet. Once it is:
-
 ```bash
-npm install @utexo/rgb-sdk @utexo/rgb-sdk-core@1.0.0-beta.10
+npm install @utexo/rgb-sdk @utexo/rgb-sdk-core@1.0.0-beta.11
 
 # React Native
-npm install @utexo/rgb-sdk-rn@1.0.0-beta.41
+npm install @utexo/rgb-sdk-rn@1.0.0-beta.43
 
 # Browser
-npm install @utexo/rgb-sdk-web@1.0.0-beta.13
+npm install @utexo/rgb-sdk-web@1.0.0-beta.15
 ```
 
 ## Quick start
@@ -178,9 +176,14 @@ const provider = new WebRgbProvider(wallet, {
 - `confirm` is called before every action that needs the user's approval; return `true` to allow it.
 - `sessionApproved: true` restores a connection the user approved earlier; `revoke()` ends it when the user disconnects the site.
 - `store` implements `BurnOperationStore`: `readAll()` and `write(record)`, which resolves only after the record is saved. Use storage that survives a restart.
-- `getInfo().methods` lists the methods this wallet can serve. `burnAsset` and `getConsignment` are listed only when the engine can burn and export consignments: a WebRGB burn always shares its proof. `RgbLibWeb` burns but has no consignment export yet, so over it they are not listed and reject with `METHOD_NOT_SUPPORTED`. `burnAsset` also needs `destinationRoutes`.
+- `getInfo().methods` lists the methods this wallet can serve. `burnAsset` and `getConsignment` are listed only when the engine can burn and export consignments: a WebRGB burn always shares its proof. `RgbLibWeb` exports consignments from 1.0.0-beta.15 (`@utexo/rgb-lib-wasm` 1.0.0-beta.5); over earlier versions they are not listed and reject with `METHOD_NOT_SUPPORTED`. `burnAsset` also needs `destinationRoutes`.
 - `burnAsset` takes one `burnDestination: { version: 1, chainId, address, dstEid }` with a native address. `version: 1` selects the `UtexoBurnDestinationV1` commitment; a missing or other version rejects with `INVALID_PARAMS` before the prompt. The wallet accepts only an exact `chainId` and `dstEid` pair from `destinationRoutes`, validates the address, amount, fee rate and confirmations, and only then asks the user. It passes the SPEC §4.1 commitment to the engine as `burn_reason` (64 hex characters without `0x`; `burnDestinationReason()`), and the result carries the same `burnDestination`. A request with `burnRecipient` or any other extra field rejects with `INVALID_PARAMS`; there is no address-only fallback. Routes are not advertised in `getInfo()`. The journal stores only this format: a record whose `burnRecipient` is not the commitment of its `burnDestination`, or a record in an earlier SDK format, is not read, and the journal fails closed.
-- `createUtxos`, `getBtcBalance`, `refresh` and `getAssetMetadata` are listed when the engine has the method. `createUtxos` asks the user and shows the count, size and fee rate it will use; it never retries. `getBtcBalance` returns totals and a count of free colorable UTXOs, never outpoints. `refresh(assetId?)` rejects when a transfer in its scope failed to refresh. `getAssetMetadata` returns `issuedSupply`, the initial supply, as an exact decimal string.
+- The provider implements WebRGB 0.2 (`@utexo/webrgb` `^0.2.0`): every `RgbProvider` method is defined, and one the wallet cannot serve is left out of `getInfo().methods` and rejects with `METHOD_NOT_SUPPORTED`. `issueAsset`, `sendAsset`, `makeLnInvoice` and `payLnInvoice` always do.
+- `createUtxos`, `getBtcBalance`, `refresh` and `getAssetMetadata` are listed when the engine has the method. `createUtxos` asks the user and shows the count, size and fee rate it will use; it never retries, and without enough bitcoin it rejects with `INTERNAL_ERROR` and a message saying so. `feeRate` in `createUtxos` and `burnAsset` may be any positive sat/vB; it is rounded up to whole sat/vB, and the prompt and result show the rounded rate. `getBtcBalance` returns totals and a count of free colorable UTXOs, never outpoints. `refresh(assetId?)` rejects when a transfer in its scope failed to refresh. `getAssetMetadata` returns `issuedSupply`, the initial supply, as an exact decimal string.
+- `cancelReceive(recipientId)` is listed when the engine has `failTransfers()`. It cancels only a receive this wallet created that still waits for the sender, after asking the user; an unknown, moving or finished receive resolves `{ cancelled: false }` with no prompt.
+- `signPsbt(psbt)` is listed when the engine has `psbt` signing and `listUnspents()` (`RgbLibWeb` and `RgbLibRn` with keys). It signs first, which changes nothing in the wallet, to learn which inputs are the wallet's. A PSBT with none rejects with `INVALID_PARAMS`, and one whose signed input holds an RGB allocation, settled or pending, rejects with `UNSAFE_PSBT`; both happen before the prompt. The prompt shows the outputs (address, script, amount), the fee when every input carries `witness_utxo`, and the input indexes. rgb-lib finalizes every input it fully signs, so the returned PSBT is finalized even with `finalize: false`.
+- `on('transferReceived' | 'transferSettled', listener)` reads the local transfer list every `eventPollMs` (default 10 s) while a listener is attached and the session is enabled. `transferReceived` fires when a receive leaves `WaitingCounterparty`, `transferSettled` when a transfer reaches `Settled`. `revoke()` drops the listeners.
+- `signMessage('')` rejects with `INVALID_PARAMS`.
 - A receive with no free allocation slot rejects with `NO_AVAILABLE_UTXOS`: offer `createUtxos` or `witnessReceive`.
 - A receive naming an asset the wallet does not know rejects with `ASSET_NOT_FOUND` before the prompt: request an any-asset invoice to receive it for the first time.
 - `getReceivedMint({ invoice })` is listed when the engine has `getReceivedMint()`. It does not prompt. It accepts only an invoice this wallet created (the stored invoice must match exactly), refreshes incoming transfers only, and returns the checked mint with the asset and network, or `null` while none is ready. The invoice may omit the asset when the engine reads `assetId` from the consignment it checked, as `RgbLibRn` does; otherwise a mint for an any-asset invoice rejects with `INVALID_PARAMS`. A dApp must compare `assetId` with the asset it selected before paying. `txid` is added once the wallet links the receive to its witness transaction, which can be only after the lock is paid; `lockId` already commits to it. A refresh failure of this receive rejects. A failed or expired receive, a foreign invoice and an invalid result reject. The engine needs the chain's `evmRpcUrls` entry to check a mint.

@@ -52,6 +52,7 @@ const notServed = (method: string) => () =>
 
 let enabled = false;
 const enable = forward('enable');
+const getInfo = forward('getInfo');
 const provider: RgbProvider = {
   get enabled() {
     return enabled;
@@ -60,11 +61,25 @@ const provider: RgbProvider = {
     await enable();
     enabled = true;
   },
-  getInfo: forward('getInfo'),
+  // Events stay in the service worker in this sketch, so the page does not
+  // advertise them; dApps poll getTransferStatus() instead.
+  getInfo: async () => {
+    const info = await getInfo();
+    return {
+      ...info,
+      methods: info.methods.filter((m) => m !== 'on' && m !== 'off'),
+    };
+  },
   getAddress: forward('getAddress'),
   signMessage: forward('signMessage'),
   blindReceive: forward('blindReceive'),
   witnessReceive: forward('witnessReceive'),
+  createUtxos: forward('createUtxos'),
+  cancelReceive: forward('cancelReceive'),
+  getBtcBalance: forward('getBtcBalance'),
+  refresh: forward('refresh'),
+  getAssetMetadata: forward('getAssetMetadata'),
+  signPsbt: forward('signPsbt'),
   listAssets: forward('listAssets'),
   getAssetBalance: forward('getAssetBalance'),
   listTransfers: forward('listTransfers'),
@@ -72,11 +87,11 @@ const provider: RgbProvider = {
   decodeRgbInvoice: forward('decodeRgbInvoice'),
   burnAsset: forward('burnAsset'),
   getConsignment: forward('getConsignment'),
+  getReceivedMint: forward('getReceivedMint'),
   issueAsset: notServed('issueAsset'),
   sendAsset: notServed('sendAsset'),
   makeLnInvoice: notServed('makeLnInvoice'),
   payLnInvoice: notServed('payLnInvoice'),
-  // This provider sends no events; dApps poll getTransferStatus().
   on: () => undefined,
   off: () => undefined,
 };

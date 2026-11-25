@@ -60,6 +60,7 @@ import {
 } from '@utexo/rgb-sdk-core';
 import type { BurnOperations } from './burn-operations.js';
 import { WebRgbError } from './errors.js';
+import { feeRateOf } from './fee-rate.js';
 import type { WebRgbWallet } from './wallet.js';
 import {
   burnDestinationReason,
@@ -161,11 +162,13 @@ export class WebRgbBurnController {
         'INVALID_PARAMS',
         'amount must be a canonical positive u64 decimal string'
       );
-    if (
-      args.feeRate !== undefined &&
-      (!Number.isSafeInteger(args.feeRate) || args.feeRate < 1)
-    )
+    // Rounded up to whole sat/vB, as rgb-lib takes it.
+    let feeRate = 2;
+    try {
+      if (args.feeRate !== undefined) feeRate = feeRateOf(args.feeRate);
+    } catch {
       throw new WebRgbError('INVALID_PARAMS', 'Invalid fee rate');
+    }
     if (
       args.minConfirmations !== undefined &&
       (!Number.isInteger(args.minConfirmations) ||
@@ -188,7 +191,7 @@ export class WebRgbBurnController {
       assetId: args.assetId,
       amount: args.amount,
       burnDestination,
-      feeRate: args.feeRate ?? 2,
+      feeRate,
       minConfirmations: Math.max(3, args.minConfirmations ?? 3),
     };
     try {

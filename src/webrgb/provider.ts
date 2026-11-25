@@ -18,11 +18,22 @@ import type {
   RgbBtcBalance,
   RgbBtcBalanceSide,
   RgbAssetMetadata,
+  RgbSignPsbtOptions,
+  RgbSignPsbtResult,
+  RgbIssueAssetResult,
+  RgbSendAssetResult,
+  RgbMakeLnInvoiceResult,
+  RgbPayLnInvoiceResult,
+  RgbEvent,
+  RgbTransfer,
 } from '@utexo/webrgb';
 import { WebRgbError, walletCall } from './errors.js';
 import { WebRgbBurnController, type WebRgbBurnOptions } from './burn.js';
 import type { WebRgbWallet } from './wallet.js';
 import { getReceivedMint, receivedMintInvoice } from './received-mint.js';
+import { changedInputs, parsePsbt, psbtFee } from './psbt.js';
+import { feeRateOf } from './fee-rate.js';
+import { TransferEvents } from './events.js';
 
 export const WEBRGB_READ_METHODS = [
   'enable',
@@ -35,6 +46,8 @@ export const WEBRGB_READ_METHODS = [
   'listTransfers',
   'getTransferStatus',
   'decodeRgbInvoice',
+  'on',
+  'off',
 ] as const;
 /** Optional methods, listed only when the wallet has the native method. */
 export const WEBRGB_WALLET_METHODS = [
@@ -42,8 +55,15 @@ export const WEBRGB_WALLET_METHODS = [
   'getBtcBalance',
   'refresh',
   'getAssetMetadata',
+  'cancelReceive',
+  'signPsbt',
 ] as const;
-/** Every method the provider serves: the read methods, the optional wallet methods, burn, proof export and mint validation. */
+/**
+ * Every method the provider serves: the read methods, the optional wallet
+ * methods, burn, proof export and mint validation. The provider also defines
+ * `issueAsset`, `sendAsset`, `makeLnInvoice` and `payLnInvoice`, which
+ * always reject with `METHOD_NOT_SUPPORTED`.
+ */
 export const WEBRGB_METHODS = [
   ...WEBRGB_READ_METHODS,
   ...WEBRGB_WALLET_METHODS,
@@ -56,10 +76,8 @@ const U64_MAX = 18446744073709551615n;
 const UTXO_NUM = 5;
 const UTXO_SIZE = 1000;
 const FEE_RATE = 2;
-type SupportedProvider = Pick<
-  RgbProvider,
-  (typeof WEBRGB_METHODS)[number] | 'enabled' | 'signMessage'
->;
+/** Recipient IDs are printable ASCII: blinded UTXOs or witness scripts. */
+const RECIPIENT_ID = /^[\x21-\x7e]{1,512}$/;
 
 export interface WebRgbApproval {
   origin: string;
@@ -70,7 +88,9 @@ export interface WebRgbApproval {
     | 'signMessage'
     | 'createUtxos'
     | 'burnAsset'
-    | 'getConsignment';
+    | 'getConsignment'
+    | 'cancelReceive'
+    | 'signPsbt';
   params: Readonly<Record<string, unknown>>;
 }
 export interface WebRgbOptions {
@@ -82,6 +102,8 @@ export interface WebRgbOptions {
   /** Recheck transport authorization after async prompts and before native calls. */
   assertAuthorized?: () => void;
   minConfirmations?: number;
+  /** How often `on()` listeners are served from the transfer list. Default 10 s. */
+  eventPollMs?: number;
   /** The wallet's shared burn operation service and payout routes. */
   burn: WebRgbBurnOptions;
 }
@@ -106,6 +128,12 @@ function integer(
   }
   return value;
 }
+function unsupported(method: string): never {
+  throw new WebRgbError(
+    'METHOD_NOT_SUPPORTED',
+    `This wallet does not serve ${method}`
+  );
+}
 function optionalAsset(value: unknown): string | undefined {
   if (value === undefined) return undefined;
   if (
@@ -129,12 +157,13 @@ function object(value: unknown): Record<string, unknown> {
  * No React Native or WalletConnect runtime dependency. getInfo() lists burn
  * methods only while the native build and signer can serve them.
  */
-export class WebRgbProvider implements SupportedProvider {
+export class WebRgbProvider implements RgbProvider {
   private authorized: boolean;
   private revision = 0;
   private enabling?: Promise<void>;
   private readonly floor: number;
   private readonly burnController: WebRgbBurnController;
+  private readonly events: TransferEvents;
 
   constructor(
     private readonly wallet: WebRgbWallet,
@@ -163,6 +192,11 @@ export class WebRgbProvider implements SupportedProvider {
       },
       options.burn
     );
+    this.events = new TransferEvents(
+      () => this.listTransfers(),
+      () => this.enabled,
+      integer(options.eventPollMs ?? 10_000, 'eventPollMs', 100)
+    );
     this.floor = Math.max(
       3,
       integer(options.minConfirmations ?? 3, 'minConfirmations', 0, 255)
@@ -176,6 +210,7 @@ export class WebRgbProvider implements SupportedProvider {
   revoke(): void {
     this.authorized = false;
     this.burnController.revoke();
+    this.events.clear();
     this.revision += 1;
   }
 
@@ -203,6 +238,18 @@ export class WebRgbProvider implements SupportedProvider {
     } finally {
       this.enabling = undefined;
     }
+  }
+
+  /** Whether the wallet has what an optional method needs. */
+  private serves(method: (typeof WEBRGB_WALLET_METHODS)[number]): boolean {
+    if (method === 'cancelReceive')
+      return typeof this.wallet.failTransfers === 'function';
+    if (method === 'signPsbt')
+      return (
+        typeof this.wallet.psbt?.signPsbt === 'function' &&
+        typeof this.wallet.listUnspents === 'function'
+      );
+    return typeof this.wallet[method] === 'function';
   }
 
   private requireEnabled(): void {
@@ -249,9 +296,7 @@ export class WebRgbProvider implements SupportedProvider {
       }),
       methods: [
         ...WEBRGB_READ_METHODS,
-        ...WEBRGB_WALLET_METHODS.filter(
-          (method) => typeof this.wallet[method] === 'function'
-        ),
+        ...WEBRGB_WALLET_METHODS.filter((method) => this.serves(method)),
         ...(this.wallet.protocol !== 'RGB_L1' && this.wallet.signMessage
           ? ['signMessage']
           : []),
@@ -276,10 +321,14 @@ export class WebRgbProvider implements SupportedProvider {
         'This wallet does not support message signing'
       );
     }
-    if (typeof message !== 'string' || /[\uD800-\uDFFF]/u.test(message))
+    if (
+      typeof message !== 'string' ||
+      message === '' ||
+      /[\uD800-\uDFFF]/u.test(message)
+    )
       throw new WebRgbError(
         'INVALID_PARAMS',
-        'Expected a well-formed Unicode message string'
+        'Expected a non-empty, well-formed Unicode message string'
       );
     const revision = this.revision;
     if (
@@ -383,7 +432,7 @@ export class WebRgbProvider implements SupportedProvider {
     const params = {
       num: integer(raw.num ?? UTXO_NUM, 'num', 1, 255),
       size: integer(raw.size ?? UTXO_SIZE, 'size', 1, 0xffffffff),
-      feeRate: integer(raw.feeRate ?? FEE_RATE, 'feeRate'),
+      feeRate: feeRateOf(raw.feeRate ?? FEE_RATE),
     };
     const revision = this.revision;
     if (
@@ -398,7 +447,10 @@ export class WebRgbProvider implements SupportedProvider {
     if (revision !== this.revision)
       throw new WebRgbError('NOT_ENABLED', 'Session changed');
     // Spends bitcoin: one attempt, never retried here.
-    const created = await walletCall(() => create({ ...params, upTo: false }));
+    const created = await walletCall(
+      () => create({ ...params, upTo: false }),
+      'Not enough bitcoin to create the UTXOs'
+    );
     return { created, size: params.size, feeRate: params.feeRate };
   }
   async getBtcBalance(): Promise<RgbBtcBalance> {
@@ -507,6 +559,152 @@ export class WebRgbProvider implements SupportedProvider {
       media: null,
     };
   }
+  /**
+   * Fails a receive this wallet created while it still waits for the sender.
+   * Unknown or already moving receives resolve `{ cancelled: false }` with no
+   * prompt.
+   */
+  async cancelReceive(recipientId: string): Promise<{ cancelled: boolean }> {
+    this.requireEnabled();
+    const fail = this.wallet.failTransfers?.bind(this.wallet);
+    if (!fail) unsupported('cancelReceive');
+    if (typeof recipientId !== 'string' || !RECIPIENT_ID.test(recipientId))
+      throw new WebRgbError('INVALID_PARAMS', 'Invalid recipientId');
+    const pending = async () =>
+      (await walletCall(() => this.wallet.listTransfers())).find(
+        (transfer) =>
+          transfer.recipientId === recipientId &&
+          (transfer.kind === 'ReceiveBlind' ||
+            transfer.kind === 'ReceiveWitness') &&
+          transfer.status === 'WaitingCounterparty'
+      );
+    const transfer = await pending();
+    if (!transfer) return { cancelled: false };
+    const revision = this.revision;
+    if (
+      !(await this.options.confirm({
+        origin: this.options.origin,
+        method: 'cancelReceive',
+        params: Object.freeze({
+          recipientId,
+          kind: transfer.kind,
+          amount: transfer.amount ?? null,
+        }),
+      }))
+    )
+      throw new WebRgbError('USER_REJECTED', 'Cancelling the receive declined');
+    this.requireEnabled();
+    if (revision !== this.revision)
+      throw new WebRgbError('NOT_ENABLED', 'Session changed');
+    // The sender may have answered while the prompt was open.
+    const current = await pending();
+    if (current?.batchTransferIdx !== transfer.batchTransferIdx)
+      return { cancelled: false };
+    const cancelled = await walletCall(() =>
+      fail({ batchTransferIdx: transfer.batchTransferIdx, noAssetOnly: false })
+    );
+    return { cancelled: cancelled === true };
+  }
+
+  /**
+   * Signs the bitcoin-only inputs this wallet controls. The PSBT is signed
+   * first, which changes nothing in the wallet, to learn which inputs are
+   * the wallet's; one holding an RGB allocation refuses the request before
+   * the prompt. rgb-lib finalizes every input it signs fully, so the result
+   * is finalized whatever `finalize` says.
+   */
+  async signPsbt(
+    psbt: string,
+    opts: RgbSignPsbtOptions = {}
+  ): Promise<RgbSignPsbtResult> {
+    this.requireEnabled();
+    const signer = this.wallet.psbt;
+    const unspents = this.wallet.listUnspents?.bind(this.wallet);
+    if (!signer || !unspents) unsupported('signPsbt');
+    const options = object(opts);
+    const extra = Object.keys(options).find((key) => key !== 'finalize');
+    if (extra)
+      throw new WebRgbError('INVALID_PARAMS', `Unsupported option: ${extra}`);
+    if (options.finalize !== undefined && typeof options.finalize !== 'boolean')
+      throw new WebRgbError('INVALID_PARAMS', 'finalize must be a boolean');
+    if (typeof psbt !== 'string' || psbt.length > 4_000_000)
+      throw new WebRgbError('INVALID_PARAMS', 'Expected a base64 PSBT');
+    const network = this.wallet.getNetwork();
+    const before = parsePsbt(psbt, network);
+    const signed = await walletCall(() => signer.signPsbt(psbt));
+    const after = parsePsbt(signed, network);
+    const inputs = changedInputs(before, after);
+    if (inputs.length === 0)
+      throw new WebRgbError(
+        'INVALID_PARAMS',
+        'The PSBT has no input this wallet controls'
+      );
+    const owned = await walletCall(() => unspents({ skipSync: true }));
+    const colored = inputs.find((i) => {
+      const { txid, vout } = before.inputs[i]!;
+      return owned.some(
+        (unspent) =>
+          unspent.utxo.outpoint.txid === txid &&
+          unspent.utxo.outpoint.vout === vout &&
+          (unspent.rgbAllocations.length > 0 || unspent.pendingBlinded > 0)
+      );
+    });
+    if (colored !== undefined)
+      throw new WebRgbError(
+        'UNSAFE_PSBT',
+        `Input ${colored} holds RGB assets, which a plain PSBT would destroy`
+      );
+    const revision = this.revision;
+    if (
+      !(await this.options.confirm({
+        origin: this.options.origin,
+        method: 'signPsbt',
+        params: Object.freeze({
+          outputs: Object.freeze(
+            before.outputs.map((output) => Object.freeze({ ...output }))
+          ),
+          fee: psbtFee(before),
+          signedInputs: Object.freeze(inputs),
+          finalize: options.finalize === true,
+        }),
+      }))
+    )
+      throw new WebRgbError('USER_REJECTED', 'Signing declined');
+    this.requireEnabled();
+    if (revision !== this.revision)
+      throw new WebRgbError('NOT_ENABLED', 'Session changed');
+    return { psbt: signed, signedInputs: inputs.length };
+  }
+
+  async issueAsset(): Promise<RgbIssueAssetResult> {
+    this.requireEnabled();
+    return unsupported('issueAsset');
+  }
+  async sendAsset(): Promise<RgbSendAssetResult> {
+    this.requireEnabled();
+    return unsupported('sendAsset');
+  }
+  async makeLnInvoice(): Promise<RgbMakeLnInvoiceResult> {
+    this.requireEnabled();
+    return unsupported('makeLnInvoice');
+  }
+  async payLnInvoice(): Promise<RgbPayLnInvoiceResult> {
+    this.requireEnabled();
+    return unsupported('payLnInvoice');
+  }
+  /**
+   * `transferReceived` fires when a receive leaves `WaitingCounterparty`,
+   * `transferSettled` when a transfer reaches `Settled`. Served from the
+   * local transfer list while a listener is attached; no prompt.
+   */
+  on(event: RgbEvent, listener: (transfer: RgbTransfer) => void): void {
+    this.requireEnabled();
+    this.events.on(event, listener);
+  }
+  off(event: RgbEvent, listener: (transfer: RgbTransfer) => void): void {
+    this.events.off(event, listener);
+  }
+
   async listAssets() {
     this.requireEnabled();
     const assets = await walletCall(() => this.wallet.listAssets());
