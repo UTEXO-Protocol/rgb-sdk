@@ -21,6 +21,8 @@ export const PAGE_METHODS = [
   'getBtcBalance',
   'refresh',
   'getAssetMetadata',
+  'cancelReceive',
+  'signPsbt',
   'listAssets',
   'getAssetBalance',
   'listTransfers',
@@ -28,6 +30,7 @@ export const PAGE_METHODS = [
   'decodeRgbInvoice',
   'burnAsset',
   'getConsignment',
+  'getReceivedMint',
 ] as const;
 export type PageMethod = (typeof PAGE_METHODS)[number];
 

@@ -412,6 +412,8 @@ test('burn methods are regular provider methods, listed only when native burn wo
     'getBtcBalance',
     'refresh',
     'getAssetMetadata',
+    'cancelReceive',
+    'signPsbt',
     'burnAsset',
     'getConsignment',
     'getReceivedMint',

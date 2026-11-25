@@ -157,7 +157,10 @@ test('createUtxos rejects bad parameters before the prompt and a declined prompt
     { size: 0 },
     { size: 2 ** 32 },
     { feeRate: 0 },
-    { feeRate: 1.5 },
+    { feeRate: -1 },
+    { feeRate: Number.NaN },
+    { feeRate: Infinity },
+    { feeRate: '2' },
     { upTo: true },
     [],
   ]) {
@@ -185,7 +188,10 @@ test('a native failure of createUtxos rejects once without a retry', async () =>
       });
     },
   });
-  await assert.rejects(provider.createUtxos(), { code: 'INTERNAL_ERROR' });
+  await assert.rejects(provider.createUtxos(), {
+    code: 'INTERNAL_ERROR',
+    message: /^Not enough bitcoin to create the UTXOs/,
+  });
   assert.equal(attempts, 1);
 });
 

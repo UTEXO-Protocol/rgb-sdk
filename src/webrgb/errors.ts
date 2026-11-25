@@ -31,12 +31,37 @@ function noAllocationSlot(error: unknown): boolean {
   );
 }
 
-/** Native errors are implementation details; expose only the WebRGB contract. */
-export async function walletCall<T>(action: () => Promise<T>): Promise<T> {
+/** The wallet lacks the bitcoin a spend needs (rgb-lib `InsufficientBitcoins`). */
+function noBitcoin(error: unknown): boolean {
+  const code = (error as { code?: unknown } | null)?.code;
+  return (
+    (code === 'INSUFFICIENT_FUNDS' || code === 'InsufficientBitcoins') &&
+    !noAllocationSlot(error)
+  );
+}
+
+/**
+ * Native errors are implementation details; expose only the WebRGB contract.
+ * `shortfall` replaces the message when the wallet lacks bitcoin, for
+ * methods whose contract asks the message to say so.
+ */
+export async function walletCall<T>(
+  action: () => Promise<T>,
+  shortfall?: string
+): Promise<T> {
   try {
     return await action();
   } catch (error) {
     if (isProviderError(error)) throw error;
+    if (shortfall && noBitcoin(error)) {
+      const detail = (error as { message?: unknown }).message;
+      throw new WebRgbError(
+        'INTERNAL_ERROR',
+        typeof detail === 'string' && detail
+          ? `${shortfall}: ${detail}`
+          : shortfall
+      );
+    }
     const native = error as {
       code?: string | { type?: string };
       message?: string;

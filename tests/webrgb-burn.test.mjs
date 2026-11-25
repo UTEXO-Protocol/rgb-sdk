@@ -136,7 +136,7 @@ test('u64 burn precision and the destination commitment never use JS numbers', a
     });
     assert.equal(f.prompts.length, 0);
   }
-  for (const feeRate of [0, 1.5, '2']) {
+  for (const feeRate of [0, -1, Number.NaN, Infinity, '2']) {
     const f = fixture();
     await assert.rejects(f.controller().burnAsset({ ...args(), feeRate }), {
       code: 'INVALID_PARAMS',
