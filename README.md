@@ -23,7 +23,7 @@ npm install @utexo/rgb-sdk @utexo/rgb-sdk-core@1.0.0-beta.11
 npm install @utexo/rgb-sdk-rn@1.0.0-beta.43
 
 # Browser
-npm install @utexo/rgb-sdk-web@1.0.0-beta.15
+npm install @utexo/rgb-sdk-web@1.0.0-beta.16
 ```
 
 ## Quick start
@@ -91,7 +91,8 @@ Optional methods, present on the facade only when the engine has them:
 | Methods                                                     | `RgbLibRn` | `RgbLibWeb`                |
 | ----------------------------------------------------------- | ---------- | -------------------------- |
 | `burn()`, `getBfaCapabilities()`                            | yes        | yes                        |
-| `getConsignment()`, `getConsignmentPath()`                  | yes        | no (not in the WASM build) |
+| `getConsignment()`                                          | yes        | yes                        |
+| `getConsignmentPath()`                                      | yes        | no                         |
 | `getReceivedMint()`                                         | yes        | yes                        |
 | `exportBackup()`                                            | yes        | yes                        |
 | `restoreBackup()`                                           | no         | yes                        |
@@ -99,9 +100,11 @@ Optional methods, present on the facade only when the engine has them:
 | `backupToVss()`, `restoreFromVss()`, `getVssBackupInfo()`   | no         | yes                        |
 | `shutdown()`, `reinit()`                                    | yes        | no                         |
 | `drainTo()`, `deleteTransfers()`                            | yes        | no                         |
-| `issueAssetCfa()`, `issueAssetUda()`, `getAssetMetadata()`  | yes        | no                         |
+| `issueAssetCfa()`, `issueAssetUda()`                        | yes        | no                         |
+| `getAssetMetadata()`                                        | yes        | yes                        |
 | `listTransfersByTxid()`, `listTransactionsByTxid()`         | yes        | no                         |
-| `checkIndexerUrl()`, `rotateVanillaAddress()`, `goOnline()` | yes        | `goOnline()` only          |
+| `checkIndexerUrl()`, `goOnline()`                           | yes        | yes                        |
+| `rotateVanillaAddress()`                                    | yes        | no                         |
 
 On React Native a backup restores with `restoreBackupFromFile()` from `@utexo/rgb-sdk-rn`, before the wallet is created.
 
@@ -186,7 +189,7 @@ const provider = new WebRgbProvider(wallet, {
 - `signMessage('')` rejects with `INVALID_PARAMS`.
 - A receive with no free allocation slot rejects with `NO_AVAILABLE_UTXOS`: offer `createUtxos` or `witnessReceive`.
 - A receive naming an asset the wallet does not know rejects with `ASSET_NOT_FOUND` before the prompt: request an any-asset invoice to receive it for the first time.
-- `getReceivedMint({ invoice })` is listed when the engine has `getReceivedMint()`. It does not prompt. It accepts only an invoice this wallet created (the stored invoice must match exactly), refreshes incoming transfers only, and returns the checked mint with the asset and network, or `null` while none is ready. The invoice may omit the asset when the engine reads `assetId` from the consignment it checked, as `RgbLibRn` does; otherwise a mint for an any-asset invoice rejects with `INVALID_PARAMS`. A dApp must compare `assetId` with the asset it selected before paying. `txid` is added once the wallet links the receive to its witness transaction, which can be only after the lock is paid; `lockId` already commits to it. A refresh failure of this receive rejects. A failed or expired receive, a foreign invoice and an invalid result reject. The engine needs the chain's `evmRpcUrls` entry to check a mint.
+- `getReceivedMint({ invoice })` is listed when the engine has `getReceivedMint()`. It does not prompt. It accepts only an invoice this wallet created (the stored invoice must match exactly), refreshes incoming transfers only, and returns the checked mint with the asset and network, or `null` while none is ready. The invoice may omit the asset when the engine reads `assetId` from the consignment it checked, as `RgbLibRn` and `RgbLibWeb` (from 1.0.0-beta.16) do; otherwise a mint for an any-asset invoice rejects with `INVALID_PARAMS`. A dApp must compare `assetId` with the asset it selected before paying. `txid` is added once the wallet links the receive to its witness transaction, which can be only after the lock is paid; `lockId` already commits to it. A refresh failure of this receive rejects. A failed or expired receive, a foreign invoice and an invalid result reject. The engine needs the chain's `evmRpcUrls` entry to check a mint.
 - The app provides `crypto.getRandomValues` (used for burn operation IDs).
 
 A complete extension sketch (service worker, content script, page script, manifest) is in [`examples/webrgb-extension/`](examples/webrgb-extension/README.md).

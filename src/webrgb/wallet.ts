@@ -11,8 +11,8 @@ import type {
 /**
  * What WebRGB reads from a wallet: a `UTEXOWallet` or an engine.
  * `getReceivedMint` is optional: without it, `getInfo()` does not list it.
- * `getConsignment` is optional: without it (e.g. `RgbLibWeb`), `getInfo()`
- * lists neither `burnAsset` nor `getConsignment`, and both reject with
+ * `getConsignment` is optional: without it, `getInfo()` lists neither
+ * `burnAsset` nor `getConsignment`, and both reject with
  * `METHOD_NOT_SUPPORTED`, since a WebRGB burn always shares its proof.
  * `createUtxos`, `getBtcBalance`, `refresh` and `getAssetMetadata` are listed
  * only when the wallet has the matching method; `listUnspents` adds the count

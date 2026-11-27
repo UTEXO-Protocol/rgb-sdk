@@ -123,8 +123,8 @@ async function ownedReceive(
  * 1. Here: check the invoice network and that this wallet created the invoice.
  * 2. Engine, `getReceivedMint(recipientId, { refreshIncoming: true })`: refresh
  *    incoming transfers, reject a refresh failure of this receive and read the
- *    mint rgb-lib checked. `RgbLibRn` also reads `assetId` from the consignment
- *    and requires the mint's `opid` in it.
+ *    mint rgb-lib checked. An engine may also read `assetId` from the
+ *    consignment, which must hold the mint's `opid`.
  * 3. Here: read the receive again, reject a failed or expired one, and compare
  *    `assetId` with the invoice's asset.
  *
@@ -132,8 +132,7 @@ async function ownedReceive(
  * to its asset and witness transaction only once the lock is found. So
  * `assetId` comes from the checked consignment, not the history, and `txid` is
  * present only once the history has it (`lockId` already commits to it). An
- * engine that cannot read the asset, like `RgbLibWeb` today, serves only
- * invoices that name one.
+ * engine that returns no `assetId` serves only invoices that name one.
  */
 export async function getReceivedMint(
   wallet: WebRgbWallet,

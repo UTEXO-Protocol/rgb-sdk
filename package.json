@@ -67,7 +67,7 @@
     "@typescript-eslint/eslint-plugin": "^8.0.0",
     "@typescript-eslint/parser": "^8.0.0",
     "@utexo/rgb-sdk-core": "1.0.0-beta.11",
-    "@utexo/rgb-sdk-web": "^1.0.0-beta.15",
+    "@utexo/rgb-sdk-web": "^1.0.0-beta.16",
     "@utexo/webrgb": "0.2.0",
     "@utexo/webrgb-walletconnect": "0.2.0",
     "eslint": "^9.35.0",
